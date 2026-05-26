@@ -1,5 +1,6 @@
 import type { ProductProfile } from "@adsurf/types";
 import { apiBaseUrl, defaultWorkspaceId, localAuthHeaders, readApiData } from "@/lib/api/client";
+import type { Recommendation } from "@/lib/api/monitoring";
 
 export type ProductProfileCreate = {
   product_name: string;
@@ -14,6 +15,25 @@ export type ProductProfileCreate = {
 
 export function getDefaultWorkspaceId() {
   return defaultWorkspaceId;
+}
+
+export type DashboardSummary = {
+  products: ProductProfile[];
+  product_count: number;
+  upload_count: number;
+  upload_counts: Record<string, number>;
+  pending_recommendation_count: number;
+  recommendation_counts: Record<string, number>;
+  top_recommendations: Recommendation[];
+};
+
+export async function getDashboardSummary(workspaceId = defaultWorkspaceId, init?: Pick<RequestInit, "signal">): Promise<DashboardSummary> {
+  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/dashboard-summary`, {
+    headers: localAuthHeaders(workspaceId),
+    cache: "no-store",
+    signal: init?.signal,
+  });
+  return readApiData<DashboardSummary>(response, "Dashboard summary could not be loaded.");
 }
 
 export async function getProductProfiles(workspaceId = defaultWorkspaceId): Promise<ProductProfile[]> {

@@ -10,7 +10,8 @@ from apps.api.app.repositories.product_profiles import ProductProfileRepository,
 from apps.api.app.repositories.upload_parsing import UploadParsingRepository, get_upload_parsing_repository
 from apps.api.app.schemas.jobs import JobRecord, JobStatus
 from apps.api.app.schemas.monitoring import MonitoringImport, MonitoringImportStatus
-from apps.api.app.services.monitoring_rules import build_recommendations, build_stakeholder_ai_run, normalize_sp_search_term_rows
+from apps.api.app.services.monitoring_agents import build_failed_import_agent_run, build_monitoring_agent_runs
+from apps.api.app.services.monitoring_rules import build_recommendations, normalize_sp_search_term_rows
 
 
 @dataclass
@@ -60,8 +61,16 @@ class MonitoringWorker:
             recommendations = build_recommendations(product=product, import_record=import_record, snapshots=snapshots)
             self._monitoring_repository.insert_snapshots(snapshots=snapshots)
             self._monitoring_repository.insert_recommendations(recommendations=recommendations)
-            ai_run = build_stakeholder_ai_run(workspace_id=import_record.workspace_id, recommendations=recommendations, snapshots=snapshots)
-            self._monitoring_repository.insert_ai_run(ai_run=ai_run)
+            ai_runs = build_monitoring_agent_runs(
+                workspace_id=import_record.workspace_id,
+                product_id=import_record.product_id,
+                import_record=import_record,
+                recommendations=recommendations,
+                snapshots=snapshots,
+                warnings=warnings,
+            )
+            for ai_run in ai_runs:
+                self._monitoring_repository.insert_ai_run(ai_run=ai_run)
             date_range_start = min((snapshot.start_date for snapshot in snapshots if snapshot.start_date), default=None)
             date_range_end = max((snapshot.end_date for snapshot in snapshots if snapshot.end_date), default=None)
             import_record = self._monitoring_repository.update_import(
@@ -82,17 +91,30 @@ class MonitoringWorker:
                 action="monitoring_import.processed",
                 entity_type="monitoring_import",
                 entity_id=monitoring_import_id,
-                details={"snapshot_count": len(snapshots), "recommendation_count": len(recommendations), "ai_run_id": str(ai_run.id)},
+                details={"snapshot_count": len(snapshots), "recommendation_count": len(recommendations), "agent_run_ids": [str(run.id) for run in ai_runs]},
             )
             return MonitoringWorkerResult(job=job, import_record=import_record, processed=True)
         except Exception as exc:
             message = exc.message if isinstance(exc, ApiError) else "Monitoring import failed."
             if import_record is not None:
+                warnings = []
+                if isinstance(exc, ApiError):
+                    warnings = [{"code": exc.code, "message": exc.message, "details": exc.details}]
+                    failed_run = build_failed_import_agent_run(
+                        workspace_id=import_record.workspace_id,
+                        product_id=import_record.product_id,
+                        import_record=import_record,
+                        error_code=exc.code,
+                        message=exc.message,
+                        details=exc.details,
+                    )
+                    self._monitoring_repository.insert_ai_run(ai_run=failed_run)
                 self._monitoring_repository.update_import(
                     workspace_id=import_record.workspace_id,
                     monitoring_import_id=import_record.id,
                     status=MonitoringImportStatus.FAILED,
                     error_message=message,
+                    data_quality_warnings_json=warnings,
                 )
             self._job_repository.update_status(workspace_id=job.workspace_id, job_id=job.id, status=JobStatus.FAILED, last_error=message)
             return MonitoringWorkerResult(job=job, import_record=import_record, processed=True)

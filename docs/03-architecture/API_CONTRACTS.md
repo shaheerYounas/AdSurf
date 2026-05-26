@@ -225,14 +225,20 @@ Batch 10 monitoring and recommendation endpoints:
 
 | Method | Route | Purpose |
 | --- | --- | --- |
+| GET | `/v1/workspaces/{workspace_id}/dashboard-summary` | Single-request dashboard payload with product count/list, upload counts, pending recommendation count, and top recommendations. |
 | POST | `/v1/workspaces/{workspace_id}/products/{product_id}/monitoring-imports` | Create a monitoring import from a processed Sponsored Products Search Term report upload and enqueue rule evaluation. |
-| GET | `/v1/workspaces/{workspace_id}/products/{product_id}/monitoring` | Read monitoring import status, recommendation counts, top recommendations, and latest stakeholder agent summary. |
+| POST | `/v1/workspaces/{workspace_id}/products/{product_id}/monitoring/imports` | Alias for monitoring import creation. |
+| POST | `/v1/workspaces/{workspace_id}/monitoring/imports/{import_id}/run-analysis` | Requeue a queued or failed monitoring import analysis job. |
+| GET | `/v1/workspaces/{workspace_id}/products/{product_id}/monitoring` | Read monitoring import status, recommendation counts, top recommendations, and latest deterministic stakeholder summary. |
+| GET | `/v1/workspaces/{workspace_id}/products/{product_id}/monitoring/summary` | Alias for product monitoring summary. |
 | GET | `/v1/workspaces/{workspace_id}/recommendations` | List recommendation queue with optional product, status, and type filters. |
+| GET | `/v1/workspaces/{workspace_id}/products/{product_id}/recommendations` | List recommendations scoped to one product. |
 | GET | `/v1/workspaces/{workspace_id}/recommendations/{recommendation_id}` | Read one recommendation with evidence and explanation JSON. |
 | POST | `/v1/workspaces/{workspace_id}/recommendations/{recommendation_id}/approve` | Approve a recommendation for manual action/export later with a required note. |
 | POST | `/v1/workspaces/{workspace_id}/recommendations/{recommendation_id}/reject` | Reject a recommendation with a required note. |
+| GET | `/v1/workspaces/{workspace_id}/products/{product_id}/agent-runs` | List structured explanation and summary agent runs for a product. |
 
-Monitoring import creation requires `owner`, `admin`, or `analyst`, a processed upload, and a succeeded parse run. Recommendation reads use workspace read roles. Recommendation decisions require `owner`, `admin`, `analyst`, or `approver`. `viewer` cannot decide recommendations.
+Monitoring import creation requires `owner`, `admin`, or `analyst`, a processed upload with source type `amazon_ads_sp_search_term_report`, and a succeeded parse run. Recommendation reads use workspace read roles. Recommendation decisions require `owner`, `admin`, `analyst`, or `approver`. `viewer` cannot decide recommendations.
 
 Monitoring import request:
 
@@ -250,7 +256,7 @@ Recommendation decision request:
 }
 ```
 
-Recommendation records expose `recommendation_type`, `status`, `priority`, campaign/ad group/target/search-term identity, `rule_version`, `rule_name`, `input_metrics_json`, `proposed_action_json`, and `explanation_json`. List reads support `page` and `page_size` with a safe default page size of 250. Approval and rejection only update app state and audit history. They do not call Amazon Ads, change bids, pause entities, add negatives, or generate a bulk sheet by themselves.
+Recommendation records expose `recommendation_type`, `entity_type`, `status`, `priority`, `confidence`, campaign/ad group/target/search-term identity, `rule_version`, `rule_name`, `current_metric_snapshot_json`, `input_metrics_json`, `evidence_json`, `proposed_action_json`, and `explanation_json`. Recommendation types are `keep_running`, `increase_bid`, `decrease_bid`, `pause_review`, `add_negative_exact`, `add_negative_phrase`, `move_to_exact`, `watch_lock`, `data_quality_review`, and `budget_review`. List reads support `page` and `page_size` with a safe default page size of 250. Approval and rejection only update app state and audit history. They do not call Amazon Ads, change bids, pause entities, add negatives, or generate a bulk sheet by themselves.
 
 Local/test dev helper:
 
@@ -309,7 +315,7 @@ Local/test dev helper:
 | GET | `/v1/workspaces/{workspace_id}/exports/{export_id}` | Export status and signed download URL if allowed. |
 | GET | `/v1/workspaces/{workspace_id}/exports/{export_id}/download` | Download generated CSV export if allowed. |
 | POST | `/v1/workspaces/{workspace_id}/products/{product_id}/monitoring-imports` | Create monitoring import from processed SP Search Term report upload. |
-| GET | `/v1/workspaces/{workspace_id}/products/{product_id}/monitoring` | Monitoring import status, recommendation counts, top recommendations, and agent summary. |
+| GET | `/v1/workspaces/{workspace_id}/products/{product_id}/monitoring` | Monitoring import status, recommendation counts, top recommendations, and deterministic summary. |
 | GET | `/v1/workspaces/{workspace_id}/recommendations` | Recommendation approval queue. |
 | GET | `/v1/workspaces/{workspace_id}/recommendations/{recommendation_id}` | Recommendation evidence detail. |
 | POST | `/v1/workspaces/{workspace_id}/recommendations/{recommendation_id}/approve` | Approve recommendation. |

@@ -18,7 +18,7 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
     load();
   }, []);
 
-  const processedUploads = useMemo(() => uploads.filter((upload) => upload.status === "processed"), [uploads]);
+  const processedUploads = useMemo(() => uploads.filter((upload) => upload.status === "processed" && upload.source_type === "amazon_ads_sp_search_term_report"), [uploads]);
 
   async function load() {
     setMessage(null);
@@ -88,6 +88,7 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
       {summary?.agent_summary ? (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900">
           <p className="font-semibold">{summary.agent_summary.headline}</p>
+          {summary.agent_summary.dashboard_summary ? <p className="mt-1">{summary.agent_summary.dashboard_summary}</p> : null}
           <p className="mt-1">{summary.agent_summary.stakeholder_note}</p>
           <p className="mt-2 font-medium">{summary.agent_summary.next_step}</p>
         </div>
@@ -95,9 +96,16 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
 
       <div className="grid gap-4 md:grid-cols-4">
         <Metric label="Pending approval" value={summary?.recommendation_counts.pending_approval ?? 0} />
+        <Metric label="Keep running" value={summary?.recommendation_counts.keep_running ?? 0} />
         <Metric label="Increase bids" value={summary?.recommendation_counts.increase_bid ?? 0} />
         <Metric label="Decrease bids" value={summary?.recommendation_counts.decrease_bid ?? 0} />
         <Metric label="Pause reviews" value={summary?.recommendation_counts.pause_review ?? 0} />
+        <Metric label="Negative exact" value={summary?.recommendation_counts.add_negative_exact ?? 0} />
+        <Metric label="Negative phrase" value={summary?.recommendation_counts.add_negative_phrase ?? 0} />
+        <Metric label="Move to exact" value={summary?.recommendation_counts.move_to_exact ?? 0} />
+        <Metric label="Watch locks" value={summary?.recommendation_counts.watch_lock ?? 0} />
+        <Metric label="Data quality" value={summary?.recommendation_counts.data_quality_review ?? 0} />
+        <Metric label="Budget reviews" value={summary?.recommendation_counts.budget_review ?? 0} />
       </div>
 
       <div className="rounded-md border border-slate-200 bg-white">
@@ -146,6 +154,7 @@ function RecommendationPreview({ recommendations }: { recommendations: Monitorin
             <li className="px-5 py-4" key={recommendation.id}>
               <p className="font-medium text-slate-950">{recommendation.recommendation_type} / {recommendation.priority}</p>
               <p className="mt-1 text-sm text-slate-600">{recommendation.campaign_name} / {recommendation.ad_group_name} / {recommendation.customer_search_term}</p>
+              <p className="mt-1 text-sm text-slate-600">Rule {recommendation.rule_name}</p>
               <p className="mt-1 text-sm text-slate-700">{recommendation.explanation_json.summary}</p>
             </li>
           ))}

@@ -24,7 +24,7 @@ The app is designed around one operating rule: recommendations and exports requi
 | Mapping | Generate column profiles, map source columns, score keywords, review candidates, and create approved keyword sets. |
 | Campaign Plan | Generate and inspect campaign structures from approved keyword sets. |
 | Bulk Exports | Validate, approve, and download Amazon bulk sheet files. |
-| Recommendations | Review monitoring-driven, rule-backed optimization suggestions with agent explanations. |
+| Recommendations | Review monitoring-driven, rule-backed optimization suggestions with deterministic evidence. |
 | Approvals | Review pending and historical approval records. |
 | Settings | Manage workspace, team, and account configuration. |
 
@@ -57,8 +57,11 @@ Recommended upload files should include columns for search term or keyword, spen
 | Approve plan | A human confirms the plan before export. |
 | Generate bulk export | The app creates an Amazon bulk sheet for download. |
 | Import performance report | A processed Sponsored Products Search Term report becomes monitoring evidence. |
-| Generate recommendations | Deterministic rules create bid, pause-review, negative-keyword, and watch-lock recommendations. |
+| Generate recommendations | Deterministic rules create keep-running, bid, pause-review, negative-keyword, move-to-exact, watch-lock, and data-quality recommendations. |
 | Decide recommendations | A human approves or rejects each recommendation with a note. |
+
+## Dashboard Loading
+The dashboard uses a single workspace summary request for product counts, upload status, and pending recommendations. While the request is in flight, skeleton cards and loading icons show that the app is working. If the dashboard feels slow, check API health, Supabase latency, and whether database migrations with dashboard performance indexes have been applied.
 
 ## Create A Product
 1. Open `Products`.
@@ -205,11 +208,16 @@ Monitoring is designed for post-launch review. The current implementation suppor
 
 Recommendations may include:
 
+- Keep running.
 - Increase bid.
 - Decrease bid.
 - Pause review.
-- Negative keyword review.
+- Add negative exact.
+- Add negative phrase.
+- Move to exact.
 - Watch lock.
+- Data quality review.
+- Budget review.
 
 Recommendations require approval before any customer-impacting action or export is produced.
 
@@ -223,9 +231,9 @@ Recommendations require approval before any customer-impacting action or export 
 7. Create the monitoring import.
 8. Run the local monitoring worker in development or wait for the monitoring worker in deployed environments.
 
-The app validates required columns such as Campaign Name, Ad Group Name, Targeting, Customer Search Term, Impressions, Clicks, Spend, Sales, ACOS, ROAS, Orders, Units, CTR, CPC, CVR, Start Date, and End Date. Missing required columns stop recommendation generation and produce data-quality warnings.
+The app validates required columns such as Campaign Name, Ad Group Name, Targeting, Customer Search Term, Impressions, Clicks, Spend, Sales, and Orders. Missing required columns stop recommendation generation. Optional metrics such as ACOS, ROAS, Units, CTR, CPC, CVR, Start Date, and End Date are normalized when present, and missing derived metrics are calculated from base metrics when possible.
 
-## Review Agent Recommendations
+## Review Rule Recommendations
 Open `Recommendations` to review the queue. Each row shows:
 
 - Priority.
@@ -234,10 +242,10 @@ Open `Recommendations` to review the queue. Each row shows:
 - Targeting or customer search term.
 - Metric evidence such as spend, clicks, sales, orders, ACOS, ROAS, CTR, and CVR.
 - Rule-backed proposed action.
-- Agent-generated explanation.
+- Deterministic rule explanation.
 - Current status.
 
-Use filters to focus by status or recommendation type. Approve or reject only after checking the evidence. A note is required, and the decision updates the app audit trail only. It does not execute a bid change, pause an ad, add a negative keyword, or call the Amazon Ads API.
+Use filters to focus by status, priority, or recommendation type. Approve or reject only after checking the evidence. Evidence includes normalized row metrics plus search-term, target, ad-group, campaign, and report rollups in `evidence_json`. A note is required, and the decision updates the app audit trail only. It does not execute a bid change, pause an ad, add a negative keyword, generate an export, or call the Amazon Ads API.
 
 ## Agent Council Boundary
 The agent council is the explanation layer for monitoring:
@@ -249,7 +257,7 @@ The agent council is the explanation layer for monitoring:
 - Pause Review Agent explains stop/pause-review candidates.
 - Stakeholder Reporting Agent writes dashboard-friendly summaries.
 
-Rules create recommendation records. Agents summarize and explain those records. Humans approve or reject them.
+Rules create recommendation records and final Phase 1 decisions. Any agent-style summary is deterministic and may not approve, reject, execute, mutate, or replace human review. Humans approve or reject recommendations.
 
 ## Approval Rules
 Approval records should clearly answer:
@@ -292,7 +300,7 @@ To use real Supabase Storage instead of fake local storage, configure a valid Su
 | Column profile is slow | Large remote database reads can take time. Wait, then reload and check whether the profile was saved. |
 | Scoring is unavailable | Confirm the upload is processed and a valid mapping snapshot is approved. |
 | Monitoring import cannot start | Confirm the report upload is processed and belongs to the selected product. |
-| Recommendations are empty | Confirm the monitoring worker ran and the report rows meet v1 rule thresholds. |
+| Recommendations are empty | Confirm the monitoring worker ran and the report upload source type is `amazon_ads_sp_search_term_report`. Phase 1 should create one pending recommendation per normalized report row. |
 | Approval is blocked | Confirm your role is owner, admin, analyst, or approver and your note is not blank. |
 | Campaign plan cannot export | Confirm the keyword set and campaign plan are approved. |
 | Export download is blocked | Confirm export validation passed and an explicit export approval exists. |

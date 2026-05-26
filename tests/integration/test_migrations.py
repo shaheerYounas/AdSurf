@@ -209,7 +209,6 @@ def test_monitoring_recommendation_migration_adds_agent_tables_and_rls() -> None
     assert "'increase_bid'" in sql
     assert "'decrease_bid'" in sql
     assert "'pause_review'" in sql
-    assert "'negative_keyword_review'" in sql
     assert "'watch_lock'" in sql
     assert "input_metrics_json jsonb not null" in sql
     assert "proposed_action_json jsonb not null" in sql
@@ -220,3 +219,47 @@ def test_monitoring_recommendation_migration_adds_agent_tables_and_rls() -> None
     assert "public.current_user_has_workspace_role(workspace_id, array['owner', 'admin', 'analyst', 'approver'])" in sql
     assert "to public" not in sql
     assert "disable row level security" not in sql
+
+
+def test_monitoring_phase_1_migration_adds_recommendation_types_and_evidence_json() -> None:
+    migration = Path("supabase/migrations/202605260001_monitoring_phase_1_recommendations.sql")
+
+    assert migration.exists()
+    sql = migration.read_text(encoding="utf-8")
+
+    for recommendation_type in [
+        "keep_running",
+        "add_negative_exact",
+        "add_negative_phrase",
+        "move_to_exact",
+        "data_quality_review",
+        "budget_review",
+    ]:
+        assert f"'{recommendation_type}'" in sql
+
+    assert "alter type recommendation_priority add value if not exists 'critical'" in sql
+    assert "alter type recommendation_status add value if not exists 'pending'" in sql
+    assert "add column if not exists entity_type text not null default 'search_term'" in sql
+    assert "add column if not exists confidence text not null default 'medium'" in sql
+    assert "add column if not exists current_metric_snapshot_json jsonb not null default '{}'::jsonb" in sql
+    assert "add column if not exists evidence_json jsonb not null default '{}'::jsonb" in sql
+    assert "alter table ai_runs" in sql
+    assert "add column if not exists product_id uuid" in sql
+    assert "Amazon Ads mutations" in sql
+
+
+def test_dashboard_performance_indexes_migration_exists() -> None:
+    migration = Path("supabase/migrations/202605260002_dashboard_performance_indexes.sql")
+
+    assert migration.exists()
+    sql = migration.read_text(encoding="utf-8")
+
+    for index in [
+        "product_profiles_workspace_created_desc_idx",
+        "uploads_workspace_created_desc_idx",
+        "uploads_workspace_status_created_desc_idx",
+        "recommendations_workspace_product_status_priority_created_idx",
+        "recommendations_workspace_priority_created_idx",
+        "ai_runs_workspace_product_agent_created_idx",
+    ]:
+        assert f"create index if not exists {index}" in sql

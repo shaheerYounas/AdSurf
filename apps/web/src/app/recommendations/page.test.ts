@@ -11,6 +11,11 @@ describe("recommendations page", () => {
     expect(workspaceSource).toContain("Reject");
     expect(workspaceSource).toContain("no Amazon Ads change is executed");
     expect(workspaceSource).toContain("Evidence");
-    expect(workspaceSource).toContain("Agent explanation");
+    expect(workspaceSource).toContain("Rule explanation");
+    expect(workspaceSource).toContain("add_negative_exact");
+    expect(workspaceSource).toContain("data_quality_review");
+    expect(workspaceSource).toContain("budget_review");
+    expect(workspaceSource).toContain("Does not change Amazon Ads account");
+    expect(workspaceSource).toContain("confidence");
   });
 });

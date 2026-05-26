@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LayoutDashboard, ListChecks, PackageSearch, PlusCircle } from "lucide-react";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -8,10 +9,10 @@ export const metadata: Metadata = {
 };
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/products", label: "Products" },
-  { href: "/products/new", label: "New product" },
-  { href: "/recommendations", label: "Recommendations" }
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/products", label: "Products", icon: PackageSearch },
+  { href: "/products/new", label: "New product", icon: PlusCircle },
+  { href: "/recommendations", label: "Recommendations", icon: ListChecks }
 ];
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -25,15 +26,19 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <h1 className="mt-2 text-xl font-semibold">Amazon Ads AI</h1>
             </div>
             <nav className="space-y-1">
-              {navItems.map((item) => (
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
                 <Link
-                  className="block rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  className="flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
                   href={item.href}
                   key={item.href}
                 >
+                  <Icon aria-hidden="true" size={16} />
                   {item.label}
                 </Link>
-              ))}
+                );
+              })}
             </nav>
           </aside>
           <main className="flex-1">

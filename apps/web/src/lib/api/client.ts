@@ -1,4 +1,4 @@
-export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 export const defaultWorkspaceId = process.env.NEXT_PUBLIC_LOCAL_WORKSPACE_ID ?? "00000000-0000-0000-0000-000000000001";
 export const localUserId = "00000000-0000-0000-0000-000000000001";
 

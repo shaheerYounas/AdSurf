@@ -18,16 +18,20 @@ export type Recommendation = {
   id: string;
   product_id: string;
   recommendation_type: string;
+  entity_type: string;
   status: string;
   priority: string;
+  confidence: string;
   rule_name: string;
   campaign_name: string;
   ad_group_name: string;
   targeting: string;
   customer_search_term: string;
   input_metrics_json: Record<string, string | number | null>;
-  proposed_action_json: Record<string, string | boolean | null>;
-  explanation_json: { summary?: string; approval_required?: boolean; execution_boundary?: string };
+  current_metric_snapshot_json: Record<string, string | number | null>;
+  evidence_json: Record<string, unknown>;
+  proposed_action_json: Record<string, unknown>;
+  explanation_json: { summary?: string; approval_required?: boolean; decision_source?: string; ai_final_decision?: boolean; execution_boundary?: string };
 };
 
 export type MonitoringSummary = {
@@ -36,6 +40,11 @@ export type MonitoringSummary = {
   top_recommendations: Recommendation[];
   agent_summary: {
     headline?: string;
+    dashboard_summary?: string;
+    executive_summary?: string;
+    analyst_notes?: string[];
+    approver_notes?: string[];
+    next_best_actions?: string[];
     stakeholder_note?: string;
     next_step?: string;
     total_spend?: string;
@@ -71,6 +80,14 @@ export async function getProductMonitoring(productId: string, workspaceId = defa
 
 export async function getRecommendations(workspaceId = defaultWorkspaceId): Promise<Recommendation[]> {
   const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/recommendations`, {
+    headers: localAuthHeaders(workspaceId),
+    cache: "no-store",
+  });
+  return readApiData<Recommendation[]>(response, "Recommendations could not be loaded.");
+}
+
+export async function getProductRecommendations(productId: string, workspaceId = defaultWorkspaceId): Promise<Recommendation[]> {
+  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/products/${productId}/recommendations`, {
     headers: localAuthHeaders(workspaceId),
     cache: "no-store",
   });

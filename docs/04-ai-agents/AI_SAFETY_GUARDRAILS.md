@@ -16,5 +16,8 @@ Uploaded spreadsheet and CSV content is untrusted data. Parser output stores cel
 ## Refusal Conditions
 AI workflows must refuse or defer when data is insufficient, mappings are unconfirmed, workspace scope is unclear, or requested action would bypass approval.
 
+## Phase 1 Monitoring Boundary
+Sponsored Products Search Term report monitoring uses deterministic rules for final recommendation type, priority, proposed action, and evidence JSON. AI-style summaries may explain rule output only. They may not create final decisions, change recommendation status, call Amazon Ads APIs, generate exports, or mutate live accounts.
+
 ## Acceptance Criteria
 Safety tests prove that AI output cannot directly transition recommendations, exports, or campaigns into executed states.

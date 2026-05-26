@@ -46,7 +46,7 @@ Batch 7 adds keyword review, manual approve/reject overrides with required reaso
 
 Batch 8 adds deterministic campaign plan generation from locked approved keyword set snapshots. Batch 9 adds approved CSV bulk exports from approved campaign plans. Both remain bulk-sheet-only and do not add Amazon Ads API execution.
 
-Batch 10 adds Sponsored Products Search Term monitoring imports, normalized targeting/search-term snapshots, deterministic recommendation records, human decision records, and AI run metadata for agent explanations. Batch 10 remains recommendation-only and does not execute bid changes, pauses, negatives, or Amazon Ads API actions.
+Batch 10 adds Sponsored Products Search Term monitoring imports, normalized targeting/search-term snapshots, deterministic recommendation records, human decision records, and deterministic summary metadata. Phase 1 adds evidence JSON and the full monitoring recommendation taxonomy. Monitoring remains recommendation-only and does not execute bid changes, pauses, negatives, exports, or Amazon Ads API actions.
 
 ## Core Columns
 | Table | Required columns |
@@ -73,11 +73,11 @@ Batch 10 adds Sponsored Products Search Term monitoring imports, normalized targ
 | bulk_exports | id, workspace_id, product_id, campaign_plan_id, storage_path, original_filename, status, rows_json, approved_by, approval_note, approved_at, created_at, updated_at |
 | monitoring_imports | id, workspace_id, product_id, upload_id, parse_run_id, report_type, status, date_range_start, date_range_end, total_rows, processed_rows, error_rows, data_quality_warnings_json, error_message, created_by, created_at, updated_at |
 | monitoring_snapshots | id, workspace_id, product_id, monitoring_import_id, upload_id, parse_run_id, source_row_id, campaign_name, ad_group_name, targeting, match_type, customer_search_term, report_start_date, report_end_date, impressions, clicks, ctr, cpc, spend, sales, acos, roas, orders, units, cvr, raw_metrics_json, created_at |
-| recommendations | id, workspace_id, product_id, monitoring_import_id, snapshot_id, recommendation_type, status, priority, campaign_name, ad_group_name, targeting, customer_search_term, rule_version, rule_name, input_metrics_json, proposed_action_json, explanation_json, created_by, decided_by, decided_at, created_at, updated_at |
+| recommendations | id, workspace_id, product_id, monitoring_import_id, snapshot_id, recommendation_type, entity_type, status, priority, confidence, campaign_name, ad_group_name, targeting, customer_search_term, rule_version, rule_name, current_metric_snapshot_json, input_metrics_json, evidence_json, proposed_action_json, explanation_json, created_by, decided_by, decided_at, created_at, updated_at |
 | recommendation_decisions | id, workspace_id, recommendation_id, decision, note, actor_user_id, created_at |
 | approvals | id, workspace_id, object_type, object_id, decision, actor_user_id, actor_role, notes, idempotency_key, created_at |
 | audit_logs | id, workspace_id, actor_user_id, event_type, object_type, object_id, metadata_json, created_at |
-| ai_runs | id, workspace_id, agent_name, provider, model, schema_version, input_hash, output_json, status, latency_ms, created_at |
+| ai_runs | id, workspace_id, product_id, agent_name, provider, model, schema_version, input_hash, output_json, status, latency_ms, created_at |
 | rule_versions | id, rule_set, version, description, config_json, active_from, active_to, created_at |
 | job_queue | id, workspace_id, job_type, status, payload_json, idempotency_key, attempts, locked_at, locked_by, heartbeat_at, last_error, created_at, updated_at |
 | outbox_events | id, workspace_id, event_type, aggregate_type, aggregate_id, payload_json, status, published_at, created_at |
@@ -213,16 +213,21 @@ The `uploads` table has RLS enabled. Workspace members can read upload metadata.
 | Requirement | Decision |
 | --- | --- |
 | Report type | `amazon_ads_sp_search_term_report` only for the first monitoring implementation. |
-| Import source | Monitoring imports reference a processed upload and succeeded parse run in the same workspace/product. |
+| Import source | Monitoring imports reference a processed `amazon_ads_sp_search_term_report` upload and succeeded parse run in the same workspace/product. |
 | Snapshot grain | One snapshot row per campaign/ad group/targeting/search-term/date-range row from the report. |
 | Metrics | Impressions, clicks, CTR, CPC, spend, sales, ACOS, ROAS, orders, units, and CVR are stored as normalized numeric values. |
-| Recommendation ownership | Deterministic rules create `recommendations`; AI runs only explain or summarize. |
+| Recommendation ownership | Deterministic rules create `recommendations`; Phase 1 does not use AI for final decisions. |
+| Evidence storage | `recommendations.evidence_json` stores rule version, thresholds, normalized metrics, search-term performance, target performance, ad-group performance, campaign performance, report performance, and approval boundary flags. |
+| Agent runs | `ai_runs` stores explanation-layer output only, scoped to workspace and product where available. |
 | Human decision | Approve/reject creates `recommendation_decisions` and updates recommendation status. |
 | Execution boundary | Approval means approved for manual action or later export; no live Amazon Ads mutation occurs. |
-| Auditability | Import queueing, processing, recommendation decisions, and agent runs must be traceable by workspace, actor, rule version, and input hash. |
+| Auditability | Import queueing, processing, recommendation evidence, decisions, and deterministic summaries must be traceable by workspace, actor, rule version, and input hash where applicable. |
 
 ## Batch 10 Monitoring RLS Status
 `monitoring_imports`, `monitoring_snapshots`, `recommendations`, `recommendation_decisions`, and `ai_runs` have RLS enabled. Workspace members can read monitoring evidence and agent outputs. Backend/service-role operations create imports, snapshots, recommendations, and AI run rows. Recommendation decisions are limited to `owner`, `admin`, `analyst`, and `approver` in the API, with `viewer` read-only.
+
+## Dashboard Performance Indexes
+The dashboard summary endpoint is backed by compound indexes for common workspace-scoped reads: product list by created time, upload list/counts by workspace and status, recommendation queue by workspace/product/status/priority, and agent runs by workspace/product/agent. These indexes are additive migrations and do not change RLS or approval behavior.
 
 ## Batch 3 Upload Constraints
 | Requirement | Decision |

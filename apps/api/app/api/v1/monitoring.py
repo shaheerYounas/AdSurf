@@ -19,7 +19,7 @@ from apps.api.app.schemas.monitoring import (
     RecommendationStatus,
 )
 from apps.api.app.schemas.upload_parsing import UploadParseStatus
-from apps.api.app.schemas.uploads import UploadStatus
+from apps.api.app.schemas.uploads import UploadSourceType, UploadStatus
 
 router = APIRouter()
 
@@ -32,6 +32,7 @@ RECOMMENDATION_DECISION_ROLES = {
 
 
 @router.post("/workspaces/{workspace_id}/products/{product_id}/monitoring-imports")
+@router.post("/workspaces/{workspace_id}/products/{product_id}/monitoring/imports")
 def create_monitoring_import(
     workspace_id: UUID,
     product_id: UUID,
@@ -52,6 +53,12 @@ def create_monitoring_import(
     upload = upload_repository.get(workspace_id=workspace_id, upload_id=payload.upload_id)
     if upload is None or upload.product_id != product_id:
         raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
+    if upload.source_type != UploadSourceType.AMAZON_ADS_SP_SEARCH_TERM_REPORT:
+        raise ApiError(
+            code="MONITORING_UPLOAD_SOURCE_TYPE_INVALID",
+            message="Monitoring import requires an Amazon Sponsored Products Search Term report upload.",
+            status_code=409,
+        )
     if upload.status != UploadStatus.PROCESSED:
         raise ApiError(code="UPLOAD_NOT_PROCESSED", message="Monitoring import requires a processed upload.", status_code=409)
     parse_runs = parsing_repository.list_runs(workspace_id=workspace_id, upload_id=upload.id)
@@ -87,7 +94,42 @@ def create_monitoring_import(
     return success_response(data=response.model_dump(mode="json"))
 
 
+@router.post("/workspaces/{workspace_id}/monitoring/imports/{import_id}/run-analysis")
+def run_monitoring_analysis(
+    workspace_id: UUID,
+    import_id: UUID,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    monitoring_repository: MonitoringRepository = Depends(get_monitoring_repository),
+    job_repository: JobRepository = Depends(get_job_repository),
+    audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
+    import_record = monitoring_repository.get_import(workspace_id=workspace_id, monitoring_import_id=import_id)
+    if import_record is None:
+        raise ApiError(code="MONITORING_IMPORT_NOT_FOUND", message="Monitoring import was not found.", status_code=404)
+    if import_record.status not in {"queued", "failed"}:
+        return success_response(data={"import_record": import_record.model_dump(mode="json"), "job_created": False})
+    job, created = job_repository.enqueue_process_monitoring_import(
+        workspace_id=workspace_id,
+        product_id=import_record.product_id,
+        monitoring_import_id=import_record.id,
+        upload_id=import_record.upload_id,
+        parse_run_id=import_record.parse_run_id,
+    )
+    audit_repository.record(
+        workspace_id=workspace_id,
+        actor_user_id=principal.user_id,
+        action="monitoring_import.analysis_queued",
+        entity_type="monitoring_import",
+        entity_id=import_record.id,
+        details={"job_id": str(job.id), "job_created": created},
+    )
+    return success_response(data={"import_record": import_record.model_dump(mode="json"), "job_id": str(job.id), "job_created": created})
+
+
 @router.get("/workspaces/{workspace_id}/products/{product_id}/monitoring")
+@router.get("/workspaces/{workspace_id}/products/{product_id}/monitoring/summary")
 def get_product_monitoring(
     workspace_id: UUID,
     product_id: UUID,
@@ -102,7 +144,8 @@ def get_product_monitoring(
         raise ApiError(code="PRODUCT_NOT_FOUND", message="Product profile was not found.", status_code=404)
     imports = monitoring_repository.list_imports(workspace_id=workspace_id, product_id=product_id)
     recommendations = monitoring_repository.list_recommendations(workspace_id=workspace_id, product_id=product_id)
-    latest_summary = monitoring_repository.latest_ai_run(workspace_id=workspace_id, agent_name="stakeholder_reporting_agent")
+    product_summaries = monitoring_repository.list_ai_runs(workspace_id=workspace_id, product_id=product_id, agent_name="stakeholder_reporting_agent")
+    latest_summary = product_summaries[0] if product_summaries else monitoring_repository.latest_ai_run(workspace_id=workspace_id, agent_name="stakeholder_reporting_agent")
     counts: dict[str, int] = {}
     for recommendation in recommendations:
         counts[recommendation.status.value] = counts.get(recommendation.status.value, 0) + 1
@@ -116,10 +159,29 @@ def get_product_monitoring(
     return success_response(data=summary.model_dump(mode="json"))
 
 
+@router.get("/workspaces/{workspace_id}/products/{product_id}/agent-runs")
+def list_product_agent_runs(
+    workspace_id: UUID,
+    product_id: UUID,
+    agent_name: str | None = Query(default=None),
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    monitoring_repository: MonitoringRepository = Depends(get_monitoring_repository),
+    product_repository: ProductProfileRepository = Depends(get_product_profile_repository),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_READ_ROLES)
+    product = product_repository.get(workspace_id=workspace_id, product_id=product_id)
+    if product is None:
+        raise ApiError(code="PRODUCT_NOT_FOUND", message="Product profile was not found.", status_code=404)
+    runs = monitoring_repository.list_ai_runs(workspace_id=workspace_id, product_id=product_id, agent_name=agent_name)
+    return success_response(data=[run.model_dump(mode="json") for run in runs], meta={"total": len(runs)})
+
+
 @router.get("/workspaces/{workspace_id}/recommendations")
+@router.get("/workspaces/{workspace_id}/products/{product_id}/recommendations")
 def list_recommendations(
     workspace_id: UUID,
-    product_id: UUID | None = Query(default=None),
+    product_id: UUID | None = None,
     status: RecommendationStatus | None = Query(default=None),
     recommendation_type: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),

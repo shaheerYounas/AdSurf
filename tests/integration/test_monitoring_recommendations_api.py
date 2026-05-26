@@ -32,13 +32,31 @@ def test_monitoring_import_creates_recommendations_and_agent_summary(monkeypatch
 
     assert recommendations_response.status_code == 200
     assert import_body["import_record"]["status"] == "queued"
-    assert {"pause_review", "negative_keyword_review", "decrease_bid", "watch_lock", "increase_bid"}.issubset(types)
+    assert {
+        "keep_running",
+        "increase_bid",
+        "decrease_bid",
+        "pause_review",
+        "add_negative_exact",
+        "add_negative_phrase",
+        "move_to_exact",
+        "watch_lock",
+        "data_quality_review",
+        "budget_review",
+    }.issubset(types)
     assert all(recommendation["status"] == "pending_approval" for recommendation in recommendations)
     assert all(recommendation["explanation_json"]["approval_required"] is True for recommendation in recommendations)
+    assert all(recommendation["evidence_json"]["approval_boundary"]["executes_live_amazon_change"] is False for recommendation in recommendations)
 
     monitoring = client.get(f"/v1/workspaces/{workspace_id}/products/{product_id}/monitoring", headers=auth_headers(workspace_id))
     assert monitoring.status_code == 200
-    assert monitoring.json()["data"]["agent_summary"]["stakeholder_note"].endswith("has been executed.")
+    assert "No AI final decision" in monitoring.json()["data"]["agent_summary"]["stakeholder_note"]
+
+    agent_runs = client.get(f"/v1/workspaces/{workspace_id}/products/{product_id}/agent-runs", headers=auth_headers(workspace_id))
+    assert agent_runs.status_code == 200
+    agent_names = {run["agent_name"] for run in agent_runs.json()["data"]}
+    assert {"performance_import_agent", "metrics_analysis_agent", "bid_optimization_agent", "negative_keyword_agent", "pause_review_agent", "stakeholder_reporting_agent"}.issubset(agent_names)
+    assert all(run["product_id"] == product_id for run in agent_runs.json()["data"])
 
     audit_repository = get_audit_log_repository()
     assert audit_repository.count(workspace_id=UUID(workspace_id), event_type="monitoring_import.queued", object_id=UUID(import_body["import_record"]["id"])) == 1
@@ -127,11 +145,17 @@ def _create_product(workspace_id: str) -> str:
 def _sp_report_csv() -> str:
     header = "Start Date,End Date,Portfolio name,Currency,Campaign Name,Ad Group Name,Retailer,Country,Targeting,Match Type,Customer Search Term,Impressions,Clicks,Click-Thru Rate (CTR),Cost Per Click (CPC),Spend,7 Day Total Sales ,Total Advertising Cost of Sales (ACOS) ,Total Return on Advertising Spend (ROAS),7 Day Total Orders (#),7 Day Total Units (#),7 Day Conversion Rate,7 Day Advertised SKU Units (#),7 Day Other SKU Units (#),7 Day Advertised SKU Sales ,7 Day Other SKU Sales "
     rows = [
-        "2026-05-01,2026-05-07,,USD,Camp A,Group A,Amazon,US,asin=\"b001\",-,pause term,100,25,0.25,1.00,25,0,,0,0,0,0,0,0,0,0",
-        "2026-05-01,2026-05-07,,USD,Camp A,Group A,Amazon,US,asin=\"b002\",-,negative term,80,12,0.15,0.67,8,0,,0,0,0,0,0,0,0,0",
+        "2026-05-01,2026-05-07,,USD,Camp A,Group A,Amazon,US,asin=\"b001\",exact,pause term,100,25,0.25,1.00,25,0,,0,0,0,0,0,0,0,0",
+        "2026-05-01,2026-05-07,,USD,Camp A,Group A,Amazon,US,asin=\"b002\",broad,negative phrase term,80,16,0.20,0.63,10,0,,0,0,0,0,0,0,0,0",
+        "2026-05-01,2026-05-07,,USD,Camp A,Group A,Amazon,US,keyword=\"exact waste\",exact,negative exact term,80,12,0.15,0.67,8,0,,0,0,0,0,0,0,0,0",
         "2026-05-01,2026-05-07,,USD,Camp B,Group B,Amazon,US,keyword=\"x\",exact,decrease term,100,12,0.12,0.67,8,10,0.8,1.25,1,1,0.08,1,0,10,0",
+        "2026-05-01,2026-05-07,,USD,Camp B,Group B,Amazon,US,keyword=\"move\",broad,move exact term,100,8,0.08,0.63,5,20,0.25,4,2,2,0.25,2,0,20,0",
         "2026-05-01,2026-05-07,,USD,Camp B,Group B,Amazon,US,keyword=\"y\",exact,watch term,100,8,0.08,0.63,5,20,0.25,4,2,2,0.25,2,0,20,0",
         "2026-05-01,2026-05-07,,USD,Camp C,Group C,Amazon,US,keyword=\"z\",broad,increase term,20,1,0.05,1.00,1,0,,0,0,0,0,0,0,0,0",
+        "2026-05-01,2026-05-07,,USD,Camp C,Group C,Amazon,US,keyword=\"scale\",exact,scaling term,50,5,0.10,0.40,2,10,0.2,5,1,1,0.20,1,0,10,0",
+        "2026-05-01,2026-05-07,,USD,Camp C,Group C,Amazon,US,keyword=\"budget\",exact,budget term,100,20,0.20,0.45,9,30,0.3,3.3333,3,3,0.15,3,0,30,0",
+        "2026-05-01,2026-05-07,,USD,Camp C,Group C,Amazon,US,keyword=\"keep\",exact,keep term,100,5,0.05,0.60,3,5,0.6,1.6667,1,1,0.20,1,0,5,0",
+        "2026-05-01,2026-05-07,,USD,Camp D,Group D,Amazon,US,keyword=\"quality\",exact,quality term,5,10,2.00,0.20,2,0,,0,0,0,0,0,0,0,0",
     ]
     return "\n".join([header, *rows])
 

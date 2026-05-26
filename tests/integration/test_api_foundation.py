@@ -69,6 +69,25 @@ def test_product_profile_crud_routes_are_workspace_scoped() -> None:
     assert updated["default_bid"] == "1.5000"
 
 
+def test_dashboard_summary_endpoint_returns_single_workspace_payload() -> None:
+    workspace_id = str(uuid4())
+    create_response = client.post(
+        f"/v1/workspaces/{workspace_id}/products",
+        headers=auth_headers(workspace_id),
+        json={"product_name": "Dashboard Product"},
+    )
+    assert create_response.status_code == 201
+
+    response = client.get(f"/v1/workspaces/{workspace_id}/dashboard-summary", headers=auth_headers(workspace_id, role="viewer"))
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["product_count"] == 1
+    assert data["upload_count"] == 0
+    assert data["pending_recommendation_count"] == 0
+    assert data["products"][0]["product_name"] == "Dashboard Product"
+
+
 def test_product_profile_validation_error_uses_standard_error_envelope() -> None:
     workspace_id = str(uuid4())
     response = client.post(

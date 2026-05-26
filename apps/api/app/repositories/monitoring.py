@@ -98,6 +98,10 @@ class MonitoringRepository(ABC):
     def latest_ai_run(self, *, workspace_id: UUID, agent_name: str) -> AiRun | None:
         raise NotImplementedError
 
+    @abstractmethod
+    def list_ai_runs(self, *, workspace_id: UUID, product_id: UUID | None = None, agent_name: str | None = None) -> list[AiRun]:
+        raise NotImplementedError
+
 
 class LocalMonitoringRepository(MonitoringRepository):
     def __init__(self) -> None:
@@ -157,7 +161,7 @@ class LocalMonitoringRepository(MonitoringRepository):
             and (status is None or item.status == status)
             and (recommendation_type is None or item.recommendation_type == recommendation_type)
         ]
-        priority_order = {"high": 0, "medium": 1, "low": 2}
+        priority_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
         sorted_items = sorted(items, key=lambda item: (priority_order.get(str(item.priority), 9), item.created_at))
         return sorted_items[offset : offset + limit] if limit is not None else sorted_items[offset:]
 
@@ -167,7 +171,7 @@ class LocalMonitoringRepository(MonitoringRepository):
 
     def decide_recommendation(self, *, workspace_id: UUID, recommendation_id: UUID, decision: RecommendationStatus, actor_user_id: str, note: str) -> tuple[Recommendation | None, RecommendationDecision | None]:
         current = self.get_recommendation(workspace_id=workspace_id, recommendation_id=recommendation_id)
-        if current is None or current.status != RecommendationStatus.PENDING_APPROVAL:
+        if current is None or current.status not in {RecommendationStatus.PENDING, RecommendationStatus.PENDING_APPROVAL}:
             return None, None
         now = datetime.now(UTC)
         updated = current.model_copy(update={"status": decision, "decided_by": actor_user_id, "decision_note": note.strip(), "decided_at": now, "updated_at": now})
@@ -183,6 +187,16 @@ class LocalMonitoringRepository(MonitoringRepository):
     def latest_ai_run(self, *, workspace_id: UUID, agent_name: str) -> AiRun | None:
         runs = [run for run in self._ai_runs.values() if run.workspace_id == workspace_id and run.agent_name == agent_name]
         return sorted(runs, key=lambda run: run.created_at, reverse=True)[0] if runs else None
+
+    def list_ai_runs(self, *, workspace_id: UUID, product_id: UUID | None = None, agent_name: str | None = None) -> list[AiRun]:
+        runs = [
+            run
+            for run in self._ai_runs.values()
+            if run.workspace_id == workspace_id
+            and (product_id is None or run.product_id == product_id)
+            and (agent_name is None or run.agent_name == agent_name)
+        ]
+        return sorted(runs, key=lambda run: run.created_at, reverse=True)
 
 
 class PostgresMonitoringRepository(MonitoringRepository):
@@ -301,14 +315,14 @@ class PostgresMonitoringRepository(MonitoringRepository):
             """
             insert into recommendations (
                 id, workspace_id, product_id, monitoring_import_id, snapshot_id, recommendation_type,
-                status, priority, rule_version_id, rule_name, campaign_name, ad_group_name, targeting,
-                customer_search_term, input_metrics_json, proposed_action_json, explanation_json,
+                entity_type, status, priority, confidence, rule_version_id, rule_name, campaign_name, ad_group_name, targeting,
+                customer_search_term, input_metrics_json, current_metric_snapshot_json, evidence_json, proposed_action_json, explanation_json,
                 decided_by, decision_note, decided_at, created_at, updated_at
             )
             values (
                 :id, :workspace_id, :product_id, :monitoring_import_id, :snapshot_id, :recommendation_type,
-                :status, :priority, :rule_version_id, :rule_name, :campaign_name, :ad_group_name, :targeting,
-                :customer_search_term, cast(:input_metrics_json as jsonb), cast(:proposed_action_json as jsonb), cast(:explanation_json as jsonb),
+                :entity_type, :status, :priority, :confidence, :rule_version_id, :rule_name, :campaign_name, :ad_group_name, :targeting,
+                :customer_search_term, cast(:input_metrics_json as jsonb), cast(:current_metric_snapshot_json as jsonb), cast(:evidence_json as jsonb), cast(:proposed_action_json as jsonb), cast(:explanation_json as jsonb),
                 :decided_by, :decision_note, :decided_at, :created_at, :updated_at
             )
             """
@@ -330,7 +344,7 @@ class PostgresMonitoringRepository(MonitoringRepository):
             params["recommendation_type"] = recommendation_type
         limit_clause = " limit :limit offset :offset" if limit is not None else ""
         with self._engine.begin() as connection:
-            rows = connection.execute(text(f"select * from recommendations where {' and '.join(clauses)} order by case priority when 'high' then 0 when 'medium' then 1 else 2 end, created_at desc{limit_clause}"), params).mappings().all()
+            rows = connection.execute(text(f"select * from recommendations where {' and '.join(clauses)} order by case priority::text when 'critical' then 0 when 'high' then 1 when 'medium' then 2 else 3 end, created_at desc{limit_clause}"), params).mappings().all()
         return [_recommendation_from_row(row) for row in rows]
 
     def get_recommendation(self, *, workspace_id: UUID, recommendation_id: UUID) -> Recommendation | None:
@@ -346,7 +360,7 @@ class PostgresMonitoringRepository(MonitoringRepository):
                     update recommendations
                     set status = :decision, decided_by = :actor_user_id, decision_note = :note,
                         decided_at = now(), updated_at = now()
-                    where workspace_id = :workspace_id and id = :recommendation_id and status = 'pending_approval'
+                    where workspace_id = :workspace_id and id = :recommendation_id and status in ('pending', 'pending_approval')
                     returning *
                     """
                 ),
@@ -371,8 +385,8 @@ class PostgresMonitoringRepository(MonitoringRepository):
             row = connection.execute(
                 text(
                     """
-                    insert into ai_runs (id, workspace_id, agent_name, provider, model, schema_version, input_hash, output_json, status, latency_ms, created_at)
-                    values (:id, :workspace_id, :agent_name, :provider, :model, :schema_version, :input_hash, cast(:output_json as jsonb), :status, :latency_ms, :created_at)
+                    insert into ai_runs (id, workspace_id, product_id, agent_name, provider, model, schema_version, input_hash, output_json, status, latency_ms, created_at)
+                    values (:id, :workspace_id, :product_id, :agent_name, :provider, :model, :schema_version, :input_hash, cast(:output_json as jsonb), :status, :latency_ms, :created_at)
                     returning *
                     """
                 ),
@@ -387,6 +401,19 @@ class PostgresMonitoringRepository(MonitoringRepository):
                 {"workspace_id": workspace_id, "agent_name": agent_name},
             ).mappings().first()
         return _ai_run_from_row(row) if row else None
+
+    def list_ai_runs(self, *, workspace_id: UUID, product_id: UUID | None = None, agent_name: str | None = None) -> list[AiRun]:
+        params = {"workspace_id": workspace_id}
+        clauses = ["workspace_id = :workspace_id"]
+        if product_id:
+            clauses.append("product_id = :product_id")
+            params["product_id"] = product_id
+        if agent_name:
+            clauses.append("agent_name = :agent_name")
+            params["agent_name"] = agent_name
+        with self._engine.begin() as connection:
+            rows = connection.execute(text(f"select * from ai_runs where {' and '.join(clauses)} order by created_at desc"), params).mappings().all()
+        return [_ai_run_from_row(row) for row in rows]
 
 
 _local_repository = LocalMonitoringRepository()
@@ -454,9 +481,13 @@ def _recommendation_params(recommendation: Recommendation) -> dict:
     return {
         **recommendation.model_dump(),
         "recommendation_type": recommendation.recommendation_type.value,
+        "entity_type": recommendation.entity_type.value,
         "status": recommendation.status.value,
         "priority": recommendation.priority.value,
+        "confidence": recommendation.confidence.value,
         "input_metrics_json": _json_dumps(recommendation.input_metrics_json),
+        "current_metric_snapshot_json": _json_dumps(recommendation.current_metric_snapshot_json),
+        "evidence_json": _json_dumps(recommendation.evidence_json),
         "proposed_action_json": _json_dumps(recommendation.proposed_action_json),
         "explanation_json": _json_dumps(recommendation.explanation_json),
         "decided_by": _uuid_or_none(recommendation.decided_by) if recommendation.decided_by else None,

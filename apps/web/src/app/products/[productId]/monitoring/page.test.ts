@@ -10,6 +10,9 @@ describe("product monitoring page", () => {
     expect(workspaceSource).toContain("Processed SP Search Term upload");
     expect(workspaceSource).toContain("Import metrics");
     expect(workspaceSource).toContain("Pending approval");
+    expect(workspaceSource).toContain("Negative exact");
+    expect(workspaceSource).toContain("Move to exact");
+    expect(workspaceSource).toContain("Budget reviews");
     expect(workspaceSource).toContain("Top recommendations");
   });
 });

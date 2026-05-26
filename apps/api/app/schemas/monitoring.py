@@ -14,6 +14,7 @@ class MonitoringImportStatus(StrEnum):
 
 
 class RecommendationStatus(StrEnum):
+    PENDING = "pending"
     PENDING_APPROVAL = "pending_approval"
     APPROVED = "approved"
     REJECTED = "rejected"
@@ -21,17 +22,37 @@ class RecommendationStatus(StrEnum):
 
 
 class RecommendationType(StrEnum):
+    KEEP_RUNNING = "keep_running"
     INCREASE_BID = "increase_bid"
     DECREASE_BID = "decrease_bid"
     PAUSE_REVIEW = "pause_review"
-    NEGATIVE_KEYWORD_REVIEW = "negative_keyword_review"
+    ADD_NEGATIVE_EXACT = "add_negative_exact"
+    ADD_NEGATIVE_PHRASE = "add_negative_phrase"
+    MOVE_TO_EXACT = "move_to_exact"
     WATCH_LOCK = "watch_lock"
+    DATA_QUALITY_REVIEW = "data_quality_review"
+    BUDGET_REVIEW = "budget_review"
+    LEGACY_NEGATIVE_KEYWORD_REVIEW = "negative_keyword_review"
 
 
 class RecommendationPriority(StrEnum):
+    CRITICAL = "critical"
     HIGH = "high"
     MEDIUM = "medium"
     LOW = "low"
+
+
+class RecommendationConfidence(StrEnum):
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+
+class RecommendationEntityType(StrEnum):
+    CAMPAIGN = "campaign"
+    AD_GROUP = "ad_group"
+    TARGET = "target"
+    SEARCH_TERM = "search_term"
 
 
 class MonitoringImportCreateRequest(BaseModel):
@@ -103,8 +124,10 @@ class Recommendation(BaseModel):
     monitoring_import_id: UUID
     snapshot_id: UUID
     recommendation_type: RecommendationType
+    entity_type: RecommendationEntityType = RecommendationEntityType.SEARCH_TERM
     status: RecommendationStatus
     priority: RecommendationPriority
+    confidence: RecommendationConfidence = RecommendationConfidence.MEDIUM
     rule_version_id: str
     rule_name: str
     campaign_name: str
@@ -112,6 +135,8 @@ class Recommendation(BaseModel):
     targeting: str
     customer_search_term: str
     input_metrics_json: dict
+    current_metric_snapshot_json: dict = Field(default_factory=dict)
+    evidence_json: dict = Field(default_factory=dict)
     proposed_action_json: dict
     explanation_json: dict
     decided_by: str | None = None
@@ -138,6 +163,7 @@ class RecommendationDecision(BaseModel):
 class AiRun(BaseModel):
     id: UUID
     workspace_id: UUID
+    product_id: UUID | None = None
     agent_name: str
     provider: str
     model: str
