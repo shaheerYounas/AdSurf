@@ -1,0 +1,17 @@
+[project]
+name = "adsurf-api"
+version = "0.1.0"
+description = "FastAPI shell for the Amazon Ads AI Automation Control Center."
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi",
+  "psycopg[binary]",
+  "python-dotenv",
+  "pydantic",
+  "sqlalchemy",
+  "uvicorn"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["../../tests"]
+pythonpath = ["../.."]

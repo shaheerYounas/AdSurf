@@ -7,7 +7,7 @@
 | Charts | Recharts | Practical dashboard charting. |
 | Backend | FastAPI, Python | Excellent data processing and API ergonomics. |
 | Database | Supabase PostgreSQL | Managed Postgres, auth integration, RLS. |
-| Storage | Supabase Storage | Private tenant-scoped files and exports. |
+| Storage | Supabase Storage | Private workspace-scoped files and exports. |
 | Processing | Pandas, openpyxl | CSV/XLSX cleaning and generation. |
 | Workers | Python background workers | Isolate long-running processing. |
 | Auth | Supabase Auth | MVP-ready identity provider. |
@@ -16,4 +16,3 @@
 
 ## Constraint
 Do not introduce alternate major frameworks without an ADR.
-

@@ -14,5 +14,4 @@
 | Autonomous ad changes | No | Maybe with strict controls | Out of MVP by principle. |
 
 ## MVP Acceptance
-All MVP features must support tenant isolation, audit logs, deterministic rules, and human approval where customer-impacting.
-
+All MVP features must support workspace isolation, audit logs, deterministic rules, and human approval where customer-impacting.

@@ -1,19 +1,14 @@
 # Negative Keyword Agent
 
 ## Responsibility
-Explain why Negative Exact and Negative Phrase rows exist and flag potential conflicts for review.
+Explain search-term waste and negative keyword review recommendations.
 
-## Rules To Respect
-| Rule | Explanation target |
-| --- | --- |
-| Phrase receives Exact as Negative Exact | Prevents exact match overlap. |
-| Broad receives Phrase as Negative Phrase | Reduces broad match overlap. |
+## V1 Rule Evidence
+The first version focuses on search terms or targeting rows with enough clicks and no orders. It recommends human review before adding negatives.
+
+## Outputs
+Search term, campaign, ad group, targeting, spend/click evidence, risk note, and negative keyword review summary.
 
 ## Prohibited
-- Do not publish negative keywords live.
-- Do not create negatives from rejected terms automatically.
-- Do not override customer approval.
-
-## Acceptance Criteria
-Every negative keyword explanation links to campaign group, match type, and source rule.
+Do not publish negatives to Amazon, remove terms silently, or hide ambiguous evidence.
 

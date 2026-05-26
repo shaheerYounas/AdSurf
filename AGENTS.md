@@ -13,7 +13,7 @@ AI agents do not directly execute dangerous changes. Rules calculate. AI explain
 | Human approval | Never implement live ad execution, bid changes, pauses, negative keyword additions, campaign locks, or exports without an explicit approval record. |
 | Deterministic decisions | Business decisions must be produced by deterministic rules, not by unconstrained AI text. |
 | Auditability | Store inputs, outputs, rule versions, AI prompt metadata, approvals, and actor identity for every customer-impacting decision. |
-| Multi-tenancy | Every tenant-owned record must be tenant-scoped in API, database, storage, and logs. |
+| Workspace isolation | Every workspace-owned record must be workspace-scoped in API, database, storage, and logs. |
 | MVP restraint | Prefer bulk sheet export and approval workflows before Amazon Ads API automation. |
 
 ## Repository Ownership Map
@@ -41,7 +41,7 @@ AI agents do not directly execute dangerous changes. Rules calculate. AI explain
 | --- | --- |
 | Approval boundary | The change cannot perform customer-impacting actions without an approval record. |
 | Rule ownership | Metrics and decisions are calculated by code rules, not free-form AI text. |
-| Tenant boundary | All reads and writes are scoped by tenant and user role. |
+| Workspace boundary | All reads and writes are scoped by workspace and user role. |
 | Docs updated | Related PRD, domain, API, database, workflow, and testing docs are current. |
 | Tests planned | Unit, integration, or E2E coverage is defined for changed behavior. |
 
@@ -50,4 +50,4 @@ AI agents do not directly execute dangerous changes. Rules calculate. AI explain
 - Amazon Ads API execution is later-version work only.
 - Product must be usable by non-technical sellers and agency operators.
 - AI may recommend, summarize, map, and explain; AI may not silently act.
-
+- Canonical roles are `owner`, `admin`, `analyst`, `approver`, and `viewer`.

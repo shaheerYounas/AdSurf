@@ -10,7 +10,7 @@ Amazon Ads AI Automation Control Center helps Amazon sellers and agencies conver
 | Safer decisions | Reject low-relevance terms and require approval for customer-impacting actions. |
 | Explainability | Show why each keyword, negative, bid recommendation, or lock is proposed. |
 | Repeatability | Use deterministic rules for scoring, grouping, budgets, bids, and monitoring. |
-| Agency readiness | Support multi-tenant accounts, roles, audit logs, and approval queues. |
+| Agency readiness | Support multi-workspace accounts, roles, audit logs, and approval queues. |
 
 ## Primary Workflow
 1. Customer creates a product profile.
@@ -31,10 +31,9 @@ Amazon Ads AI Automation Control Center helps Amazon sellers and agencies conver
 ## Acceptance Criteria
 | Area | Acceptance |
 | --- | --- |
-| Upload | CSV/XLSX uploads are parsed, validated, tenant-scoped, and auditable. |
+| Upload | CSV/XLSX uploads are parsed, validated, workspace-scoped, and auditable. |
 | Scoring | Relevance Score exactly follows documented domain rules. |
 | Campaigns | Campaign plan matches Hero/grouping/match-type/negative rules. |
 | Export | Bulk sheet validates before customer approval. |
 | Monitoring | 14-day recommendations are rule-generated and explainable. |
 | Approval | No live or export-impacting action bypasses human approval. |
-

@@ -3,7 +3,7 @@
 ## Inputs
 | Input | Source |
 | --- | --- |
-| Approved keywords | Customer-approved keyword list after scoring. |
+| Approved keywords | `approved_keyword_sets` locked snapshot created after keyword review. |
 | Search volume | Mapped research column when available. |
 | Suggested bid | Mapped research column when available. |
 | Product defaults | Product profile budget and bid settings. |
@@ -24,3 +24,5 @@
 - Every non-Hero approved keyword belongs to exactly one group.
 - Each group creates Exact, Phrase, and Broad campaign structures.
 
+## Implementation Boundary
+Campaign generation consumes locked `approved_keyword_sets` and their snapshot items, not live scoring candidates. Generated plans remain internal until a user explicitly approves the campaign plan. Bulk sheet export is a separate approval step and no Amazon Ads API execution occurs in MVP.

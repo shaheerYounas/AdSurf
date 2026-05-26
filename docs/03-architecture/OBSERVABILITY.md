@@ -4,7 +4,7 @@
 | Signal | Purpose |
 | --- | --- |
 | API request id | Trace user actions across services. |
-| Tenant id | Debug within tenant scope without exposing data. |
+| Workspace id | Debug within workspace scope without exposing data. |
 | Job lifecycle | Track processing, retries, failures, duration. |
 | Rule version | Explain why decisions were made. |
 | AI run metadata | Provider, model, schema, status, latency. |
@@ -21,4 +21,3 @@
 
 ## Acceptance Criteria
 Every customer-impacting decision can be reconstructed from logs, database records, rule inputs, and approval history.
-

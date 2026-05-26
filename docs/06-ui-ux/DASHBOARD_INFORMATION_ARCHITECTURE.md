@@ -11,8 +11,7 @@
 | Monitoring | 14-day performance timeline and campaign health. |
 | Recommendations | Approval queue for bid, pause, negative, and lock proposals. |
 | Audit Log | Decision history and actor traceability. |
-| Settings | Tenant users, roles, defaults, future integrations. |
+| Settings | Workspace users, roles, defaults, future integrations. |
 
 ## Acceptance Criteria
 Primary navigation maps to customer workflow order and exposes pending approvals clearly.
-

@@ -17,5 +17,18 @@ AI assists with cleaning, mapping, explaining, summarizing, and drafting. Determ
 | Human Approval | Route decisions | Approve on behalf of users |
 
 ## Required AI Run Metadata
-agent_name, tenant_id, input_hash, provider, model, schema_version, output_json, status, latency_ms, created_at.
+agent_name, workspace_id, input_hash, provider, model, schema_version, output_json, status, latency_ms, created_at.
 
+## Agent Council For Monitoring MVP
+The monitoring MVP uses an Agent Council documented in `AGENT_ORCHESTRATION.md`. The council processes Sponsored Products Search Term reports after deterministic rules have created evidence-backed recommendations.
+
+| Agent | Primary output |
+| --- | --- |
+| Performance Import Agent | Report shape and data-quality explanation. |
+| Metrics Analysis Agent | Spend, clicks, sales, orders, ACOS, ROAS, CTR, and CVR summaries. |
+| Bid Optimization Agent | Bid increase, bid decrease, and watch-lock explanations. |
+| Negative Keyword Agent | Search-term waste and negative keyword review explanations. |
+| Pause Review Agent | Pause/stop review explanations for poor performers. |
+| Stakeholder Reporting Agent | Dashboard summary for owners, analysts, and approvers. |
+
+The Agent Council may prioritize and explain recommendations, but recommendation records and statuses remain owned by deterministic rule code and human approval APIs.

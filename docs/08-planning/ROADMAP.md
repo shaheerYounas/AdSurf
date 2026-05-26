@@ -9,5 +9,4 @@
 | API Integration | Amazon Ads API read sync, then approval-controlled execution. |
 
 ## Guiding Constraint
-Do not advance to live Amazon Ads execution until approval, audit, tenant isolation, and rollback patterns are proven.
-
+Do not advance to live Amazon Ads execution until approval, audit, workspace isolation, and rollback patterns are proven.

@@ -14,6 +14,5 @@
 | Guardrail | Failure condition |
 | --- | --- |
 | Approval bypass | Any export/action/recommendation state change without actor and approval record. |
-| Tenant leakage | Any record, file, or log visible across tenants. |
+| Workspace leakage | Any record, file, or log visible across workspaces. |
 | AI decision leakage | Any deterministic business decision stored only as free-form AI text. |
-

@@ -28,3 +28,5 @@ Generate an Amazon Ads bulk sheet from an approved campaign plan. The export is 
 - Export references approved plan version.
 - Export requires approval and audit log entry.
 
+## Implementation Boundary
+MVP exports are generated as CSV files from approved campaign plans. Export generation requires a separate non-empty approval note and stores the CSV through the configured storage adapter. The export does not make live Amazon Ads API changes.

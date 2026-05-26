@@ -5,7 +5,7 @@
 | --- | --- | --- |
 | Web app | Customer dashboard, uploads, reviews, approvals, reporting | Next.js, TypeScript, Tailwind CSS, shadcn/ui |
 | API | Auth context, validation, orchestration, rule execution, contracts | FastAPI, Python |
-| Database | Multi-tenant source of truth and audit records | Supabase PostgreSQL |
+| Database | Multi-workspace source of truth and audit records | Supabase PostgreSQL |
 | Storage | Original uploads and generated exports | Supabase Storage |
 | Workers | File processing, campaign generation, monitoring | Python workers |
 | AI layer | Structured assistance and explanations | Provider-agnostic abstraction |
@@ -19,4 +19,3 @@
 
 ## Safety Boundary
 The MVP has no live Amazon Ads execution service. Bulk sheet export is the execution handoff and requires customer approval.
-

@@ -3,16 +3,22 @@
 ## Recommendation Types
 | Type | Trigger | Approval requirement |
 | --- | --- | --- |
-| Bid increase | Low spend plus low traffic in first 7 days | Required |
-| Pause review | High spend with poor outcome | Required |
-| Negative keyword review | Poor search term relevance or waste | Required |
-| Campaign lock | Day 7 ACOS under 50% | Required |
+| increase_bid | Low impressions/clicks and low spend where more data is needed | Required |
+| decrease_bid | ACOS materially above target after sales exist | Required |
+| pause_review | High spend or high clicks with no sales | Required |
+| negative_keyword_review | Search term click/spend waste with no orders | Required |
+| watch_lock | Sales exist and ACOS is comfortably under target | Required |
 
 ## States
-draft, pending_approval, approved, rejected, superseded, executed_later.
+pending_approval, approved, rejected, superseded.
+
+Approved means approved for manual action or later export. It does not mean the app changed Amazon Ads live.
+
+## Agent Evidence
+Every recommendation displays rule name, metric evidence, proposed action, priority, explanation JSON, and the approval boundary.
 
 ## Acceptance Criteria
 - Recommendation state changes are audited.
 - User can approve or reject with notes.
+- AI output cannot approve, reject, execute, or mutate recommendations.
 - MVP stops at recommendation approval; live execution remains later-version work.
-

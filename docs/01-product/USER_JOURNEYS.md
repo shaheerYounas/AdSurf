@@ -3,7 +3,7 @@
 ## Journey: Upload To Bulk Sheet
 | Step | User action | System response |
 | --- | --- | --- |
-| 1 | Create product profile | Store tenant-scoped profile with defaults. |
+| 1 | Create product profile | Store workspace-scoped profile with defaults. |
 | 2 | Upload CSV/XLSX | Store original file and create processing job. |
 | 3 | Review column mapping | Accept or correct mapped columns. |
 | 4 | Review scored keywords | Show approved/rejected terms with reasons. |
@@ -22,4 +22,3 @@
 ## Journey Acceptance
 - Every journey has a visible approval point before customer-impacting output.
 - Every AI explanation links back to rule inputs or source data.
-

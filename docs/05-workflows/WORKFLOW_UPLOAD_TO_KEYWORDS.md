@@ -1,7 +1,7 @@
 # Workflow: Upload To Keywords
 
 ## Steps
-| Step | Owner | Output |
+| Step | Responsible party | Output |
 | --- | --- | --- |
 | Create product profile | User | Product defaults and marketplace. |
 | Upload CSV/XLSX | User/API | Private file and upload record. |
@@ -16,4 +16,3 @@
 - Required mappings are confirmed before scoring.
 - Scores 0, 1, and 2 are rejected.
 - Approval history records keyword review decisions.
-

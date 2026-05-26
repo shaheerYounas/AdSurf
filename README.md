@@ -34,11 +34,15 @@ AI agents do not directly execute dangerous changes. Rules calculate. AI explain
 | Testing | pytest, Vitest, Playwright |
 
 ## Documentation Map
-Start with [docs/00-index.md](docs/00-index.md). Core rules live in `docs/02-domain`; architecture contracts live in `docs/03-architecture`; agent guardrails live in `docs/04-ai-agents`.
+Start with [docs/00-index.md](docs/00-index.md). For operator instructions, use the [User Guide](docs/06-ui-ux/USER_GUIDE.md). Core rules live in `docs/02-domain`; architecture contracts live in `docs/03-architecture`; agent guardrails live in `docs/04-ai-agents`.
 
 ## Current State
-This repository intentionally contains documentation and empty application folders only. Do not scaffold frontend, backend, workers, migrations, or package manifests until the implementation phase begins.
+The repository now contains an implementation foundation for the documented MVP workflow:
+
+- Next.js product, upload, mapping, keyword review, campaign plan, and bulk export screens.
+- FastAPI product, upload, parse, column mapping, scoring, keyword review, campaign plan, and bulk export APIs.
+- Supabase migrations through campaign/export tables with workspace-scoped RLS policies.
+- Local/test header auth and fake storage for development, with staging/production auth and Supabase storage still failing closed until fully configured.
 
 ## Contribution Rule
 Future code changes must update documentation when behavior changes. Business rules, API contracts, database schema, approval flows, and AI guardrails are part of the product contract.
-

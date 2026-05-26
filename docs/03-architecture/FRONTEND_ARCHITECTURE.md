@@ -11,11 +11,10 @@
 
 ## Constraints
 - Use server-aware auth state from Supabase Auth.
-- Never infer tenant access client-side only.
+- Never infer workspace access client-side only.
 - Do not hide approval risk behind vague button copy.
 - Show deterministic rule explanations near AI summaries.
 
 ## Acceptance Criteria
 - Users can complete MVP workflow without reading raw spreadsheets.
 - Every approval action shows what will change and records user intent through the API.
-

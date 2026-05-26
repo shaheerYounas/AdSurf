@@ -26,8 +26,15 @@ build/
 # Local data and generated artifacts
 uploads/
 exports/
+local-exports/
 generated-bulk-sheets/
 local-reports/
+*.xls
+*.xlsx
+!tests/fixtures/
+!tests/fixtures/**
+!tests/fixtures/**/*.xls
+!tests/fixtures/**/*.xlsx
 *.log
 
 # OS and editor
@@ -35,4 +42,3 @@ local-reports/
 Thumbs.db
 .vscode/
 .idea/
-

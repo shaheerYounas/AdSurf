@@ -11,8 +11,8 @@ Amazon Ads campaign creation and optimization is repetitive, spreadsheet-heavy, 
 | --- | --- |
 | Solo Amazon seller | Turn research files into safe campaigns without becoming an ads expert. |
 | Amazon agency operator | Process many products consistently with client approval. |
-| Account strategist | Explain why keywords and optimizations are recommended. |
-| Admin/owner | Control roles, exports, audit logs, and tenant settings. |
+| Account analyst | Explain why keywords and optimizations are recommended. |
+| admin/owner | Control roles, exports, audit logs, and workspace settings. |
 
 ## MVP Promise
 Upload competitor keyword research, let the system clean and score it, approve the keyword list, generate campaign structure and bulk sheet export, then monitor and approve optimization recommendations.
@@ -32,4 +32,3 @@ Upload competitor keyword research, let the system clean and score it, approve t
 
 ## Safety Position
 The MVP never makes live Amazon Ads changes. It produces explanations, recommendations, approvals, exports, and logs. Amazon Ads API execution is a later version and must preserve approval controls.
-

@@ -9,7 +9,7 @@ Build the smallest production-quality slice that protects customer trust. Prefer
 | Docs updated | Update relevant product, domain, architecture, workflow, AI, or engineering docs when behavior changes. |
 | Tests added | Add or update tests for every changed business rule and approval boundary. |
 | Approval safety checked | Verify no customer-impacting action can bypass approval. |
-| Tenant safety checked | Verify tenant data cannot leak across API, database, storage, logs, or exports. |
+| Workspace safety checked | Verify workspace data cannot leak across API, database, storage, logs, or exports. |
 | Audit events checked | Verify important decisions and approvals are logged. |
 
 ## Branch And Commit Guidance
@@ -24,9 +24,8 @@ Build the smallest production-quality slice that protects customer trust. Prefer
 | Domain | Are ad rules deterministic and documented? |
 | Architecture | Are contracts, ownership, and data flow clear? |
 | AI | Is AI bounded by schema, logs, and guardrails? |
-| Security | Are auth, tenant scope, storage, and secrets handled safely? |
+| Security | Are auth, workspace scope, storage, and secrets handled safely? |
 | Testing | Are unit, integration, and E2E expectations met for the risk level? |
 
 ## Documentation Standard
 Every documentation file should help an AI-assisted engineer make fewer assumptions. Avoid vague placeholders. Include inputs, outputs, rules, failure modes, and acceptance criteria where relevant.
-

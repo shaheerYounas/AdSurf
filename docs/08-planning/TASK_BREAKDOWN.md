@@ -3,7 +3,7 @@
 | Epic | Tasks |
 | --- | --- |
 | Foundation | Repo scaffold, docs, env example, ignore rules. |
-| Auth and tenancy | Supabase Auth, tenant tables, roles, RLS policies. |
+| Auth and workspace access | Supabase Auth, workspace tables, roles, RLS policies. |
 | Product profiles | CRUD, defaults, validation, audit events. |
 | File processing | Uploads, storage, parser, mapping, row issues. |
 | Scoring | Relevance score rules, rejection, explanations, tests. |
@@ -16,4 +16,3 @@
 
 ## Definition Of Done
 Task is done only when implementation, tests, docs, and approval/audit checks are complete.
-
