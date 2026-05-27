@@ -20,6 +20,9 @@ Use workspace language in database tables and APIs. `workspace_id` is the canoni
 | campaign_groups | Hero or keyword batches | Contains generated campaigns. |
 | bulk_exports | Generated Amazon bulk sheets | Links approved plan and storage file. |
 | monitoring_snapshots | Campaign performance metrics | Feeds recommendations. |
+| account_imports | Account-level parsed Amazon Ads report imports | Owns detected report type and grouped entities. |
+| account_import_entities | Product/campaign/ad group/target/search-term groups | Links account imports to entity evidence. |
+| product_mapping_suggestions | Pending product mapping suggestions | Requires user confirmation for uncertain products. |
 | recommendations | Rule-generated optimization proposals | Requires approval/rejection. |
 | approvals | Human approval records | Links actor, object, decision. |
 | audit_logs | Immutable event log | Records decisions and actor context. |
@@ -72,6 +75,9 @@ Batch 10 adds Sponsored Products Search Term monitoring imports, normalized targ
 | campaign_groups | id, campaign_plan_id, group_type, group_index, match_type_set, keywords_json |
 | bulk_exports | id, workspace_id, product_id, campaign_plan_id, storage_path, original_filename, status, rows_json, approved_by, approval_note, approved_at, created_at, updated_at |
 | monitoring_imports | id, workspace_id, product_id, upload_id, parse_run_id, report_type, status, date_range_start, date_range_end, total_rows, processed_rows, error_rows, data_quality_warnings_json, error_message, created_by, created_at, updated_at |
+| account_imports | id, workspace_id, upload_id, parse_run_id, report_type, status, detected_report_type, detection_confidence, total_rows, processed_rows, error_rows, data_quality_warnings_json, created_by, created_at, updated_at |
+| account_import_entities | id, workspace_id, account_import_id, product_id, asin, sku, product_name, campaign_name, ad_group_name, targeting, customer_search_term, entity_type, entity_key, resolution_status, metrics_json, raw_row_refs_json, created_at |
+| product_mapping_suggestions | id, workspace_id, account_import_id, asin, sku, detected_product_name, suggested_product_id, status, created_at, updated_at |
 | monitoring_snapshots | id, workspace_id, product_id, monitoring_import_id, upload_id, parse_run_id, source_row_id, campaign_name, ad_group_name, targeting, match_type, customer_search_term, report_start_date, report_end_date, impressions, clicks, ctr, cpc, spend, sales, acos, roas, orders, units, cvr, raw_metrics_json, created_at |
 | recommendations | id, workspace_id, product_id, monitoring_import_id, snapshot_id, recommendation_type, entity_type, status, priority, confidence, campaign_name, ad_group_name, targeting, customer_search_term, rule_version, rule_name, current_metric_snapshot_json, input_metrics_json, evidence_json, proposed_action_json, explanation_json, created_by, decided_by, decided_at, created_at, updated_at |
 | recommendation_decisions | id, workspace_id, recommendation_id, decision, note, actor_user_id, created_at |

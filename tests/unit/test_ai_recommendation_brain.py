@@ -3,6 +3,7 @@ from decimal import Decimal
 from uuid import uuid4
 
 from apps.api.app.repositories.monitoring import new_monitoring_import
+from apps.api.app.schemas.agent_control import AgentConfig, AgentConfidenceThreshold, AgentMode, AgentStrictnessLevel
 from apps.api.app.schemas.monitoring import MonitoringSnapshot
 from apps.api.app.schemas.product_profiles import ProductProfile
 from apps.api.app.services import monitoring_metrics
@@ -19,6 +20,12 @@ class _FakeAiClient:
 
     def complete_json(self, *, messages, timeout_seconds=None):
         return AiJsonResponse(provider=self.provider, model=self.model, content_json=self.payload, latency_ms=12)
+
+
+class _CapturingAiClient(_FakeAiClient):
+    def complete_json(self, *, messages, timeout_seconds=None):
+        self.messages = messages
+        return super().complete_json(messages=messages, timeout_seconds=timeout_seconds)
 
 
 def test_valid_ai_recommendation_is_converted_to_pending_approval_record() -> None:
@@ -102,6 +109,45 @@ def test_deterministic_fallback_source_tracking_uses_failed_ai_run_metadata() ->
     assert recommendations[0].evidence_json["ai_run_id"] == str(failed_ai.id)
     assert recommendations[0].proposed_action_json["requires_human_approval"] is True
     assert recommendations[0].proposed_action_json["executes_live_amazon_change"] is False
+
+
+def test_deepseek_prompt_includes_agent_config_and_grouped_metrics() -> None:
+    import json
+
+    product = _product()
+    import_record = _import(product)
+    snapshot = _snapshot(product, import_record)
+    rollups = monitoring_metrics.build_performance_rollups([snapshot])
+    client = _CapturingAiClient(_ai_payload(executes_live=False))
+    config = AgentConfig(
+        workspace_id=product.workspace_id,
+        product_id=product.id,
+        agent_id="ai_recommendation_brain_agent",
+        mode=AgentMode.AI,
+        strictness_level=AgentStrictnessLevel.CONSERVATIVE,
+        confidence_threshold=AgentConfidenceThreshold.HIGH,
+        max_rows_per_ai_call=250,
+        allow_negative_exact=False,
+        optimization_goal="reduce_wasted_spend",
+    )
+
+    AiRecommendationBrain(client=client).generate(
+        product=product,
+        import_record=import_record,
+        snapshots=[snapshot],
+        rollups=rollups,
+        data_quality_warnings=[],
+        agent_config=config,
+    )
+
+    user_message = json.loads(client.messages[1]["content"])
+    prompt_input = user_message["input"]
+    assert prompt_input["agent_config"]["strictness_level"] == "conservative"
+    assert prompt_input["agent_config"]["confidence_threshold"] == "high"
+    assert prompt_input["agent_config"]["max_rows_per_ai_call"] == 250
+    assert "negative_exact" not in prompt_input["agent_config"]["allowed_recommendation_types"]
+    assert prompt_input["grouped_metrics"]["account"]["clicks"] == 20
+    assert prompt_input["safety_boundaries"]["requires_human_approval"] is True
 
 
 def _product() -> ProductProfile:

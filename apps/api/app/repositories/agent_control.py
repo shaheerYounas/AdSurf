@@ -11,6 +11,67 @@ from apps.api.app.core.errors import ApiError
 from apps.api.app.schemas.agent_control import AgentConfig, AgentRunEvent
 from apps.api.app.services.agent_registry import AGENT_DEFINITION_BY_ID, list_agent_definitions
 
+_CONFIG_DB_COLUMNS = [
+    "workspace_id",
+    "product_id",
+    "agent_id",
+    "enabled",
+    "mode",
+    "provider",
+    "model",
+    "strictness_level",
+    "confidence_threshold",
+    "max_recommendations",
+    "max_rows_per_ai_call",
+    "max_groups_per_ai_call",
+    "max_products_per_run",
+    "analysis_depth",
+    "include_account_level_analysis",
+    "include_product_level_analysis",
+    "include_campaign_level_analysis",
+    "include_keyword_level_analysis",
+    "include_search_term_level_analysis",
+    "allow_bid_recommendations",
+    "allow_negative_keyword_recommendations",
+    "allow_pause_recommendations",
+    "allow_budget_recommendations",
+    "allow_keep_running",
+    "allow_increase_bid",
+    "allow_decrease_bid",
+    "allow_pause_review",
+    "allow_negative_exact",
+    "allow_negative_phrase",
+    "allow_move_to_exact",
+    "allow_budget_review",
+    "allow_data_quality_review",
+    "allow_product_mapping_recommendations",
+    "max_bid_increase_multiplier",
+    "max_bid_decrease_multiplier",
+    "require_high_confidence_for_pause",
+    "require_high_confidence_for_negative_keywords",
+    "require_min_clicks_before_action",
+    "require_min_spend_before_action",
+    "target_acos_override",
+    "min_orders_for_scaling",
+    "min_roas_for_scaling",
+    "custom_system_instruction",
+    "custom_business_goal",
+    "optimization_goal",
+    "brand_safety_notes",
+    "competitor_notes",
+    "product_margin_notes",
+    "recommendation_language",
+    "explanation_detail",
+    "show_raw_ai_reasoning_summary",
+    "show_metric_evidence",
+    "require_action_risk_note",
+    "chunk_strategy",
+    "created_by",
+    "updated_by",
+    "created_at",
+    "updated_at",
+]
+
 
 class AgentControlRepository(ABC):
     @abstractmethod
@@ -151,21 +212,14 @@ class PostgresAgentControlRepository(AgentControlRepository):
         old = self.get_config(workspace_id=config.workspace_id, product_id=config.product_id, agent_id=config.agent_id)
         now = datetime.now(UTC)
         params = {**config.model_dump(), "created_at": config.created_at or now, "updated_at": now}
+        update_columns = [column for column in _CONFIG_DB_COLUMNS if column not in {"workspace_id", "product_id", "agent_id", "created_by", "created_at", "updated_at"}]
+        insert_columns = _CONFIG_DB_COLUMNS
         with self._engine.begin() as connection:
             row = connection.execute(
                 text(
-                    """
+                    f"""
                     update agent_configs
-                    set enabled = :enabled,
-                        mode = :mode,
-                        strictness_level = :strictness_level,
-                        confidence_threshold = :confidence_threshold,
-                        max_recommendations = :max_recommendations,
-                        allow_bid_recommendations = :allow_bid_recommendations,
-                        allow_negative_keyword_recommendations = :allow_negative_keyword_recommendations,
-                        allow_pause_recommendations = :allow_pause_recommendations,
-                        allow_budget_recommendations = :allow_budget_recommendations,
-                        updated_by = :updated_by,
+                    set {", ".join(f"{column} = :{column}" for column in update_columns)},
                         updated_at = now()
                     where workspace_id = :workspace_id and agent_id = :agent_id and product_id is not distinct from :product_id
                     returning *
@@ -176,16 +230,12 @@ class PostgresAgentControlRepository(AgentControlRepository):
             if row is None:
                 row = connection.execute(
                     text(
-                        """
+                        f"""
                         insert into agent_configs (
-                            workspace_id, product_id, agent_id, enabled, mode, strictness_level, confidence_threshold,
-                            max_recommendations, allow_bid_recommendations, allow_negative_keyword_recommendations,
-                            allow_pause_recommendations, allow_budget_recommendations, created_by, updated_by, created_at, updated_at
+                            {", ".join(insert_columns)}
                         )
                         values (
-                            :workspace_id, :product_id, :agent_id, :enabled, :mode, :strictness_level, :confidence_threshold,
-                            :max_recommendations, :allow_bid_recommendations, :allow_negative_keyword_recommendations,
-                            :allow_pause_recommendations, :allow_budget_recommendations, :created_by, :updated_by, :created_at, :updated_at
+                            {", ".join(f":{column}" for column in insert_columns)}
                         )
                         returning *
                         """
@@ -287,7 +337,10 @@ def _event_from_row(row: RowMapping) -> AgentRunEvent:
 
 
 def _config_params(params: dict) -> dict:
-    return {**params, "mode": str(params["mode"]), "strictness_level": str(params["strictness_level"]), "confidence_threshold": str(params["confidence_threshold"])}
+    serialized = {}
+    for key, value in params.items():
+        serialized[key] = value.value if hasattr(value, "value") else value
+    return serialized
 
 
 def _uuid_or_none(value: str | None) -> UUID | None:

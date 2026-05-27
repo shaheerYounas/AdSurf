@@ -19,14 +19,19 @@ AGENT_CONFIG_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.ADMIN}
 AGENT_CONTROL_ROLES = {WorkspaceRole.OWNER, WorkspaceRole.ADMIN, WorkspaceRole.ANALYST}
 
 EDGE_SUMMARIES = {
-    ("performance_import_agent", "metrics_analysis_agent"): ["row count", "missing columns", "data-quality warnings"],
+    ("report_upload_node", "report_detection_agent"): ["raw upload metadata", "parsed headers", "sample rows"],
+    ("report_detection_agent", "product_resolution_agent"): ["detected report type", "missing columns", "available entity levels"],
+    ("product_resolution_agent", "metrics_analysis_agent"): ["product mappings", "ASIN/SKU groups", "campaign/ad group/target entities"],
     ("metrics_analysis_agent", "ai_recommendation_brain_agent"): ["normalized metrics", "campaign rollups", "ad group rollups", "target rollups", "search term rollups", "top winners", "top wasters", "data quality warnings"],
     ("ai_recommendation_brain_agent", "bid_optimization_agent"): ["bid recommendation candidates", "metric evidence", "confidence", "risk notes"],
     ("ai_recommendation_brain_agent", "negative_keyword_agent"): ["negative keyword candidates", "wasted spend evidence", "confidence", "risk notes"],
+    ("ai_recommendation_brain_agent", "budget_allocation_agent"): ["budget review candidates", "spend share", "sales share", "risk notes"],
     ("ai_recommendation_brain_agent", "pause_review_agent"): ["pause review candidates", "zero-order spend evidence", "risk notes"],
     ("bid_optimization_agent", "stakeholder_reporting_agent"): ["bid explanations", "risk notes", "approval notes"],
     ("negative_keyword_agent", "stakeholder_reporting_agent"): ["negative keyword recommendations", "wasted spend evidence", "approval notes"],
+    ("budget_allocation_agent", "stakeholder_reporting_agent"): ["budget recommendations", "portfolio/campaign pressure", "approval notes"],
     ("pause_review_agent", "stakeholder_reporting_agent"): ["pause review recommendations", "risk notes", "approval notes"],
+    ("stakeholder_reporting_agent", "human_approval_agent"): ["executive summary", "approver notes", "recommendation queue"],
 }
 
 
@@ -280,14 +285,19 @@ def _workflow_node(*, agent_id: str, runs: list[AgentRunDetail], config: AgentCo
 def _workflow_edges(*, nodes: list[AgentWorkflowNode], events) -> list[AgentWorkflowEdge]:
     node_status = {node.agent_id: node.status for node in nodes}
     pairs = [
-        ("performance_import_agent", "metrics_analysis_agent"),
+        ("report_upload_node", "report_detection_agent"),
+        ("report_detection_agent", "product_resolution_agent"),
+        ("product_resolution_agent", "metrics_analysis_agent"),
         ("metrics_analysis_agent", "ai_recommendation_brain_agent"),
         ("ai_recommendation_brain_agent", "bid_optimization_agent"),
         ("ai_recommendation_brain_agent", "negative_keyword_agent"),
+        ("ai_recommendation_brain_agent", "budget_allocation_agent"),
         ("ai_recommendation_brain_agent", "pause_review_agent"),
         ("bid_optimization_agent", "stakeholder_reporting_agent"),
         ("negative_keyword_agent", "stakeholder_reporting_agent"),
+        ("budget_allocation_agent", "stakeholder_reporting_agent"),
         ("pause_review_agent", "stakeholder_reporting_agent"),
+        ("stakeholder_reporting_agent", "human_approval_agent"),
     ]
     created_at = events[0].created_at if events else None
     completed_at = events[-1].created_at if events else None

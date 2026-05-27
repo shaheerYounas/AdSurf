@@ -43,7 +43,7 @@ class UploadParseError(BaseModel):
 class UploadParseRun(BaseModel):
     id: UUID
     workspace_id: UUID
-    product_id: UUID
+    product_id: UUID | None = None
     upload_id: UUID
     job_id: UUID
     status: UploadParseStatus

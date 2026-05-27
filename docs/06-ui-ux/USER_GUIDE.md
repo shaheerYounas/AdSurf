@@ -235,18 +235,23 @@ Recommendations require approval before any customer-impacting action or export 
 The app validates required columns such as Campaign Name, Ad Group Name, Targeting, Customer Search Term, Impressions, Clicks, Spend, Sales, and Orders. Missing required columns stop recommendation generation. Optional metrics such as ACOS, ROAS, Units, CTR, CPC, CVR, Start Date, and End Date are normalized when present, and missing derived metrics are calculated from base metrics when possible.
 
 ## Agent Control Center
-Open `Agents` to inspect all monitoring agents, or open a monitoring import and choose `Open Agent Control Center` for import-specific workflow details.
+Open `Agents` to upload an Amazon Ads report, inspect the agent team, run analysis, review trace events, and send recommendations through human approval checkpoints. You can also open a monitoring import and choose `Open Agent Control Center` for import-specific workflow details.
 
 The Agent Control Center shows:
 
-- Agent overview cards with status, mode, strictness, last run time, errors, and recommendation counts.
-- A workflow graph showing how report quality, metrics, AI recommendation decisions, bid/negative/pause explanations, and stakeholder reporting connect.
-- A timeline of agent events such as started, output validated, recommendations created, failed, stopped, or skipped.
-- A detail panel with input summary, output JSON, related recommendations, provider/model, latency, errors, and safety boundaries.
-- Configuration controls for enabled state, deterministic/AI/hybrid mode, strictness, confidence threshold, max recommendations, and recommendation-type toggles.
-- Control buttons for pause, resume, stop, rerun, and rerun from here.
+- An upload-first entry point for account-level reports and bulk sheets.
+- Simple Mode for everyday users and Advanced Mode for operators who need deep trace/debug context.
+- Agent Team Dashboard cards with status, current task, mode, provider/model, strictness, confidence threshold, tools/data access, memory/context limits, permissions, cost/time, recommendation count, last run, and error state.
+- A Visual Workflow Canvas showing Report Upload, Report Detection, Product Resolution, Metrics Analysis, AI Recommendation Brain, Bid Optimization, Negative Keyword, Budget Allocation, Pause Review, Stakeholder Reporting, and Human Approval.
+- A right Agent Inspector with Overview, Configuration, Prompt / Business Goal, Input Data, Output, Related Recommendations, Permissions, Trace Events, and Safety tabs.
+- A Trace Timeline with events such as queued, started, input prepared, model called, output received, validation passed or failed, recommendations created, waiting for human approval, fallback used, stopped, paused, or failed.
+- Human Approval Checkpoints with recommendation cards, metric evidence, risk chips, proposed actions, and approve/reject/edit controls.
+- Agent Templates that prefill configuration for conservative profitability, growth scaling, wasted spend cleanup, launch review, or agency audit work.
+- Control buttons for run analysis, pause all, resume all, stop all, rerun failed, configure agents, view approvals, and rerun from a selected agent.
 
 Owner/admin users can change agent configuration. Analysts can run, rerun, pause, resume, and stop agents. Approvers and viewers can inspect outputs. These controls never grant agents permission to approve, reject, or execute Amazon Ads changes.
+
+Every recommendation card and approval checkpoint repeats the safety boundary: `Recommendation only`, `Requires human approval`, and `No live Amazon Ads change executed`.
 
 ## Review AI Recommendations
 Open `Recommendations` to review the queue. Each row shows:
@@ -349,3 +354,18 @@ Before downloading an export:
 - Export validation passed.
 - Approval note is saved.
 - Downloaded file is the current approved export version.
+## Account Bulk Upload
+
+The main workflow begins in the Agent Control Center with **Upload Amazon Ads Report**.
+
+1. Choose a CSV/XLS/XLSX Amazon Ads report or bulk sheet.
+2. AdSurf uploads and parses the file.
+3. AdSurf detects the report type and available entity levels.
+4. AdSurf groups rows by account, product, campaign, ad group, target, and search term where columns allow it.
+5. Review product mapping suggestions for new or unknown ASINs/SKUs.
+6. Configure agents, then run analysis.
+7. Review grouped recommendations and approve or reject with notes.
+
+Single-product uploads still exist on product pages for focused keyword and monitoring workflows. Account bulk upload is the preferred path for sellers and agencies managing many products.
+
+Approving a recommendation does not mutate live Amazon Ads.

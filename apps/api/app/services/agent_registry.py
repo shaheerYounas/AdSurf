@@ -2,17 +2,49 @@ from apps.api.app.schemas.agent_control import AgentDefinition
 
 
 AGENT_WORKFLOW_ORDER = [
-    "performance_import_agent",
+    "report_upload_node",
+    "report_detection_agent",
+    "product_resolution_agent",
     "metrics_analysis_agent",
     "ai_recommendation_brain_agent",
     "bid_optimization_agent",
     "negative_keyword_agent",
+    "budget_allocation_agent",
     "pause_review_agent",
     "stakeholder_reporting_agent",
+    "human_approval_agent",
 ]
 
 
 AGENT_DEFINITIONS = [
+    AgentDefinition(
+        agent_id="report_upload_node",
+        display_name="Report Upload",
+        description="Receives Amazon Ads reports or bulk sheets and starts the account import workflow.",
+        task_type="start",
+        input_dependencies=[],
+        output_type="uploaded_report",
+        allowed_actions=["run", "pause", "stop", "rerun", "view_input", "view_output", "view_logs"],
+        can_be_disabled=False,
+    ),
+    AgentDefinition(
+        agent_id="report_detection_agent",
+        display_name="Report Detection Agent",
+        description="Classifies the uploaded report type, required columns, confidence, and available entity levels.",
+        task_type="validation",
+        input_dependencies=["report_upload_node"],
+        output_type="report_detection_summary",
+        allowed_actions=["run", "pause", "stop", "rerun", "view_input", "view_output", "view_logs"],
+    ),
+    AgentDefinition(
+        agent_id="product_resolution_agent",
+        display_name="Product Resolution Agent",
+        description="Detects ASINs, SKUs, product names, and mapping suggestions before account-level analysis.",
+        task_type="mapping",
+        input_dependencies=["report_detection_agent"],
+        output_type="product_mapping_suggestions",
+        allowed_actions=["run", "pause", "stop", "rerun", "view_input", "view_output", "view_logs"],
+    ),
     AgentDefinition(
         agent_id="performance_import_agent",
         display_name="Performance Import Agent",
@@ -59,6 +91,15 @@ AGENT_DEFINITIONS = [
         allowed_actions=["run", "pause", "stop", "rerun", "view_input", "view_output", "view_logs", "view_recommendations"],
     ),
     AgentDefinition(
+        agent_id="budget_allocation_agent",
+        display_name="Budget Allocation Agent",
+        description="Reviews campaign and product budget pressure and suggests approval-gated budget review actions.",
+        task_type="explanation",
+        input_dependencies=["ai_recommendation_brain_agent"],
+        output_type="budget_recommendation_explanations",
+        allowed_actions=["run", "pause", "stop", "rerun", "view_input", "view_output", "view_logs", "view_recommendations"],
+    ),
+    AgentDefinition(
         agent_id="pause_review_agent",
         display_name="Pause Review Agent",
         description="Reviews campaigns, ad groups, targets, or search terms that may need pause review.",
@@ -76,19 +117,36 @@ AGENT_DEFINITIONS = [
         output_type="dashboard_summary",
         allowed_actions=["run", "pause", "stop", "rerun", "view_input", "view_output", "view_logs"],
     ),
+    AgentDefinition(
+        agent_id="human_approval_agent",
+        display_name="Human Approval Agent",
+        description="Routes recommendations to the approval queue and prevents automatic approval or live ad mutation.",
+        task_type="approval",
+        input_dependencies=["stakeholder_reporting_agent"],
+        output_type="approval_queue",
+        allowed_actions=["view_input", "view_output", "view_logs", "view_recommendations"],
+        can_be_disabled=False,
+        can_be_rerun=False,
+        can_be_stopped=False,
+    ),
 ]
 
 
 AGENT_DEFINITION_BY_ID = {agent.agent_id: agent for agent in AGENT_DEFINITIONS}
 AGENT_NAME_TO_ID = {
+    "report_upload_node": "report_upload_node",
+    "report_detection_agent": "report_detection_agent",
+    "product_resolution_agent": "product_resolution_agent",
     "performance_import_agent": "performance_import_agent",
     "metrics_analysis_agent": "metrics_analysis_agent",
     "monitoring_recommendation_brain": "ai_recommendation_brain_agent",
     "ai_recommendation_brain_agent": "ai_recommendation_brain_agent",
     "bid_optimization_agent": "bid_optimization_agent",
     "negative_keyword_agent": "negative_keyword_agent",
+    "budget_allocation_agent": "budget_allocation_agent",
     "pause_review_agent": "pause_review_agent",
     "stakeholder_reporting_agent": "stakeholder_reporting_agent",
+    "human_approval_agent": "human_approval_agent",
 }
 
 

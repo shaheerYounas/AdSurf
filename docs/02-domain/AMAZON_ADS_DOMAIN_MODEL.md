@@ -29,3 +29,23 @@ Rules calculate relevance, rejection, grouping, negatives, defaults, and optimiz
 
 ## Monitoring Signals
 The deterministic metrics layer calculates CTR, CPC, CVR, ACOS, ROAS, CPA, spend per order, sales per click, click/spend/sales share, zero-order spend, wasted spend, high-click zero-order, high-spend low-sales, low-impression high-conversion, strong/weak converter, under-tested, over-tested, budget pressure, search-term relevance, match-type risk, and duplicate/overlap signals.
+## Account-Level Imports
+
+AdSurf supports account-level imports for bulk Amazon Ads reports and bulk sheets. A single import can contain many advertised products, ASINs, SKUs, campaigns, ad groups, targets, search terms, and metric rows.
+
+### Account Import Entities
+Rows are grouped into these deterministic entity levels:
+
+| Level | Key examples |
+| --- | --- |
+| account | workspace import |
+| product | product ID, ASIN, SKU, product name, unknown product |
+| campaign | campaign name or ID |
+| ad group | campaign + ad group |
+| target | campaign + ad group + targeting/keyword |
+| search term | campaign + ad group + targeting + customer search term |
+
+### Product Resolution
+Product matching uses deterministic ASIN, SKU, and exact normalized product-name matches. Conflicts or missing identifiers create mapping suggestions instead of silently attaching the row to a product.
+
+Resolution statuses are `matched_existing_product`, `suggested_new_product`, `unknown_product`, and `needs_user_mapping`.

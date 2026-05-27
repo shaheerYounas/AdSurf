@@ -125,6 +125,7 @@ class AiRecommendationBrain:
         rollups: dict,
         data_quality_warnings: list[dict],
         baseline_recommendations: list[Recommendation] | None = None,
+        agent_config: Any | None = None,
     ) -> AiRecommendationBrainResult:
         payload = _brain_payload(
             product=product,
@@ -133,6 +134,7 @@ class AiRecommendationBrain:
             rollups=rollups,
             data_quality_warnings=data_quality_warnings,
             baseline_recommendations=baseline_recommendations,
+            agent_config=agent_config,
         )
         messages = _messages(payload)
         input_hash = _hash_payload({"messages": messages})
@@ -331,16 +333,42 @@ def _brain_payload(
     rollups: dict,
     data_quality_warnings: list[dict],
     baseline_recommendations: list[Recommendation] | None,
+    agent_config: Any | None,
 ) -> dict:
     return {
-        "product_profile": {
-            "product_id": str(product.id),
-            "product_name": product.product_name,
-            "target_acos": str(product.target_acos),
-            "default_bid": str(product.default_bid),
-            "default_budget": str(product.default_budget),
-            "marketplace": product.marketplace,
-            "currency": product.currency,
+        "report_context": {
+            "report_type": import_record.report_type,
+            "scope": "single_product_report",
+            "row_count": len(snapshots),
+            "date_range": {"start": import_record.date_range_start, "end": import_record.date_range_end},
+            "detected_products": [
+                {
+                    "product_id": str(product.id),
+                    "product_name": product.product_name,
+                    "asin": product.asin,
+                    "sku": product.sku,
+                    "marketplace": product.marketplace,
+                    "currency": product.currency,
+                }
+            ],
+        },
+        "agent_config": _agent_config_payload(agent_config),
+        "grouped_metrics": {
+            "account": rollups.get("report", {}),
+            "products": [
+                {
+                    "product_id": str(product.id),
+                    "product_name": product.product_name,
+                    "target_acos": str(product.target_acos),
+                    "default_bid": str(product.default_bid),
+                    "default_budget": str(product.default_budget),
+                    "metrics": rollups.get("report", {}),
+                }
+            ],
+            "campaigns": _rollup_items(rollups.get("campaign", {})),
+            "ad_groups": _rollup_items(rollups.get("ad_group", {})),
+            "targets": _rollup_items(rollups.get("target", {})),
+            "search_terms": _rollup_items(rollups.get("search_term", {})),
         },
         "monitoring_import": {
             "id": str(import_record.id),
@@ -362,6 +390,82 @@ def _brain_payload(
         },
         "output_schema_version": AI_RECOMMENDATION_SCHEMA_VERSION,
     }
+
+
+def _agent_config_payload(agent_config: Any | None) -> dict:
+    if agent_config is None:
+        return {
+            "strictness_level": "balanced",
+            "confidence_threshold": "medium",
+            "analysis_depth": "standard",
+            "allowed_recommendation_types": [],
+            "risk_controls": {},
+        }
+    data = agent_config.model_dump(mode="json") if hasattr(agent_config, "model_dump") else dict(agent_config)
+    return {
+        "enabled": data.get("enabled", True),
+        "mode": data.get("mode", "hybrid"),
+        "provider": data.get("provider", "deepseek"),
+        "model": data.get("model"),
+        "strictness_level": data.get("strictness_level", "balanced"),
+        "confidence_threshold": data.get("confidence_threshold", "medium"),
+        "max_recommendations": data.get("max_recommendations"),
+        "max_rows_per_ai_call": data.get("max_rows_per_ai_call"),
+        "max_products_per_run": data.get("max_products_per_run"),
+        "analysis_depth": data.get("analysis_depth", "standard"),
+        "include_account_level_analysis": data.get("include_account_level_analysis", True),
+        "include_product_level_analysis": data.get("include_product_level_analysis", True),
+        "include_campaign_level_analysis": data.get("include_campaign_level_analysis", True),
+        "include_keyword_level_analysis": data.get("include_keyword_level_analysis", True),
+        "include_search_term_level_analysis": data.get("include_search_term_level_analysis", True),
+        "allowed_recommendation_types": [
+            name.removeprefix("allow_")
+            for name in [
+                "allow_keep_running",
+                "allow_increase_bid",
+                "allow_decrease_bid",
+                "allow_pause_review",
+                "allow_negative_exact",
+                "allow_negative_phrase",
+                "allow_move_to_exact",
+                "allow_budget_review",
+                "allow_data_quality_review",
+                "allow_product_mapping_recommendations",
+            ]
+            if data.get(name, True)
+        ],
+        "risk_controls": {
+            "max_bid_increase_multiplier": data.get("max_bid_increase_multiplier"),
+            "max_bid_decrease_multiplier": data.get("max_bid_decrease_multiplier"),
+            "require_high_confidence_for_pause": data.get("require_high_confidence_for_pause"),
+            "require_high_confidence_for_negative_keywords": data.get("require_high_confidence_for_negative_keywords"),
+            "require_min_clicks_before_action": data.get("require_min_clicks_before_action"),
+            "require_min_spend_before_action": data.get("require_min_spend_before_action"),
+            "target_acos_override": data.get("target_acos_override"),
+            "min_orders_for_scaling": data.get("min_orders_for_scaling"),
+            "min_roas_for_scaling": data.get("min_roas_for_scaling"),
+        },
+        "optimization_goal": data.get("optimization_goal"),
+        "custom_business_goal": data.get("custom_business_goal"),
+        "brand_safety_notes": data.get("brand_safety_notes"),
+        "competitor_notes": data.get("competitor_notes"),
+        "product_margin_notes": data.get("product_margin_notes"),
+        "output_controls": {
+            "recommendation_language": data.get("recommendation_language"),
+            "explanation_detail": data.get("explanation_detail"),
+            "show_raw_ai_reasoning_summary": data.get("show_raw_ai_reasoning_summary"),
+            "show_metric_evidence": data.get("show_metric_evidence"),
+            "require_action_risk_note": data.get("require_action_risk_note"),
+        },
+        "chunking": {
+            "max_groups_per_ai_call": data.get("max_groups_per_ai_call"),
+            "chunk_strategy": data.get("chunk_strategy"),
+        },
+    }
+
+
+def _rollup_items(rollups: dict) -> list[dict]:
+    return [{"entity_key": key, "metrics": value} for key, value in rollups.items()]
 
 
 def _messages(payload: dict) -> list[dict[str, str]]:

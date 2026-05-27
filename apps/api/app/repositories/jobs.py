@@ -335,7 +335,7 @@ def _process_upload_idempotency_key(upload_id: UUID) -> str:
 def _process_upload_payload(upload: UploadRecord) -> dict:
     return {
         "workspace_id": str(upload.workspace_id),
-        "product_id": str(upload.product_id),
+        "product_id": str(upload.product_id) if upload.product_id else None,
         "upload_id": str(upload.id),
         "storage_path": upload.storage_path,
         "source_type": upload.source_type.value,

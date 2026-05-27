@@ -244,6 +244,7 @@ class MonitoringWorker:
             rollups=rollups,
             data_quality_warnings=warnings,
             baseline_recommendations=baseline,
+            agent_config=brain_config,
         )
         ai_runs = [result.ai_run]
         if result.used_ai:

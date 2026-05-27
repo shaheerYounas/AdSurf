@@ -19,6 +19,13 @@ class UploadStatus(StrEnum):
 class UploadSourceType(StrEnum):
     COMPETITOR_KEYWORD_RESEARCH = "competitor_keyword_research"
     AMAZON_ADS_SP_SEARCH_TERM_REPORT = "amazon_ads_sp_search_term_report"
+    SINGLE_PRODUCT_REPORT = "single_product_report"
+    ACCOUNT_BULK_REPORT = "account_bulk_report"
+    SPONSORED_PRODUCTS_SEARCH_TERM_REPORT = "sponsored_products_search_term_report"
+    SPONSORED_PRODUCTS_TARGETING_REPORT = "sponsored_products_targeting_report"
+    SPONSORED_PRODUCTS_CAMPAIGN_REPORT = "sponsored_products_campaign_report"
+    BULK_SHEET = "bulk_sheet"
+    UNKNOWN_REPORT = "unknown_report"
 
 
 class UploadInitRequest(BaseModel):
@@ -40,7 +47,7 @@ class UploadConfirmRequest(BaseModel):
 class UploadRecord(BaseModel):
     id: UUID
     workspace_id: UUID
-    product_id: UUID
+    product_id: UUID | None = None
     uploaded_by: str | None = None
     original_filename: str
     storage_path: str

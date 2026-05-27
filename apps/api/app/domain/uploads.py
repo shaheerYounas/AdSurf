@@ -21,6 +21,13 @@ ACCEPTED_UPLOAD_EXTENSIONS = {".csv", ".xls", ".xlsx"}
 ACCEPTED_UPLOAD_SOURCE_TYPES = {
     "competitor_keyword_research",
     "amazon_ads_sp_search_term_report",
+    "single_product_report",
+    "account_bulk_report",
+    "sponsored_products_search_term_report",
+    "sponsored_products_targeting_report",
+    "sponsored_products_campaign_report",
+    "bulk_sheet",
+    "unknown_report",
 }
 
 
@@ -85,11 +92,26 @@ def sanitize_upload_filename(original_filename: str) -> str:
 def build_upload_storage_path(
     *,
     workspace_id: UUID,
-    product_id: UUID,
+    product_id: UUID | None,
     upload_id: UUID,
     sanitized_filename: str,
 ) -> str:
+    if product_id is None:
+        return build_account_upload_storage_path(
+            workspace_id=workspace_id,
+            upload_id=upload_id,
+            sanitized_filename=sanitized_filename,
+        )
     return f"/workspaces/{workspace_id}/products/{product_id}/uploads/{upload_id}/raw/{sanitized_filename}"
+
+
+def build_account_upload_storage_path(
+    *,
+    workspace_id: UUID,
+    upload_id: UUID,
+    sanitized_filename: str,
+) -> str:
+    return f"/workspaces/{workspace_id}/account-imports/uploads/{upload_id}/raw/{sanitized_filename}"
 
 
 def _extension_for(filename: str) -> str:

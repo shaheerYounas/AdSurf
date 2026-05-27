@@ -102,6 +102,25 @@ Response data:
 
 `GET /v1/workspaces/{workspace_id}/uploads/{upload_id}` returns upload metadata.
 
+Account-level upload uses the same signed/local upload flow without a product path:
+
+`POST /v1/workspaces/{workspace_id}/uploads/init`
+
+Supported account report source types include `account_bulk_report`, `sponsored_products_search_term_report`, `sponsored_products_targeting_report`, `sponsored_products_campaign_report`, `bulk_sheet`, and `unknown_report`.
+
+Account import endpoints:
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/v1/workspaces/{workspace_id}/uploads/{upload_id}/report-detection` | Detect report type from parsed headers/sample rows. |
+| POST | `/v1/workspaces/{workspace_id}/account-imports` | Create account import, grouped entities, and product mapping suggestions from a processed upload. |
+| GET | `/v1/workspaces/{workspace_id}/account-imports` | List account imports. |
+| GET | `/v1/workspaces/{workspace_id}/account-imports/{account_import_id}` | Read import, entities, and mapping suggestions. |
+| GET | `/v1/workspaces/{workspace_id}/account-imports/{account_import_id}/entities` | List grouped account import entities. |
+| GET | `/v1/workspaces/{workspace_id}/account-imports/{account_import_id}/product-mapping-suggestions` | List pending product mapping suggestions. |
+
+Account import creation does not run live Amazon Ads actions, approve/reject recommendations, or generate exports.
+
 Batch 4 parse read endpoints:
 
 | Method | Route | Purpose |

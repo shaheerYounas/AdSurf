@@ -122,6 +122,78 @@ def initialize_upload(
     return success_response(data=response.model_dump(mode="json"))
 
 
+@router.post("/workspaces/{workspace_id}/uploads/init", status_code=status.HTTP_201_CREATED)
+def initialize_account_upload(
+    workspace_id: UUID,
+    payload: UploadInitRequest,
+    idempotency_key: str | None = Header(default=None, alias="Idempotency-Key"),
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    upload_repository: UploadRepository = Depends(get_upload_repository),
+    audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
+    storage_service: StorageService = Depends(get_storage_service),
+) -> dict:
+    idempotency_key = _require_idempotency_key(idempotency_key)
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
+
+    sanitized_filename = sanitize_upload_filename(payload.original_filename)
+    existing = upload_repository.get_by_idempotency_key(workspace_id=workspace_id, idempotency_key=idempotency_key)
+    if existing is not None:
+        _ensure_safe_init_replay(existing=existing, payload=payload, product_id=None, sanitized_filename=sanitized_filename)
+        signed_target = storage_service.create_signed_upload_url(
+            storage_path=existing.storage_path,
+            mime_type=existing.mime_type,
+        )
+        response = UploadInitResponse(
+            upload_id=existing.id,
+            storage_path=existing.storage_path,
+            upload_url=signed_target.upload_url,
+            upload_url_expires_at=signed_target.expires_at,
+            status=existing.status,
+        )
+        return success_response(data=response.model_dump(mode="json"))
+
+    sanitized_filename = validate_upload_request(
+        original_filename=payload.original_filename,
+        mime_type=payload.mime_type,
+        file_size_bytes=payload.file_size_bytes,
+        source_type=payload.source_type,
+    )
+    upload_id = uuid4()
+    storage_path = build_upload_storage_path(
+        workspace_id=workspace_id,
+        product_id=None,
+        upload_id=upload_id,
+        sanitized_filename=sanitized_filename,
+    )
+    upload = upload_repository.create_initialized(
+        upload_id=upload_id,
+        workspace_id=workspace_id,
+        product_id=None,
+        payload=payload,
+        storage_path=storage_path,
+        actor_user_id=principal.user_id,
+        idempotency_key=idempotency_key,
+    )
+    signed_target = storage_service.create_signed_upload_url(storage_path=upload.storage_path, mime_type=upload.mime_type)
+    audit_repository.record(
+        workspace_id=workspace_id,
+        actor_user_id=principal.user_id,
+        action="account_upload.initialized",
+        entity_type="upload",
+        entity_id=upload.id,
+        details={"source_type": upload.source_type.value, "account_level": True},
+    )
+    response = UploadInitResponse(
+        upload_id=upload.id,
+        storage_path=upload.storage_path,
+        upload_url=signed_target.upload_url,
+        upload_url_expires_at=signed_target.expires_at,
+        status=upload.status,
+    )
+    return success_response(data=response.model_dump(mode="json"))
+
+
 @router.post("/workspaces/{workspace_id}/uploads/{upload_id}/confirm")
 def confirm_upload(
     workspace_id: UUID,
@@ -772,7 +844,7 @@ def _ensure_safe_init_replay(
     *,
     existing,
     payload: UploadInitRequest,
-    product_id: UUID,
+    product_id: UUID | None,
     sanitized_filename: str,
 ) -> None:
     expected = {
