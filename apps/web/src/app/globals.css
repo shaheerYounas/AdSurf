@@ -88,20 +88,19 @@ body {
     background-size: 36px 36px;
   }
 
-  .dark .soft-grid-bg,
-  @media (prefers-color-scheme: dark) {
-    .soft-grid-bg {
-      background-image:
-        linear-gradient(hsl(210 40% 98% / 0.045) 1px, transparent 1px),
-        linear-gradient(90deg, hsl(210 40% 98% / 0.045) 1px, transparent 1px);
-    }
-  }
-
   .motion-safe-lift {
     transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
   }
 
   .motion-safe-lift:hover {
     transform: translateY(-2px);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .soft-grid-bg {
+    background-image:
+      linear-gradient(hsl(210 40% 98% / 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(210 40% 98% / 0.045) 1px, transparent 1px);
   }
 }
