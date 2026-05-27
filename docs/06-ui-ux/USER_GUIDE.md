@@ -237,13 +237,16 @@ The app validates required columns such as Campaign Name, Ad Group Name, Targeti
 ## Agent Control Center
 Open `Agents` to upload an Amazon Ads report, inspect the agent team, run analysis, review trace events, and send recommendations through human approval checkpoints. You can also open a monitoring import and choose `Open Agent Control Center` for import-specific workflow details.
 
+When `Agents` is opened, the main AdSurf sidebar changes into an Agent Ops sub-menu. Use `Main menu` at the top of that sidebar to return to Dashboard, Products, New product, and the rest of the global navigation.
+
 The Agent Control Center shows:
 
 - An upload-first entry point for account-level reports and bulk sheets.
-- Simple Mode for everyday users and Advanced Mode for operators who need deep trace/debug context.
+- A normal Upload Amazon Ads Report card at the top of the workflow with file picker, upload button, Simple/Advanced Mode toggle, and safety labels.
+- Simple Mode for everyday users and Advanced Mode for operators who need raw input/output, template, and deep configuration context.
 - Agent Team Dashboard cards with status, current task, mode, provider/model, strictness, confidence threshold, tools/data access, memory/context limits, permissions, cost/time, recommendation count, last run, and error state.
 - A Visual Workflow Canvas showing Report Upload, Report Detection, Product Resolution, Metrics Analysis, AI Recommendation Brain, Bid Optimization, Negative Keyword, Budget Allocation, Pause Review, Stakeholder Reporting, and Human Approval.
-- A right Agent Inspector with Overview, Configuration, Prompt / Business Goal, Input Data, Output, Related Recommendations, Permissions, Trace Events, and Safety tabs.
+- A right Agent Inspector on wide desktop screens, or a full-width inspector below the workflow on narrower screens. Inspector tabs wrap cleanly and include Overview, Configuration, Prompt / Business Goal, Input Data, Output, Recommendations, Permissions, Trace, and Safety.
 - A Trace Timeline with events such as queued, started, input prepared, model called, output received, validation passed or failed, recommendations created, waiting for human approval, fallback used, stopped, paused, or failed.
 - Human Approval Checkpoints with recommendation cards, metric evidence, risk chips, proposed actions, and approve/reject/edit controls.
 - Agent Templates that prefill configuration for conservative profitability, growth scaling, wasted spend cleanup, launch review, or agency audit work.

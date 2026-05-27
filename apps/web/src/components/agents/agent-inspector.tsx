@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import type { AgentConfig, AgentDefinition, AgentEvent, AgentRun } from "@/lib/api/agents";
 import type { Recommendation } from "@/lib/api/monitoring";
 
-type InspectorTab = "Overview" | "Configuration" | "Prompt / Business Goal" | "Input Data" | "Output" | "Related Recommendations" | "Permissions" | "Trace Events" | "Safety";
+type InspectorTab = "Overview" | "Configuration" | "Prompt / Business Goal" | "Input Data" | "Output" | "Recommendations" | "Permissions" | "Trace" | "Safety";
 
-const tabs: InspectorTab[] = ["Overview", "Configuration", "Prompt / Business Goal", "Input Data", "Output", "Related Recommendations", "Permissions", "Trace Events", "Safety"];
+const tabs: InspectorTab[] = ["Overview", "Configuration", "Prompt / Business Goal", "Input Data", "Output", "Recommendations", "Permissions", "Trace", "Safety"];
 
 export function AgentInspector({
   agent,
@@ -33,14 +33,14 @@ export function AgentInspector({
   const relatedRecommendations = useMemo(() => relatedForAgent(recommendations, run, agent?.agent_id), [agent?.agent_id, recommendations, run]);
   if (!agent) {
     return (
-      <aside className="rounded-3xl border border-white/10 bg-white/80 p-5 shadow-xl dark:bg-slate-950/80">
+      <aside className="w-full rounded-3xl border border-white/10 bg-white p-5 shadow-xl dark:bg-slate-950/80 sm:p-6">
         <p className="text-sm text-slate-600 dark:text-slate-300">Select an agent or workflow node to inspect its configuration, permissions, trace, and output.</p>
       </aside>
     );
   }
 
   return (
-    <aside className="rounded-3xl border border-white/60 bg-white/90 p-5 shadow-xl shadow-slate-950/10 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/85">
+    <aside className="w-full rounded-3xl border border-white/60 bg-white p-5 shadow-xl shadow-slate-950/10 dark:border-white/10 dark:bg-slate-950/85 sm:p-6">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 gap-3">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-indigo-950/20 dark:bg-white dark:text-slate-950">
@@ -63,10 +63,10 @@ export function AgentInspector({
         <Pill>{config?.strictness_level ?? "balanced"}</Pill>
       </div>
 
-      <div className="mt-5 flex gap-2 overflow-x-auto pb-2">
+      <div className="mt-5 flex flex-wrap gap-2">
         {tabs.map((tab) => (
           <button
-            className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 ${activeTab === tab ? "border-indigo-300 bg-indigo-600 text-white shadow-lg shadow-indigo-950/20 dark:border-indigo-300 dark:bg-indigo-300 dark:text-indigo-950" : "border-slate-200 bg-white text-slate-700 hover:border-indigo-200 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"}`}
+            className={`rounded-full border px-3 py-2 text-xs font-semibold leading-none outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 ${activeTab === tab ? "border-indigo-300 bg-indigo-600 text-white shadow-lg shadow-indigo-950/20 dark:border-indigo-300 dark:bg-indigo-300 dark:text-indigo-950" : "border-slate-200 bg-white text-slate-700 hover:border-indigo-200 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"}`}
             key={tab}
             onClick={() => setActiveTab(tab)}
             type="button"
@@ -82,9 +82,9 @@ export function AgentInspector({
         {activeTab === "Prompt / Business Goal" ? <PromptBusinessGoal config={config} onConfigChange={onConfigChange} /> : null}
         {activeTab === "Input Data" ? <JsonPanel icon={<FileInput size={16} />} label="Input Data" value={run?.input_json ?? { dependencies: agent.input_dependencies, data_access: agent.allowed_actions }} advancedMode={advancedMode} /> : null}
         {activeTab === "Output" ? <JsonPanel icon={<TerminalSquare size={16} />} label="Recent Output" value={run?.output_json ?? { output_type: agent.output_type }} advancedMode={advancedMode} /> : null}
-        {activeTab === "Related Recommendations" ? <RelatedRecommendations recommendations={relatedRecommendations} /> : null}
+        {activeTab === "Recommendations" ? <RelatedRecommendations recommendations={relatedRecommendations} /> : null}
         {activeTab === "Permissions" ? <Permissions /> : null}
-        {activeTab === "Trace Events" ? <TraceEvents events={events.filter((event) => event.agent_id === agent.agent_id || event.agent_run_id === run?.id)} /> : null}
+        {activeTab === "Trace" ? <TraceEvents events={events.filter((event) => event.agent_id === agent.agent_id || event.agent_run_id === run?.id)} /> : null}
         {activeTab === "Safety" ? <Safety /> : null}
       </div>
     </aside>

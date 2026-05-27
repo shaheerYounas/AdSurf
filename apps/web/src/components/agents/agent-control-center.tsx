@@ -11,8 +11,6 @@ import {
   ClipboardCheck,
   Eye,
   FileSearch,
-  FileText,
-  GitBranch,
   Layers3,
   Loader2,
   Pause,
@@ -20,10 +18,8 @@ import {
   RotateCcw,
   Settings,
   ShieldCheck,
-  Sparkles,
   Square,
   UploadCloud,
-  Users,
 } from "lucide-react";
 import { AgentInspector } from "@/components/agents/agent-inspector";
 import { AgentTraceTimeline } from "@/components/agents/agent-trace-timeline";
@@ -77,7 +73,6 @@ const fallbackAgents: AgentDefinition[] = [
   definition("human_approval_agent", "Human Approval Agent", "Routes recommendations to humans and prevents automatic approval.", "approval", "approval_queue"),
 ];
 
-const navItems = ["Workspace", "Reports", "Agents", "Workflows", "Recommendations", "Approvals", "Settings"];
 const templates = [
   ["Conservative Profitability Team", "High confidence thresholds, strict pause/negative controls, profit-first recommendations."],
   ["Growth Scaling Team", "Deeper analysis, scaling toggles, winner expansion, and campaign-level opportunities."],
@@ -85,6 +80,7 @@ const templates = [
   ["Launch Campaign Review Team", "Protects new products with conservative evidence thresholds and data-quality checks."],
   ["Agency Account Audit Team", "Account-wide audit view for products, campaigns, budgets, and approver summaries."],
 ];
+const experienceLabels: Record<ExperienceMode, string> = { simple: "Simple Mode", advanced: "Advanced Mode" };
 
 const statusTone: Record<string, string> = {
   idle: "border-slate-300 bg-slate-100 text-slate-700 dark:border-white/15 dark:bg-white/10 dark:text-slate-200",
@@ -101,7 +97,7 @@ const statusTone: Record<string, string> = {
 };
 
 export function AgentControlCenter({ productId, importId }: { productId?: string; importId?: string }) {
-  const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId);
+  const workspaceId = defaultWorkspaceId;
   const [agents, setAgents] = useState<AgentDefinition[]>([]);
   const [configs, setConfigs] = useState<AgentConfig[]>([]);
   const [runs, setRuns] = useState<AgentRun[]>([]);
@@ -219,10 +215,8 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   }
 
   return (
-    <div className="min-h-screen rounded-[2rem] bg-slate-100 p-3 text-slate-950 dark:bg-slate-950 dark:text-white lg:p-4">
-      <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
-        <LeftSidebar workspaceId={workspaceId} onWorkspaceChange={setWorkspaceId} />
-        <main className="space-y-4">
+    <div className="min-h-screen rounded-[1.75rem] bg-slate-100 p-3 text-slate-950 dark:bg-slate-950 dark:text-white sm:p-4 lg:p-5">
+      <main className="min-w-0 space-y-6">
           <TopCommandBar
             environmentMode={environmentMode}
             isLoading={isLoading}
@@ -233,16 +227,20 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
             onRefresh={load}
             onRunAnalysis={() => setMessage("Run analysis is queued from import-level workflows; select an import to run the full pipeline.")}
             onBulkControl={(action) => {
-              const activeRuns = runs.filter((run) => ["running", "queued", "failed"].includes(run.status));
-              void Promise.all(activeRuns.map((run) => controlAgentRun(run.id, action, `${action} all from Agent Control Center`, workspaceId).catch(() => undefined))).then(load);
+              const targetRuns = runs.filter((run) => {
+                if (action === "resume") return run.status === "paused";
+                if (action === "rerun") return run.status === "failed";
+                return ["running", "queued", "failed", "paused"].includes(run.status);
+              });
+              void Promise.all(targetRuns.map((run) => controlAgentRun(run.id, action, `${action} all from Agent Control Center`, workspaceId).catch(() => undefined))).then(load);
             }}
             onViewApprovals={() => document.getElementById("approval-checkpoints")?.scrollIntoView({ behavior: "smooth" })}
           />
 
           {message ? <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-900 dark:border-indigo-300/25 dark:bg-indigo-300/10 dark:text-indigo-100">{message}</div> : null}
 
-          <section className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_430px]">
-            <div className="space-y-4">
+          <section className="grid min-w-0 items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_400px]">
+            <div className="min-w-0 space-y-6">
               <HeroUpload
                 accountImport={accountImport}
                 completedCount={completedCount}
@@ -257,6 +255,8 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
                 onExperienceModeChange={setExperienceMode}
               />
 
+              <WorkflowCanvas nodes={workflowNodes} edges={workflowEdges} selectedAgentId={selectedAgentId} onSelect={setSelectedAgentId} />
+
               <AgentTeamDashboard
                 agents={agentCatalog}
                 configByAgent={configByAgent}
@@ -268,12 +268,6 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
                 }}
               />
 
-              {experienceMode === "advanced" ? (
-                <WorkflowCanvas nodes={workflowNodes} edges={workflowEdges} selectedAgentId={selectedAgentId} onSelect={setSelectedAgentId} />
-              ) : (
-                <SimpleStatusStrip nodes={workflowNodes} />
-              )}
-
               <ApprovalCheckpointSummary
                 pendingApprovals={pendingApprovals}
                 highPriorityCount={highPriorityApprovals.length}
@@ -281,55 +275,26 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
                 onDecision={decide}
               />
 
-              <AgentTemplates onApply={applyTemplate} />
+              <AgentTraceTimeline events={visibleEvents} runs={runs} />
 
-              {experienceMode === "advanced" ? <AgentTraceTimeline events={visibleEvents} runs={runs} /> : null}
+              {experienceMode === "advanced" ? <AgentTemplates onApply={applyTemplate} /> : null}
             </div>
 
-            <AgentInspector
-              agent={selectedAgent}
-              config={selectedConfig}
-              run={selectedRun}
-              events={visibleEvents}
-              recommendations={recommendations}
-              advancedMode={experienceMode === "advanced"}
-              onConfigChange={(patch) => selectedAgent && saveConfig(selectedAgent.agent_id, patch)}
-              onToggleAgent={() => selectedAgent && toggleAgent(selectedAgent.agent_id)}
-            />
+            <div className="min-w-0 2xl:sticky 2xl:top-6 2xl:max-h-[calc(100vh-3rem)] 2xl:overflow-auto">
+              <AgentInspector
+                agent={selectedAgent}
+                config={selectedConfig}
+                run={selectedRun}
+                events={visibleEvents}
+                recommendations={recommendations}
+                advancedMode={experienceMode === "advanced"}
+                onConfigChange={(patch) => selectedAgent && saveConfig(selectedAgent.agent_id, patch)}
+                onToggleAgent={() => selectedAgent && toggleAgent(selectedAgent.agent_id)}
+              />
+            </div>
           </section>
         </main>
-      </div>
     </div>
-  );
-}
-
-function LeftSidebar({ workspaceId, onWorkspaceChange }: { workspaceId: string; onWorkspaceChange: (workspaceId: string) => void }) {
-  return (
-    <aside className="rounded-3xl border border-white/70 bg-white/85 p-4 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-white/5">
-      <div className="flex items-center gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white dark:bg-white dark:text-slate-950"><Sparkles size={20} /></span>
-        <div>
-          <p className="text-sm font-semibold text-slate-950 dark:text-white">AdSurf</p>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Agent Ops</p>
-        </div>
-      </div>
-      <label className="mt-5 block text-xs font-semibold text-slate-600 dark:text-slate-300">
-        Workspace
-        <input className="mt-2 min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 font-mono text-xs text-slate-950 outline-none focus:ring-2 focus:ring-indigo-300 dark:border-white/10 dark:bg-slate-950/60 dark:text-white" onChange={(event) => onWorkspaceChange(event.target.value)} value={workspaceId} />
-      </label>
-      <nav className="mt-5 space-y-1" aria-label="Agent Control Center navigation">
-        {navItems.map((item) => (
-          <button className={`flex min-h-11 w-full items-center gap-3 rounded-2xl px-3 text-left text-sm font-semibold outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 ${item === "Agents" ? "bg-indigo-600 text-white shadow-lg shadow-indigo-950/20 dark:bg-indigo-300 dark:text-indigo-950" : "text-slate-650 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10"}`} key={item} type="button">
-            {navIcon(item)} {item}
-          </button>
-        ))}
-      </nav>
-      <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs font-semibold text-emerald-900 dark:border-emerald-300/25 dark:bg-emerald-300/10 dark:text-emerald-100">
-        <p>Recommendation only</p>
-        <p className="mt-1">Requires human approval</p>
-        <p className="mt-1">No live Amazon Ads change executed</p>
-      </div>
-    </aside>
   );
 }
 
@@ -360,46 +325,50 @@ function TopCommandBar({ environmentMode, isLoading, onEnvironmentChange, onRefr
 
 function HeroUpload({ accountImport, completedCount, failedCount, activeCount, pendingApprovals, selectedFile, isUploading, experienceMode, onExperienceModeChange, onFileChange, onUpload }: { accountImport: AccountImportResponse | null; completedCount: number; failedCount: number; activeCount: number; pendingApprovals: number; selectedFile: File | null; isUploading: boolean; experienceMode: ExperienceMode; onExperienceModeChange: (mode: ExperienceMode) => void; onFileChange: (file: File | null) => void; onUpload: () => void }) {
   return (
-    <section className="overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top_left,_rgba(99,102,241,0.45),_transparent_34%),linear-gradient(135deg,#111827,#172554_48%,#312e81)] p-5 text-white shadow-xl shadow-slate-950/20">
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <div>
-          <div className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-semibold text-indigo-50"><ShieldCheck size={14} /> Approval-controlled AI agents</div>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Upload, analyze, trace, approve. Never silently execute.</h2>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-indigo-100">Use an account-level report or bulk sheet, inspect every agent, then send recommendations through human approval checkpoints.</p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <SafetyPill text="Recommendation only" />
-            <SafetyPill text="Requires human approval" />
-            <SafetyPill text="No live Amazon Ads change executed" />
+    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70 sm:p-6" id="reports">
+      <div className="grid gap-5">
+        <div className="min-w-0">
+          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-800 dark:border-indigo-300/25 dark:bg-indigo-300/10 dark:text-indigo-100">
+            <UploadCloud size={14} /> Start analysis
           </div>
-          <div className="mt-6 grid gap-3 sm:grid-cols-4">
-            <HeroMetric label="Completed" value={completedCount} />
-            <HeroMetric label="Running" value={activeCount} />
-            <HeroMetric label="Failed" value={failedCount} />
-            <HeroMetric label="Needs approval" value={pendingApprovals} />
+          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Upload Amazon Ads Report</h2>
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+            Upload an account-level report or bulk sheet, then AdSurf will detect report type, group entities, prepare agent inputs, and keep every recommendation behind human approval.
+          </p>
+          <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
+            <StepMetric label="Completed" value={completedCount} />
+            <StepMetric label="Running" value={activeCount} />
+            <StepMetric label="Failed" value={failedCount} />
+            <StepMetric label="Needs approval" value={pendingApprovals} />
           </div>
           {accountImport ? (
-            <div className="mt-5 rounded-2xl border border-white/15 bg-white/10 p-4 text-sm text-indigo-50">
+            <div className="mt-5 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-950 dark:border-indigo-300/25 dark:bg-indigo-300/10 dark:text-indigo-100">
               <p className="font-semibold">{humanize(accountImport.detection.detected_report_type)} · {accountImport.import_record.status}</p>
-              <p className="mt-1">{accountImport.import_record.processed_rows} rows grouped across {accountImport.entities.length} entities. {accountImport.product_mapping_suggestions.length} product mappings need review.</p>
+              <p className="mt-1 leading-6">{accountImport.import_record.processed_rows} rows grouped across {accountImport.entities.length} entities. {accountImport.product_mapping_suggestions.length} product mappings need review.</p>
             </div>
           ) : null}
         </div>
-        <div className="rounded-3xl border border-white/15 bg-white/10 p-4 backdrop-blur">
-          <label className="block text-sm font-semibold text-white">
-            Upload report
-            <input className="mt-2 block min-h-11 w-full rounded-2xl border border-white/20 bg-white px-3 py-2 text-sm text-slate-950 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-3 file:py-1 file:text-white" onChange={(event) => onFileChange(event.target.files?.[0] ?? null)} type="file" accept=".csv,.xls,.xlsx" />
+        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+          <label className="block text-sm font-semibold text-slate-900 dark:text-white">
+            Report file
+            <input className="mt-2 block min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-3 file:py-1 file:text-white focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-white/10 dark:bg-slate-950/70 dark:text-white dark:file:bg-white dark:file:text-slate-950" onChange={(event) => onFileChange(event.target.files?.[0] ?? null)} type="file" accept=".csv,.xls,.xlsx" />
           </label>
-          <Button className="mt-3 w-full bg-white text-slate-950 hover:bg-indigo-50" disabled={!selectedFile || isUploading} onClick={onUpload} type="button">
+          <Button className="mt-3 w-full" disabled={!selectedFile || isUploading} onClick={onUpload} type="button">
             {isUploading ? <Loader2 className="animate-spin" size={16} /> : <UploadCloud size={16} />}
             Upload report
           </Button>
-          <div className="mt-4 rounded-2xl border border-white/15 bg-slate-950/30 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-100">View mode</p>
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-slate-950/70">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">View mode</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
               {(["simple", "advanced"] as ExperienceMode[]).map((mode) => (
-                <button className={`min-h-10 rounded-full border px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-white ${experienceMode === mode ? "border-white bg-white text-slate-950" : "border-white/20 bg-white/10 text-white"}`} key={mode} onClick={() => onExperienceModeChange(mode)} type="button">{humanize(mode)} Mode</button>
+                <button className={`min-h-10 rounded-full border px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 ${experienceMode === mode ? "border-indigo-300 bg-indigo-600 text-white shadow-sm dark:bg-indigo-300 dark:text-indigo-950" : "border-slate-200 bg-white text-slate-700 hover:border-indigo-200 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"}`} key={mode} onClick={() => onExperienceModeChange(mode)} type="button">{experienceLabels[mode]}</button>
               ))}
             </div>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <SafetyPill light text="Recommendation only" />
+            <SafetyPill light text="Requires human approval" />
+            <SafetyPill light text="No live Amazon Ads change executed" />
           </div>
         </div>
       </div>
@@ -417,7 +386,7 @@ function AgentTeamDashboard({ agents, configByAgent, latestRunByAgent, selectedA
         </div>
         <Badge>Approval-controlled workflow</Badge>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
         {workflowOrder.map((agentId) => {
           const agent = agents.find((item) => item.agent_id === agentId) ?? fallbackAgents.find((item) => item.agent_id === agentId)!;
           const config = configByAgent.get(agentId);
@@ -432,20 +401,19 @@ function AgentTeamDashboard({ agents, configByAgent, latestRunByAgent, selectedA
 function AgentCard({ agent, config, run, selected, onSelect }: { agent: AgentDefinition; config?: AgentConfig; run?: AgentRun; selected: boolean; onSelect: () => void }) {
   const status = displayStatus(run?.status, agent.agent_id, config);
   return (
-    <button className={`min-h-[255px] rounded-3xl border p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 ${selected ? "border-indigo-300 bg-indigo-50 shadow-indigo-950/10 dark:border-indigo-300/40 dark:bg-indigo-300/10" : "border-slate-200 bg-white hover:border-indigo-200 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"}`} onClick={onSelect} type="button">
+    <article className={`min-w-[280px] rounded-3xl border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${selected ? "border-indigo-300 bg-indigo-50 shadow-indigo-950/10 dark:border-indigo-300/40 dark:bg-indigo-300/10" : "border-slate-200 bg-white hover:border-indigo-200 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"}`}>
       <div className="flex items-start justify-between gap-3">
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white dark:bg-white dark:text-slate-950">{agentIcon(agent.agent_id)}</span>
         <StatusBadge status={status} />
       </div>
-      <h3 className="mt-4 text-base font-semibold text-slate-950 dark:text-white">{agent.display_name}</h3>
-      <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{agent.description}</p>
+      <h3 className="mt-4 text-base font-semibold leading-6 text-slate-950 dark:text-white">{agent.display_name}</h3>
+      <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Role: {humanize(agent.task_type)}</p>
+      <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{agent.description}</p>
       <div className="mt-4 grid gap-2 text-xs">
         <AgentFact label="Current task" value={currentTask(agent.agent_id)} />
         <AgentFact label="Model/provider" value={`${config?.provider ?? run?.provider ?? "deepseek"} / ${config?.model ?? run?.model ?? "default"}`} />
         <AgentFact label="Mode" value={`${config?.mode ?? "hybrid"} · ${config?.strictness_level ?? "balanced"} · ${config?.confidence_threshold ?? "medium"}`} />
         <AgentFact label="Tools/data access" value={toolsFor(agent.agent_id)} />
-        <AgentFact label="Memory/context" value={`Rows ${config?.max_rows_per_ai_call ?? 500}; products ${config?.max_products_per_run ?? 50}`} />
-        <AgentFact label="Permissions" value="Recommendation records only" />
       </div>
       <div className="mt-4 flex flex-wrap gap-2 text-xs">
         <Badge>{run?.recommendation_ids?.length ?? 0} recommendations</Badge>
@@ -453,13 +421,17 @@ function AgentCard({ agent, config, run, selected, onSelect }: { agent: AgentDef
         <Badge>{run?.created_at ? new Date(run.created_at).toLocaleDateString() : "no run"}</Badge>
       </div>
       {run?.error_json && Object.keys(run.error_json).length ? <p className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 dark:border-red-300/25 dark:bg-red-300/10 dark:text-red-100">Error state: validation or provider issue</p> : null}
-    </button>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Button className="px-3" onClick={onSelect} type="button"><Settings size={16} /> Configure</Button>
+        <Button className="bg-white px-3 text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/10 dark:text-white dark:ring-white/10" onClick={onSelect} type="button"><Eye size={16} /> View trace</Button>
+      </div>
+    </article>
   );
 }
 
 function WorkflowCanvas({ nodes, edges, selectedAgentId, onSelect }: { nodes: CanvasNode[]; edges: CanvasEdge[]; selectedAgentId: string; onSelect: (agentId: string) => void }) {
   return (
-    <section className="overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top_right,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#020617,#111827_45%,#1e1b4b)] p-5 shadow-xl shadow-slate-950/20">
+    <section className="min-w-0 overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top_right,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#020617,#111827_45%,#1e1b4b)] p-5 shadow-xl shadow-slate-950/20 sm:p-6" id="workflow-canvas">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-200">Visual Workflow Canvas</p>
@@ -476,12 +448,12 @@ function WorkflowCanvas({ nodes, edges, selectedAgentId, onSelect }: { nodes: Ca
         <div className="flex min-w-max items-center gap-4">
           {nodes.map((node, index) => (
             <div className="flex items-center gap-4" key={node.agent_id}>
-              <button className={`group w-56 rounded-3xl border p-4 text-left outline-none transition hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white ${node.agent_id === selectedAgentId ? "border-white bg-white/18 shadow-2xl shadow-indigo-500/30" : nodeClass(node.status)}`} onClick={() => onSelect(node.agent_id)} type="button">
+              <button className={`group min-w-[220px] max-w-[240px] rounded-3xl border p-4 text-left outline-none transition hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white ${node.agent_id === selectedAgentId ? "border-white bg-white/18 shadow-2xl shadow-indigo-500/30" : nodeClass(node.status)}`} onClick={() => onSelect(node.agent_id)} type="button">
                 <div className="flex items-center justify-between gap-3">
                   <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${nodeIconClass(node.status)}`}>{agentIcon(node.agent_id)}</span>
                   <StatusBadge status={node.status} />
                 </div>
-                <p className="mt-4 text-sm font-semibold text-white">{node.display_name}</p>
+                <p className="mt-4 text-sm font-semibold leading-5 text-white">{node.display_name}</p>
                 <p className="mt-2 line-clamp-2 text-xs leading-5 text-indigo-100">{node.current_task}</p>
                 <p className="mt-3 text-xs font-semibold text-indigo-200">{node.recommendations_created} recommendations</p>
               </button>
@@ -489,31 +461,6 @@ function WorkflowCanvas({ nodes, edges, selectedAgentId, onSelect }: { nodes: Ca
             </div>
           ))}
         </div>
-      </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        {edges.map((edge) => (
-          <div className="rounded-2xl border border-white/10 bg-white/8 p-3 text-xs text-indigo-100" key={`${edge.source_agent_id}-${edge.target_agent_id}`}>
-            <p className="font-semibold text-white">{humanize(edge.source_agent_id)} → {humanize(edge.target_agent_id)}</p>
-            <p className="mt-2">Data passed: {edge.data_passed_summary.join(", ")}</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function SimpleStatusStrip({ nodes }: { nodes: CanvasNode[] }) {
-  return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-950 dark:text-white">Workflow Status</h2>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Simple Mode keeps the workflow readable for sellers and agency operators.</p>
-        </div>
-        <Badge>Switch to Advanced Mode for canvas, raw input/output, and trace logs</Badge>
-      </div>
-      <div className="mt-5 flex gap-3 overflow-x-auto pb-2">
-        {nodes.map((node) => <div className="w-52 shrink-0 rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/5" key={node.agent_id}><StatusBadge status={node.status} /><p className="mt-3 text-sm font-semibold text-slate-950 dark:text-white">{node.display_name}</p><p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{node.current_task}</p></div>)}
       </div>
     </section>
   );
@@ -579,12 +526,12 @@ function ApprovalCard({ recommendation, onDecision }: { recommendation: Recommen
 
 function AgentTemplates({ onApply }: { onApply: (name: string) => void }) {
   return (
-    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
+    <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70" id="agent-settings">
       <div className="mb-4">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Agent Templates</p>
         <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Future-ready team presets</h2>
       </div>
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3">
         {templates.map(([name, description]) => (
           <article className="rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5" key={name}>
             <p className="font-semibold text-slate-950 dark:text-white">{name}</p>
@@ -685,11 +632,6 @@ function templatePatch(name: string): Partial<AgentConfig> {
   return { strictness_level: "conservative", confidence_threshold: "high", analysis_depth: "standard", allow_decrease_bid: true, allow_budget_review: true };
 }
 
-function navIcon(item: string) {
-  const icons: Record<string, React.ReactNode> = { Workspace: <Users size={16} />, Reports: <FileText size={16} />, Agents: <Bot size={16} />, Workflows: <GitBranch size={16} />, Recommendations: <Sparkles size={16} />, Approvals: <ClipboardCheck size={16} />, Settings: <Settings size={16} /> };
-  return icons[item] ?? <Layers3 size={16} />;
-}
-
 function agentIcon(agentId: string) {
   if (agentId.includes("brain")) return <BrainCircuit size={20} />;
   if (agentId.includes("detection")) return <FileSearch size={20} />;
@@ -771,8 +713,8 @@ function AgentFact({ label, value }: { label: string; value: string }) {
   return <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-slate-950/50"><p className="font-semibold text-slate-500 dark:text-slate-400">{label}</p><p className="mt-1 text-slate-900 dark:text-white">{value}</p></div>;
 }
 
-function HeroMetric({ label, value }: { label: string; value: number }) {
-  return <div className="rounded-2xl border border-white/15 bg-white/10 p-3"><p className="text-xs font-semibold text-indigo-100">{label}</p><p className="mt-1 text-2xl font-semibold text-white">{value}</p></div>;
+function StepMetric({ label, value }: { label: string; value: number }) {
+  return <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/5"><p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p><p className="mt-1 text-2xl font-semibold text-slate-950 dark:text-white">{value}</p></div>;
 }
 
 function MetricTable({ metrics }: { metrics: Record<string, unknown> }) {

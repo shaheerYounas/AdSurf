@@ -8,9 +8,13 @@ describe("agent control center page", () => {
     const inspectorSource = readFileSync("src/components/agents/agent-inspector.tsx", "utf-8");
     const timelineSource = readFileSync("src/components/agents/agent-trace-timeline.tsx", "utf-8");
     const layoutSource = readFileSync("src/app/layout.tsx", "utf-8");
+    const sidebarSource = readFileSync("src/components/app-sidebar.tsx", "utf-8");
 
     expect(pageSource).toContain("Agent Control Center");
-    expect(layoutSource).toContain("Agents");
+    expect(layoutSource).toContain("AppSidebar");
+    expect(sidebarSource).toContain("Agents");
+    expect(sidebarSource).toContain("Agent Ops");
+    expect(sidebarSource).toContain("Main menu");
     expect(workspaceSource).toContain("Agent Team Dashboard");
     expect(workspaceSource).toContain("Visual Workflow Canvas");
     expect(workspaceSource).toContain("Human Approval Checkpoints");
@@ -30,8 +34,9 @@ describe("agent control center page", () => {
     expect(workspaceSource).toContain("No live Amazon Ads change executed");
     expect(inspectorSource).toContain("Configuration");
     expect(inspectorSource).toContain("Prompt / Business Goal");
-    expect(inspectorSource).toContain("Related Recommendations");
+    expect(inspectorSource).toContain("Recommendations");
     expect(inspectorSource).toContain("Permissions");
+    expect(inspectorSource).toContain("Trace");
     expect(inspectorSource).toContain("Safety");
     expect(inspectorSource).toContain("Cannot execute Amazon Ads API changes");
     expect(timelineSource).toContain("Trace Timeline");

@@ -31,15 +31,17 @@ The `/agents` page uses Simple Mode by default and Advanced Mode for operators w
 | Surface | What it shows |
 | --- | --- |
 | Top bar | Upload/run controls, pause/resume/stop/rerun controls, approvals shortcut, and deterministic/AI/hybrid selector. |
-| Left sidebar | Workspace, Reports, Agents, Workflows, Recommendations, Approvals, and Settings navigation. |
+| Main sidebar | The global AdSurf sidebar switches to an Agent Ops sub-menu when users open Agents. The sub-menu contains Workspace, Reports, Agents, Workflows, Recommendations, Approvals, and Settings, plus a small Main menu control to return to the global navigation. |
+| Upload / Start Analysis | A normal first-step card with report file picker, upload button, Simple/Advanced Mode toggle, import summary, and safety labels. |
+| Main workflow stack | Upload / Start Analysis, Visual Workflow Canvas, Agent Team Dashboard, Human Approval Checkpoints, and Trace Timeline. |
 | Agent Team Dashboard | Business-friendly cards with status, task, provider/model, mode, strictness, confidence threshold, data access, context limits, permissions, recommendation count, last run, and errors. |
 | Visual Workflow Canvas | Horizontal pipeline with colored nodes, data-passing edge labels, active/failed/approval states, and node selection. |
-| Right Agent Inspector | Tabs for Overview, Configuration, Prompt / Business Goal, Input Data, Output, Related Recommendations, Permissions, Trace Events, and Safety. |
+| Right Agent Inspector | Sticky on wide desktop layouts and full-width below the main workflow on narrower screens. Tabs wrap across lines instead of forcing a horizontal scrollbar. |
 | Trace Timeline | Expandable execution events with provider/model, latency, cost metadata when available, validation errors, retries, and fallback details. |
 | Human Approval Checkpoints | Pending recommendation cards grouped around evidence, risk, confidence, and approve/reject/edit actions. |
 | Agent Templates | MVP presets for Conservative Profitability, Growth Scaling, Wasted Spend Cleanup, Launch Campaign Review, and Agency Account Audit. |
 
-Simple Mode keeps the upload, agent status, simple workflow strip, recommendations, and safety labels visible while hiding raw JSON and deep trace details. Advanced Mode shows the canvas, inspector details, prompt/configuration, raw input/output summaries, trace logs, risk controls, and model/provider settings.
+Simple Mode keeps the upload, workflow canvas, agent status, recommendations, trace timeline, and safety labels visible while hiding raw JSON complexity. Advanced Mode shows inspector details, prompt/configuration, raw input/output summaries, trace logs, risk controls, model/provider settings, and template presets.
 
 ## Workflow Graph
 The default account workflow is:

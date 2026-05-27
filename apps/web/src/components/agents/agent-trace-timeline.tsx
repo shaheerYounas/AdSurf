@@ -49,7 +49,7 @@ export function AgentTraceTimeline({ events, runs }: { events: AgentEvent[]; run
                         <span className="text-sm font-semibold text-slate-950 dark:text-white">{humanize(event.agent_id)}</span>
                         <span className="text-xs text-slate-500 dark:text-slate-400">{formatTime(event.created_at)}</span>
                       </span>
-                      <span className="mt-2 block text-sm leading-6 text-slate-650 dark:text-slate-300">{event.message}</span>
+                      <span className="mt-2 block text-sm leading-6 text-slate-600 dark:text-slate-300">{event.message}</span>
                     </span>
                     <ChevronDown className="mt-2 text-slate-400 transition group-open:rotate-180" size={16} />
                   </summary>
