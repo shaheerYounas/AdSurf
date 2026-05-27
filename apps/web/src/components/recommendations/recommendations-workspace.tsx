@@ -9,6 +9,7 @@ export function RecommendationsWorkspace() {
   const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [statusFilter, setStatusFilter] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [decisionTarget, setDecisionTarget] = useState<{ recommendation: Recommendation; decision: "approve" | "reject" } | null>(null);
@@ -21,8 +22,15 @@ export function RecommendationsWorkspace() {
   }, []);
 
   const filtered = useMemo(
-    () => recommendations.filter((item) => (!statusFilter || item.status === statusFilter) && (!typeFilter || item.recommendation_type === typeFilter) && (!priorityFilter || item.priority === priorityFilter)),
-    [recommendations, priorityFilter, statusFilter, typeFilter],
+    () =>
+      recommendations.filter(
+        (item) =>
+          (!statusFilter || item.status === statusFilter) &&
+          (!sourceFilter || recommendationSource(item) === sourceFilter) &&
+          (!typeFilter || item.recommendation_type === typeFilter) &&
+          (!priorityFilter || item.priority === priorityFilter),
+      ),
+    [recommendations, priorityFilter, sourceFilter, statusFilter, typeFilter],
   );
 
   async function load() {
@@ -61,6 +69,7 @@ export function RecommendationsWorkspace() {
             <input className="block w-72 rounded-md border border-slate-300 px-3 py-2 font-mono text-sm" onChange={(event) => setWorkspaceId(event.target.value)} value={workspaceId} />
           </label>
           <Filter label="Status" onChange={setStatusFilter} options={["pending_approval", "approved", "rejected"]} value={statusFilter} />
+          <Filter label="Source" onChange={setSourceFilter} options={["deepseek_ai", "fallback_rules", "deterministic_rules"]} value={sourceFilter} />
           <Filter label="Priority" onChange={setPriorityFilter} options={["critical", "high", "medium", "low"]} value={priorityFilter} />
           <Filter label="Type" onChange={setTypeFilter} options={["keep_running", "increase_bid", "decrease_bid", "pause_review", "add_negative_exact", "add_negative_phrase", "move_to_exact", "watch_lock", "data_quality_review", "budget_review"]} value={typeFilter} />
           <Button className="bg-slate-700" disabled={isLoading} onClick={load} type="button">
@@ -75,11 +84,13 @@ export function RecommendationsWorkspace() {
           <thead className="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500">
             <tr>
               <th className="px-3 py-2">Priority</th>
+              <th className="px-3 py-2">Source</th>
               <th className="px-3 py-2">Type</th>
               <th className="px-3 py-2">Campaign</th>
               <th className="px-3 py-2">Search term</th>
               <th className="px-3 py-2">Evidence</th>
-              <th className="px-3 py-2">Rule explanation</th>
+              <th className="px-3 py-2">AI reasoning</th>
+              <th className="px-3 py-2">Proposed action</th>
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2">Decision</th>
             </tr>
@@ -88,6 +99,11 @@ export function RecommendationsWorkspace() {
             {filtered.map((recommendation) => (
               <tr key={recommendation.id}>
                 <td className="px-3 py-2 font-medium text-slate-900">{recommendation.priority}<br /><span className="text-xs font-normal text-slate-500">{recommendation.confidence} confidence</span></td>
+                <td className="px-3 py-2 text-slate-700">
+                  {recommendationSource(recommendation) === "deepseek_ai" ? "AI-generated recommendation" : "Deterministic fallback recommendation"}
+                  <br />
+                  <span className="text-xs text-slate-500">{recommendationModelLabel(recommendation)}</span>
+                </td>
                 <td className="px-3 py-2 text-slate-700">{recommendation.recommendation_type}<br /><span className="text-xs text-slate-500">{recommendation.entity_type}</span></td>
                 <td className="px-3 py-2 text-slate-700">{recommendation.campaign_name}<br />{recommendation.ad_group_name}</td>
                 <td className="px-3 py-2 text-slate-700">{recommendation.customer_search_term}</td>
@@ -97,11 +113,23 @@ export function RecommendationsWorkspace() {
                   ACOS {recommendation.current_metric_snapshot_json.acos ?? "n/a"} / ROAS {recommendation.current_metric_snapshot_json.roas ?? "n/a"} / CVR {recommendation.current_metric_snapshot_json.cvr ?? "n/a"}
                   <br />
                   <span className="text-slate-500">Rule {recommendation.rule_name}</span>
+                  {aiSignals(recommendation).length ? (
+                    <>
+                      <br />
+                      <span className="text-slate-500">Signals {aiSignals(recommendation).join(", ")}</span>
+                    </>
+                  ) : null}
                 </td>
                 <td className="min-w-72 px-3 py-2 text-slate-700">
                   {recommendation.explanation_json.summary}
                   <div className="mt-2 flex flex-wrap gap-1 text-xs">
-                    <span className="rounded bg-amber-50 px-2 py-1 text-amber-800">Recommendation only</span>
+                    <span className="rounded bg-amber-50 px-2 py-1 text-amber-800">Requires human approval</span>
+                    <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-800">No live Amazon Ads change executed</span>
+                  </div>
+                </td>
+                <td className="min-w-64 px-3 py-2 text-slate-700">
+                  {proposedActionLabel(recommendation)}
+                  <div className="mt-2 flex flex-wrap gap-1 text-xs">
                     <span className="rounded bg-slate-100 px-2 py-1 text-slate-700">Requires human approval</span>
                     <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-800">Does not change Amazon Ads account</span>
                   </div>
@@ -137,6 +165,33 @@ export function RecommendationsWorkspace() {
       ) : null}
     </div>
   );
+}
+
+function recommendationSource(recommendation: Recommendation) {
+  return String(recommendation.evidence_json.decision_source || recommendation.explanation_json.decision_source || "deterministic_rules");
+}
+
+function recommendationModelLabel(recommendation: Recommendation) {
+  const provider = recommendation.evidence_json.ai_provider || recommendation.explanation_json.ai_provider;
+  const model = recommendation.evidence_json.ai_model || recommendation.explanation_json.ai_model;
+  if (provider && model) return `${provider} / ${model}`;
+  if (provider) return String(provider);
+  return "Local rules";
+}
+
+function aiSignals(recommendation: Recommendation) {
+  const evidence = recommendation.evidence_json.ai_evidence;
+  if (!evidence || typeof evidence !== "object" || !("main_signals" in evidence)) return [];
+  const signals = (evidence as { main_signals?: unknown }).main_signals;
+  return Array.isArray(signals) ? signals.map(String).slice(0, 3) : [];
+}
+
+function proposedActionLabel(recommendation: Recommendation) {
+  const action = recommendation.proposed_action_json.action || recommendation.recommendation_type;
+  const level = recommendation.proposed_action_json.action_level || recommendation.entity_type;
+  const multiplier = recommendation.proposed_action_json.suggested_bid_multiplier;
+  const negativeMatch = recommendation.proposed_action_json.negative_match_type;
+  return [action, `level ${level}`, multiplier ? `bid x${multiplier}` : null, negativeMatch ? `negative ${negativeMatch}` : null].filter(Boolean).join(" / ");
 }
 
 function Filter({ label, onChange, options, value }: { label: string; onChange: (value: string) => void; options: string[]; value: string }) {

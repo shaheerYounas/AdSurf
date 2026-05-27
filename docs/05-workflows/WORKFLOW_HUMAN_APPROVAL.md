@@ -17,3 +17,4 @@
 ## Acceptance Criteria
 There is no code path where AI, workers, or scheduled jobs can approve customer-impacting objects.
 
+Recommendation approval only updates app state and audit logs or prepares manual/export instructions. It must not call Amazon Ads mutation APIs or change live Amazon Ads accounts.

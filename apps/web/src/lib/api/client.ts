@@ -9,10 +9,10 @@ type ApiEnvelope<T> = {
   meta?: Record<string, unknown>;
 };
 
-export function localAuthHeaders(workspaceId = defaultWorkspaceId) {
+export function localAuthHeaders(workspaceId = defaultWorkspaceId, role = "analyst") {
   return {
     "x-user-id": localUserId,
-    "x-test-workspaces": `${workspaceId}:analyst`,
+    "x-test-workspaces": `${workspaceId}:${role}`,
   };
 }
 

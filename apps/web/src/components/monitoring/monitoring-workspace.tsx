@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { defaultWorkspaceId } from "@/lib/api/client";
 import { createMonitoringImport, getProductMonitoring, processMonitoringJobs, type MonitoringSummary } from "@/lib/api/monitoring";
@@ -120,6 +121,11 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
                 <p className="mt-1 text-sm text-slate-600">
                   {item.processed_rows} processed rows / {item.error_rows} warnings / {item.date_range_start ?? "unknown"} to {item.date_range_end ?? "unknown"}
                 </p>
+                {item.error_message ? <p className="mt-1 text-sm text-red-700">{item.error_message}</p> : null}
+                {!item.error_message && item.data_quality_warnings_json.length ? <p className="mt-1 text-sm text-amber-700">{String(item.data_quality_warnings_json[0].message ?? item.data_quality_warnings_json[0].code ?? "Data quality warning")}</p> : null}
+                <Link className="mt-2 inline-block text-sm font-medium text-slate-950 underline" href={`/products/${productId}/monitoring/${item.id}/agents`}>
+                  Open Agent Control Center
+                </Link>
               </li>
             ))}
           </ul>
@@ -154,8 +160,9 @@ function RecommendationPreview({ recommendations }: { recommendations: Monitorin
             <li className="px-5 py-4" key={recommendation.id}>
               <p className="font-medium text-slate-950">{recommendation.recommendation_type} / {recommendation.priority}</p>
               <p className="mt-1 text-sm text-slate-600">{recommendation.campaign_name} / {recommendation.ad_group_name} / {recommendation.customer_search_term}</p>
-              <p className="mt-1 text-sm text-slate-600">Rule {recommendation.rule_name}</p>
+              <p className="mt-1 text-sm text-slate-600">{recommendation.evidence_json.decision_source === "deepseek_ai" ? "DeepSeek AI" : "Fallback rules"} / {recommendation.rule_name}</p>
               <p className="mt-1 text-sm text-slate-700">{recommendation.explanation_json.summary}</p>
+              <p className="mt-1 text-xs text-slate-500">Requires human approval / No live Amazon Ads change executed</p>
             </li>
           ))}
         </ul>

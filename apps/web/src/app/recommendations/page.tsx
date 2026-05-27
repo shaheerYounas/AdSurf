@@ -6,8 +6,8 @@ export default function RecommendationsPage() {
     <section className="space-y-6">
       <PageHeader
         eyebrow="Approval queue"
-        title="Agent recommendations"
-        description="Review rule-backed bid, pause, watch, and negative keyword recommendations with agent explanations. Human decisions are required before any manual action."
+        title="AI recommendations"
+        description="Review DeepSeek AI and deterministic fallback recommendations with evidence, confidence, and approval-only safety boundaries."
       />
       <RecommendationsWorkspace />
     </section>

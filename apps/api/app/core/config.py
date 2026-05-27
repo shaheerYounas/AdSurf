@@ -37,6 +37,11 @@ class Settings(BaseModel):
     ai_fallback_api_key: str | None = None
     ai_fallback_model: str | None = None
     ai_fallback_base_url: str | None = None
+    ai_recommendation_mode: str = "deterministic_fallback"
+    ai_request_timeout_seconds: int = 60
+    deepseek_api_key: str | None = None
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-chat"
 
     @property
     def is_known_app_env(self) -> bool:
@@ -87,4 +92,9 @@ def get_settings() -> Settings:
         ai_fallback_api_key=os.getenv("AI_FALLBACK_API_KEY"),
         ai_fallback_model=os.getenv("AI_FALLBACK_MODEL", "FRE-5.5"),
         ai_fallback_base_url=os.getenv("AI_FALLBACK_BASE_URL", "https://api.freemodel.dev/v1"),
+        ai_recommendation_mode=os.getenv("AI_RECOMMENDATION_MODE", "deterministic_fallback"),
+        ai_request_timeout_seconds=int(os.getenv("AI_REQUEST_TIMEOUT_SECONDS", "60")),
+        deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
+        deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
+        deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
     )

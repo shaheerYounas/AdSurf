@@ -14,5 +14,7 @@ describe("product monitoring page", () => {
     expect(workspaceSource).toContain("Move to exact");
     expect(workspaceSource).toContain("Budget reviews");
     expect(workspaceSource).toContain("Top recommendations");
+    expect(workspaceSource).toContain("DeepSeek AI");
+    expect(workspaceSource).toContain("No live Amazon Ads change executed");
   });
 });

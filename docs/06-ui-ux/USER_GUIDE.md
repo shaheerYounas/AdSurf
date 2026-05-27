@@ -18,13 +18,14 @@ The app is designed around one operating rule: recommendations and exports requi
 | Page | Use it for |
 | --- | --- |
 | Dashboard | See workspace product counts, upload processing status, product continuation links, and the launch checklist. |
+| Agents | Inspect and control monitoring agents, workflow graphs, run outputs, and configuration. |
 | Products | Create and open product profiles. |
 | Product Detail | Review a product's marketplace, bids, budgets, upload status, and next-step workflow links. |
 | Uploads | Add CSV/XLSX research files and monitor parsing status. |
 | Mapping | Generate column profiles, map source columns, score keywords, review candidates, and create approved keyword sets. |
 | Campaign Plan | Generate and inspect campaign structures from approved keyword sets. |
 | Bulk Exports | Validate, approve, and download Amazon bulk sheet files. |
-| Recommendations | Review monitoring-driven, rule-backed optimization suggestions with deterministic evidence. |
+| Recommendations | Review DeepSeek AI or deterministic fallback optimization suggestions with deterministic metric evidence. |
 | Approvals | Review pending and historical approval records. |
 | Settings | Manage workspace, team, and account configuration. |
 
@@ -57,7 +58,7 @@ Recommended upload files should include columns for search term or keyword, spen
 | Approve plan | A human confirms the plan before export. |
 | Generate bulk export | The app creates an Amazon bulk sheet for download. |
 | Import performance report | A processed Sponsored Products Search Term report becomes monitoring evidence. |
-| Generate recommendations | Deterministic rules create keep-running, bid, pause-review, negative-keyword, move-to-exact, watch-lock, and data-quality recommendations. |
+| Generate recommendations | DeepSeek AI creates keep-running, bid, pause-review, negative-keyword, move-to-exact, watch-lock, budget-review, and data-quality recommendations when configured. Deterministic rules remain available as fallback. |
 | Decide recommendations | A human approves or rejects each recommendation with a note. |
 
 ## Dashboard Loading
@@ -233,23 +234,42 @@ Recommendations require approval before any customer-impacting action or export 
 
 The app validates required columns such as Campaign Name, Ad Group Name, Targeting, Customer Search Term, Impressions, Clicks, Spend, Sales, and Orders. Missing required columns stop recommendation generation. Optional metrics such as ACOS, ROAS, Units, CTR, CPC, CVR, Start Date, and End Date are normalized when present, and missing derived metrics are calculated from base metrics when possible.
 
-## Review Rule Recommendations
+## Agent Control Center
+Open `Agents` to inspect all monitoring agents, or open a monitoring import and choose `Open Agent Control Center` for import-specific workflow details.
+
+The Agent Control Center shows:
+
+- Agent overview cards with status, mode, strictness, last run time, errors, and recommendation counts.
+- A workflow graph showing how report quality, metrics, AI recommendation decisions, bid/negative/pause explanations, and stakeholder reporting connect.
+- A timeline of agent events such as started, output validated, recommendations created, failed, stopped, or skipped.
+- A detail panel with input summary, output JSON, related recommendations, provider/model, latency, errors, and safety boundaries.
+- Configuration controls for enabled state, deterministic/AI/hybrid mode, strictness, confidence threshold, max recommendations, and recommendation-type toggles.
+- Control buttons for pause, resume, stop, rerun, and rerun from here.
+
+Owner/admin users can change agent configuration. Analysts can run, rerun, pause, resume, and stop agents. Approvers and viewers can inspect outputs. These controls never grant agents permission to approve, reject, or execute Amazon Ads changes.
+
+## Review AI Recommendations
 Open `Recommendations` to review the queue. Each row shows:
 
 - Priority.
+- Decision source, such as DeepSeek AI or deterministic fallback.
+- DeepSeek model when an AI recommendation was saved.
 - Recommendation type.
 - Campaign and ad group.
 - Targeting or customer search term.
 - Metric evidence such as spend, clicks, sales, orders, ACOS, ROAS, CTR, and CVR.
-- Rule-backed proposed action.
-- Deterministic rule explanation.
+- Proposed action.
+- Confidence and reasoning summary.
+- Requires human approval.
+- No live Amazon Ads change executed.
 - Current status.
 
-Use filters to focus by status, priority, or recommendation type. Approve or reject only after checking the evidence. Evidence includes normalized row metrics plus search-term, target, ad-group, campaign, and report rollups in `evidence_json`. A note is required, and the decision updates the app audit trail only. It does not execute a bid change, pause an ad, add a negative keyword, generate an export, or call the Amazon Ads API.
+Use filters to focus by source, status, priority, or recommendation type. Approve or reject only after checking the evidence. Evidence includes normalized row metrics plus search-term, target, ad-group, campaign, and report rollups in `evidence_json`. AI recommendations also show `ai_provider`, `ai_model`, `ai_run_id`, and AI evidence. A note is required, and the decision updates the app audit trail only. It does not execute a bid change, pause an ad, add a negative keyword, generate an export, or call the Amazon Ads API.
 
 ## Agent Council Boundary
-The agent council is the explanation layer for monitoring:
+The agent council is the recommendation and explanation layer for monitoring:
 
+- Monitoring Recommendation Brain uses DeepSeek to generate recommendation decisions from uploaded report evidence.
 - Performance Import Agent explains report shape and data quality.
 - Metrics Analysis Agent summarizes spend, traffic, sales, ACOS, ROAS, CTR, and CVR.
 - Bid Optimization Agent explains bid increase/decrease and watch-lock recommendations.
@@ -257,7 +277,7 @@ The agent council is the explanation layer for monitoring:
 - Pause Review Agent explains stop/pause-review candidates.
 - Stakeholder Reporting Agent writes dashboard-friendly summaries.
 
-Rules create recommendation records and final Phase 1 decisions. Any agent-style summary is deterministic and may not approve, reject, execute, mutate, or replace human review. Humans approve or reject recommendations.
+DeepSeek AI may create recommendation records only after backend validation passes. Deterministic rules calculate metrics and remain available as fallback. AI may not approve, reject, execute, mutate live Amazon Ads accounts, or replace human review. Humans approve or reject recommendations.
 
 ## Approval Rules
 Approval records should clearly answer:

@@ -12,6 +12,7 @@ export type MonitoringImport = {
   date_range_start: string | null;
   date_range_end: string | null;
   data_quality_warnings_json: Array<Record<string, unknown>>;
+  error_message?: string | null;
 };
 
 export type Recommendation = {
@@ -31,7 +32,7 @@ export type Recommendation = {
   current_metric_snapshot_json: Record<string, string | number | null>;
   evidence_json: Record<string, unknown>;
   proposed_action_json: Record<string, unknown>;
-  explanation_json: { summary?: string; approval_required?: boolean; decision_source?: string; ai_final_decision?: boolean; execution_boundary?: string };
+  explanation_json: { summary?: string; approval_required?: boolean; decision_source?: string; ai_provider?: string; ai_model?: string; ai_final_decision?: boolean; execution_boundary?: string };
 };
 
 export type MonitoringSummary = {

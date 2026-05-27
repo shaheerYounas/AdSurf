@@ -20,6 +20,7 @@ from apps.api.app.schemas.monitoring import (
 )
 from apps.api.app.schemas.upload_parsing import UploadParseStatus
 from apps.api.app.schemas.uploads import UploadSourceType, UploadStatus
+from apps.api.app.services.ai_recommendation_brain import AI_RECOMMENDATION_AGENT_NAME
 
 router = APIRouter()
 
@@ -144,8 +145,9 @@ def get_product_monitoring(
         raise ApiError(code="PRODUCT_NOT_FOUND", message="Product profile was not found.", status_code=404)
     imports = monitoring_repository.list_imports(workspace_id=workspace_id, product_id=product_id)
     recommendations = monitoring_repository.list_recommendations(workspace_id=workspace_id, product_id=product_id)
+    ai_brain_runs = monitoring_repository.list_ai_runs(workspace_id=workspace_id, product_id=product_id, agent_name=AI_RECOMMENDATION_AGENT_NAME)
     product_summaries = monitoring_repository.list_ai_runs(workspace_id=workspace_id, product_id=product_id, agent_name="stakeholder_reporting_agent")
-    latest_summary = product_summaries[0] if product_summaries else monitoring_repository.latest_ai_run(workspace_id=workspace_id, agent_name="stakeholder_reporting_agent")
+    latest_summary = ai_brain_runs[0] if ai_brain_runs and ai_brain_runs[0].status == "succeeded" else product_summaries[0] if product_summaries else monitoring_repository.latest_ai_run(workspace_id=workspace_id, agent_name="stakeholder_reporting_agent")
     counts: dict[str, int] = {}
     for recommendation in recommendations:
         counts[recommendation.status.value] = counts.get(recommendation.status.value, 0) + 1
@@ -154,7 +156,7 @@ def get_product_monitoring(
         imports=imports[:10],
         recommendation_counts=counts,
         top_recommendations=recommendations[:10],
-        agent_summary=latest_summary.output_json if latest_summary else None,
+        agent_summary=_dashboard_summary_from_ai_run(latest_summary) if latest_summary else None,
     )
     return success_response(data=summary.model_dump(mode="json"))
 
@@ -284,6 +286,29 @@ def _decide_recommendation(
         action=f"recommendation.{decision.value}",
         entity_type="recommendation",
         entity_id=recommendation_id,
-        details={"decision_id": str(decision_record.id), "note": payload.note.strip(), "execution_boundary": "no_live_amazon_change"},
+        details={
+            "decision_id": str(decision_record.id),
+            "note": payload.note.strip(),
+            "recommendation_source": recommendation.evidence_json.get("decision_source") or recommendation.explanation_json.get("decision_source"),
+            "ai_provider": recommendation.evidence_json.get("ai_provider") or recommendation.explanation_json.get("ai_provider"),
+            "ai_model": recommendation.evidence_json.get("ai_model") or recommendation.explanation_json.get("ai_model"),
+            "approval_updates_app_state_only": True,
+            "execution_boundary": "no_live_amazon_change",
+        },
     )
     return success_response(data=recommendation.model_dump(mode="json"))
+
+
+def _dashboard_summary_from_ai_run(ai_run) -> dict:
+    output = ai_run.output_json
+    summary = output.get("dashboard_summary") if isinstance(output, dict) else None
+    if isinstance(summary, dict):
+        return {
+            **summary,
+            "stakeholder_note": "AI generated recommendation decisions from uploaded report evidence. No live Amazon Ads change was executed.",
+            "next_step": "Review pending recommendations and approve or reject with notes.",
+            "ai_provider": ai_run.provider,
+            "ai_model": ai_run.model,
+            "ai_schema_version": ai_run.schema_version,
+        }
+    return output

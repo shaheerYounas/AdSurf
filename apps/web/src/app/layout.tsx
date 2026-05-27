@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { LayoutDashboard, ListChecks, PackageSearch, PlusCircle } from "lucide-react";
+import { Bot, LayoutDashboard, ListChecks, PackageSearch, PlusCircle } from "lucide-react";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,6 +10,7 @@ export const metadata: Metadata = {
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/agents", label: "Agents", icon: Bot },
   { href: "/products", label: "Products", icon: PackageSearch },
   { href: "/products/new", label: "New product", icon: PlusCircle },
   { href: "/recommendations", label: "Recommendations", icon: ListChecks }

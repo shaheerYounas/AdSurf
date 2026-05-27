@@ -12,6 +12,9 @@ from apps.api.app.repositories.jobs import get_job_repository
 
 
 def test_monitoring_import_creates_recommendations_and_agent_summary(monkeypatch, tmp_path) -> None:
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    monkeypatch.setenv("AI_RECOMMENDATION_MODE", "deterministic_fallback")
+    get_settings.cache_clear()
     workspace_id, product_id, upload_id = _processed_sp_report_upload(monkeypatch, tmp_path)
 
     import_response = client.post(
@@ -47,6 +50,8 @@ def test_monitoring_import_creates_recommendations_and_agent_summary(monkeypatch
     assert all(recommendation["status"] == "pending_approval" for recommendation in recommendations)
     assert all(recommendation["explanation_json"]["approval_required"] is True for recommendation in recommendations)
     assert all(recommendation["evidence_json"]["approval_boundary"]["executes_live_amazon_change"] is False for recommendation in recommendations)
+    assert all(recommendation["evidence_json"]["decision_source"] == "fallback_rules" for recommendation in recommendations)
+    assert all(recommendation["evidence_json"]["ai_provider"] == "deepseek" for recommendation in recommendations)
 
     monitoring = client.get(f"/v1/workspaces/{workspace_id}/products/{product_id}/monitoring", headers=auth_headers(workspace_id))
     assert monitoring.status_code == 200
@@ -55,7 +60,7 @@ def test_monitoring_import_creates_recommendations_and_agent_summary(monkeypatch
     agent_runs = client.get(f"/v1/workspaces/{workspace_id}/products/{product_id}/agent-runs", headers=auth_headers(workspace_id))
     assert agent_runs.status_code == 200
     agent_names = {run["agent_name"] for run in agent_runs.json()["data"]}
-    assert {"performance_import_agent", "metrics_analysis_agent", "bid_optimization_agent", "negative_keyword_agent", "pause_review_agent", "stakeholder_reporting_agent"}.issubset(agent_names)
+    assert {"monitoring_recommendation_brain", "performance_import_agent", "metrics_analysis_agent", "bid_optimization_agent", "negative_keyword_agent", "pause_review_agent", "stakeholder_reporting_agent"}.issubset(agent_names)
     assert all(run["product_id"] == product_id for run in agent_runs.json()["data"])
 
     audit_repository = get_audit_log_repository()
@@ -63,6 +68,9 @@ def test_monitoring_import_creates_recommendations_and_agent_summary(monkeypatch
 
 
 def test_recommendation_approval_and_rejection_require_notes_and_scope(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("AI_RECOMMENDATION_MODE", "deterministic_fallback")
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    get_settings.cache_clear()
     workspace_id, product_id, upload_id = _processed_sp_report_upload(monkeypatch, tmp_path)
     client.post(
         f"/v1/workspaces/{workspace_id}/products/{product_id}/monitoring-imports",
@@ -100,7 +108,45 @@ def test_recommendation_approval_and_rejection_require_notes_and_scope(monkeypat
     assert approved.status_code == 200
     assert approved.json()["data"]["status"] == "approved"
     assert approved.json()["data"]["proposed_action_json"]["requires_human_approval"] is True
+    assert approved.json()["data"]["proposed_action_json"]["executes_live_amazon_change"] is False
     assert second_decision.status_code == 409
+    audit_repository = get_audit_log_repository()
+    approval_events = [
+        record
+        for record in audit_repository.records
+        if record["workspace_id"] == UUID(workspace_id)
+        and record["event_type"] == "recommendation.approved"
+        and record["object_id"] == UUID(recommendation["id"])
+    ]
+    assert approval_events[-1]["metadata_json"]["execution_boundary"] == "no_live_amazon_change"
+    assert approval_events[-1]["metadata_json"]["approval_updates_app_state_only"] is True
+
+
+def test_deepseek_mode_missing_key_fails_safely_without_recommendations(monkeypatch, tmp_path) -> None:
+    workspace_id, product_id, upload_id = _processed_sp_report_upload(monkeypatch, tmp_path)
+    monkeypatch.setenv("AI_RECOMMENDATION_MODE", "deepseek")
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    get_settings.cache_clear()
+
+    import_response = client.post(
+        f"/v1/workspaces/{workspace_id}/products/{product_id}/monitoring-imports",
+        headers=auth_headers(workspace_id, role="analyst"),
+        json={"upload_id": upload_id},
+    )
+    import_body = import_response.json()["data"]
+
+    result = MonitoringWorker().process_one()
+
+    assert result.processed is True
+    assert result.import_record.status == "failed"
+    recommendations = client.get(f"/v1/workspaces/{workspace_id}/products/{product_id}/recommendations", headers=auth_headers(workspace_id)).json()["data"]
+    assert recommendations == []
+    agent_runs = client.get(f"/v1/workspaces/{workspace_id}/products/{product_id}/agent-runs", headers=auth_headers(workspace_id)).json()["data"]
+    brain_run = next(run for run in agent_runs if run["agent_name"] == "monitoring_recommendation_brain")
+    assert brain_run["status"] == "failed"
+    assert "DEEPSEEK_API_KEY" in brain_run["output_json"]["error"]
+    audit_repository = get_audit_log_repository()
+    assert audit_repository.count(workspace_id=UUID(workspace_id), event_type="monitoring_import.ai_recommendations_failed", object_id=UUID(import_body["import_record"]["id"])) == 1
 
 
 def _processed_sp_report_upload(monkeypatch, tmp_path) -> tuple[str, str, str]:
