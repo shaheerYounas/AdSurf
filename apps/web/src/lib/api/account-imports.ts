@@ -50,37 +50,56 @@ export type AccountImportResponse = {
 };
 
 export async function uploadAccountReport(file: File, workspaceId = defaultWorkspaceId): Promise<AccountImportResponse> {
-  const initResponse = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/init`, {
-    method: "POST",
-    headers: { ...localAuthHeaders(workspaceId, "analyst"), "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
-    body: JSON.stringify({
-      original_filename: file.name,
-      mime_type: file.type || "text/csv",
-      file_size_bytes: file.size,
-      source_type: "account_bulk_report",
-    }),
-  });
-  const upload = await readApiData<{ upload_id: string; storage_path: string }>(initResponse, "Account report upload could not be initialized.");
-  const objectResponse = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/${upload.upload_id}/object`, {
-    method: "PUT",
-    headers: localAuthHeaders(workspaceId, "analyst"),
-    body: file,
-  });
-  await readApiData(objectResponse, "Account report file could not be stored.");
-  const confirmResponse = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/${upload.upload_id}/confirm`, {
-    method: "POST",
-    headers: { ...localAuthHeaders(workspaceId, "analyst"), "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
-    body: JSON.stringify({}),
-  });
-  await readApiData(confirmResponse, "Account report upload could not be confirmed.");
-  await fetch(`${apiBaseUrl}/v1/dev/process-upload-jobs`, {
-    method: "POST",
-    headers: localAuthHeaders(workspaceId, "admin"),
-  }).catch(() => undefined);
-  const importResponse = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/account-imports`, {
-    method: "POST",
-    headers: { ...localAuthHeaders(workspaceId, "analyst"), "Content-Type": "application/json" },
-    body: JSON.stringify({ upload_id: upload.upload_id }),
-  });
-  return readApiData<AccountImportResponse>(importResponse, "Account import could not be created.");
+  let upload;
+  try {
+    const initResponse = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/init`, {
+      method: "POST",
+      headers: { ...localAuthHeaders(workspaceId, "analyst"), "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+      body: JSON.stringify({
+        original_filename: file.name,
+        mime_type: file.type || "text/csv",
+        file_size_bytes: file.size,
+        source_type: "account_bulk_report",
+      }),
+    });
+    upload = await readApiData<{ upload_id: string; storage_path: string }>(initResponse, "Account report upload could not be initialized.");
+  } catch (err) {
+    if (err instanceof TypeError && err.message === "Failed to fetch") {
+      throw new Error("Unable to connect to the server. Please ensure the API is running.");
+    }
+    throw err;
+  }
+  
+  try {
+    const objectResponse = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/${upload.upload_id}/object`, {
+      method: "PUT",
+      headers: localAuthHeaders(workspaceId, "analyst"),
+      body: file,
+    });
+    await readApiData(objectResponse, "Account report file could not be stored.");
+    
+    const confirmResponse = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/${upload.upload_id}/confirm`, {
+      method: "POST",
+      headers: { ...localAuthHeaders(workspaceId, "analyst"), "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+      body: JSON.stringify({}),
+    });
+    await readApiData(confirmResponse, "Account report upload could not be confirmed.");
+    
+    await fetch(`${apiBaseUrl}/v1/dev/process-upload-jobs`, {
+      method: "POST",
+      headers: localAuthHeaders(workspaceId, "admin"),
+    }).catch((e) => console.warn("Dev upload processing failed:", e));
+    
+    const importResponse = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/account-imports`, {
+      method: "POST",
+      headers: { ...localAuthHeaders(workspaceId, "analyst"), "Content-Type": "application/json" },
+      body: JSON.stringify({ upload_id: upload.upload_id }),
+    });
+    return readApiData<AccountImportResponse>(importResponse, "Account import could not be created.");
+  } catch (err) {
+    if (err instanceof TypeError && err.message === "Failed to fetch") {
+      throw new Error("Unable to connect to the server during upload. Please ensure the API is running.");
+    }
+    throw err;
+  }
 }

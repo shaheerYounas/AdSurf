@@ -4,10 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from apps.api.app.api.routes import api_router
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.errors import register_error_handlers
+from apps.api.app.core.logging_setup import setup_logging
 from apps.api.app.schemas.envelope import success_response
 
 
 def create_app() -> FastAPI:
+    setup_logging()
     settings = get_settings()
     app = FastAPI(
         title=settings.app_name,

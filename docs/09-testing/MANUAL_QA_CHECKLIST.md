@@ -1,0 +1,41 @@
+# Manual QA Checklist
+
+- [ ] Start API
+  - _Action_: Run `uvicorn app.main:app --reload`
+  - _Expected_: Fast API starts on port 8000
+- [ ] Start web
+  - _Action_: Run `npm run dev` in `apps/web`
+  - _Expected_: Next.js starts on port 3000
+- [ ] Open Dashboard
+  - _Action_: Navigate to `http://localhost:3000`
+  - _Expected_: Dashboard loads without errors
+- [ ] Create product
+  - _Action_: Click "New Product", fill form, save.
+  - _Expected_: Success message, product appears in list
+- [ ] Upload report
+  - _Action_: Select file in Agent Control Center and click Upload
+  - _Expected_: Loading state -> upload/import record created -> success shown -> step to workflow/parsing
+- [ ] Check upload status
+  - _Action_: View uploads for product
+  - _Expected_: Shows processed state
+- [ ] Run agents
+  - _Action_: Run agent analysis
+  - _Expected_: Agent statuses update
+- [ ] Review trace
+  - _Action_: Click agent, view trace timeline
+  - _Expected_: Events appear
+- [ ] Review recommendation
+  - _Action_: Open Recommendations tab
+  - _Expected_: Recommendations appear
+- [ ] Approve recommendation
+  - _Action_: Click Approve with note
+  - _Expected_: Status updates to approved
+- [ ] Reject recommendation
+  - _Action_: Click Reject with note
+  - _Expected_: Status updates to rejected
+- [ ] Confirm audit
+  - _Action_: View approvals history
+  - _Expected_: Evidence available
+- [ ] Confirm no live Amazon Ads change
+  - _Action_: Check output
+  - _Expected_: Bulk sheet generated instead of direct API

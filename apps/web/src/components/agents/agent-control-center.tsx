@@ -253,6 +253,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
                 onUpload={uploadReport}
                 experienceMode={experienceMode}
                 onExperienceModeChange={setExperienceMode}
+                uploadMessage={message}
               />
 
               <WorkflowCanvas nodes={workflowNodes} edges={workflowEdges} selectedAgentId={selectedAgentId} onSelect={setSelectedAgentId} />
@@ -323,7 +324,7 @@ function TopCommandBar({ environmentMode, isLoading, onEnvironmentChange, onRefr
   );
 }
 
-function HeroUpload({ accountImport, completedCount, failedCount, activeCount, pendingApprovals, selectedFile, isUploading, experienceMode, onExperienceModeChange, onFileChange, onUpload }: { accountImport: AccountImportResponse | null; completedCount: number; failedCount: number; activeCount: number; pendingApprovals: number; selectedFile: File | null; isUploading: boolean; experienceMode: ExperienceMode; onExperienceModeChange: (mode: ExperienceMode) => void; onFileChange: (file: File | null) => void; onUpload: () => void }) {
+function HeroUpload({ accountImport, completedCount, failedCount, activeCount, pendingApprovals, selectedFile, isUploading, experienceMode, onExperienceModeChange, onFileChange, onUpload, uploadMessage }: { accountImport: AccountImportResponse | null; completedCount: number; failedCount: number; activeCount: number; pendingApprovals: number; selectedFile: File | null; isUploading: boolean; experienceMode: ExperienceMode; onExperienceModeChange: (mode: ExperienceMode) => void; onFileChange: (file: File | null) => void; onUpload: () => void; uploadMessage?: string | null }) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70 sm:p-6" id="reports">
       <div className="grid gap-5">
@@ -335,6 +336,11 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
             Upload an account-level report or bulk sheet, then AdSurf will detect report type, group entities, prepare agent inputs, and keep every recommendation behind human approval.
           </p>
+          {uploadMessage && (
+            <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-900 dark:border-rose-900/50 dark:bg-rose-900/20 dark:text-rose-200">
+              {uploadMessage}
+            </div>
+          )}
           <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
             <StepMetric label="Completed" value={completedCount} />
             <StepMetric label="Running" value={activeCount} />

@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -30,13 +31,18 @@ def create_account_import(
     account_import_repository: AccountImportRepository = Depends(get_account_import_repository),
     audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
 ) -> dict:
+    logging.info(f"Starting account import creation for workspace {workspace_id} using upload {payload.upload_id}")
     principal.ensure_workspace(workspace_id)
     principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
-    upload = upload_repository.get(workspace_id=workspace_id, upload_id=payload.upload_id)
-    if upload is None:
-        raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
-    if upload.status != UploadStatus.PROCESSED:
-        raise ApiError(code="UPLOAD_NOT_PROCESSED", message="Account import requires a processed upload.", status_code=409)
+    
+    try:
+        upload = upload_repository.get(workspace_id=workspace_id, upload_id=payload.upload_id)
+        if upload is None:
+            logging.error(f"Upload {payload.upload_id} not found in workspace {workspace_id}")
+            raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
+        if upload.status != UploadStatus.PROCESSED:
+            logging.warning(f"Upload {payload.upload_id} has invalid status {upload.status}; requires PROCESSED")
+            raise ApiError(code="UPLOAD_NOT_PROCESSED", message="Account import requires a processed upload.", status_code=409)
     parse_run = _latest_succeeded_parse_run(workspace_id=workspace_id, upload_id=upload.id, parsing_repository=parsing_repository)
     rows = _load_rows(workspace_id=workspace_id, parse_run_id=parse_run.id, parsing_repository=parsing_repository)
     if not rows:
@@ -45,6 +51,7 @@ def create_account_import(
     detection = ReportTypeDetector().detect(headers=rows[0].row_data_json.keys(), sample_rows=[row.row_data_json for row in rows[:25]])
     warnings = []
     if not detection.required_columns_present:
+        logging.warning(f"Detection warning for upload {upload.id}: missing required columns {detection.missing_columns}")
         warnings.append(
             {
                 "code": "REPORT_COLUMNS_MISSING",
@@ -52,6 +59,8 @@ def create_account_import(
                 "details": {"missing_columns": detection.missing_columns, "detected_report_type": detection.detected_report_type.value},
             }
         )
+    
+    logging.info(f"Creating new account import record for upload {upload.id} with detected type {detection.detected_report_type}")
     import_record = new_account_import(
         workspace_id=workspace_id,
         upload_id=upload.id,
@@ -96,6 +105,7 @@ def create_account_import(
             "execution_boundary": "analysis_only_no_live_amazon_change",
         },
     )
+    logging.info(f"Account import creation successful for upload {upload.id}")
     return success_response(
         data=AccountImportResponse(
             import_record=import_record,
@@ -104,6 +114,9 @@ def create_account_import(
             product_mapping_suggestions=resolution.product_mapping_suggestions,
         ).model_dump(mode="json")
     )
+    except Exception as e:
+        logging.error(f"Error during create_account_import: {e}", exc_info=True)
+        raise
 
 
 @router.get("/workspaces/{workspace_id}/uploads/{upload_id}/report-detection")
