@@ -3,30 +3,30 @@
 @tailwind utilities;
 
 :root {
-  --background: 220 33% 98%;
-  --foreground: 222 47% 11%;
-  --muted: 215 20% 65%;
+  --background: 236 49% 97%;
+  --foreground: 235 34% 14%;
+  --muted: 232 16% 50%;
   --surface: 0 0% 100%;
-  --surface-strong: 222 47% 11%;
-  --border: 214 32% 91%;
-  --brand: 250 84% 60%;
+  --surface-strong: 235 34% 14%;
+  --border: 234 28% 88%;
+  --brand: 252 86% 58%;
   --brand-foreground: 0 0% 100%;
   --success: 160 84% 39%;
   --warning: 38 92% 50%;
   --danger: 0 84% 60%;
-  --ring: 250 84% 60%;
+  --ring: 252 86% 58%;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: 224 42% 7%;
-    --foreground: 210 40% 98%;
-    --muted: 215 20% 72%;
-    --surface: 224 35% 11%;
-    --surface-strong: 210 40% 98%;
-    --border: 222 28% 20%;
-    --brand: 255 92% 76%;
-    --brand-foreground: 224 42% 7%;
+    --background: 236 44% 7%;
+    --foreground: 230 45% 98%;
+    --muted: 230 18% 72%;
+    --surface: 238 34% 12%;
+    --surface-strong: 230 45% 98%;
+    --border: 238 24% 22%;
+    --brand: 262 92% 74%;
+    --brand-foreground: 236 44% 7%;
   }
 }
 
@@ -41,9 +41,10 @@ html {
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at 12% 8%, hsl(250 84% 60% / 0.16), transparent 34rem),
-    radial-gradient(circle at 88% 18%, hsl(188 94% 43% / 0.12), transparent 30rem),
-    linear-gradient(135deg, hsl(var(--background)), hsl(220 44% 96%));
+    radial-gradient(circle at 8% 0%, hsl(268 95% 70% / 0.28), transparent 34rem),
+    radial-gradient(circle at 92% 10%, hsl(194 95% 56% / 0.22), transparent 34rem),
+    radial-gradient(circle at 50% 108%, hsl(252 86% 58% / 0.18), transparent 38rem),
+    linear-gradient(135deg, hsl(238 50% 96%), hsl(217 72% 96%) 42%, hsl(253 65% 97%));
   color: hsl(var(--foreground));
   text-rendering: geometricPrecision;
 }
@@ -51,9 +52,10 @@ body {
 @media (prefers-color-scheme: dark) {
   body {
     background:
-      radial-gradient(circle at 12% 8%, hsl(250 84% 65% / 0.2), transparent 34rem),
-      radial-gradient(circle at 88% 18%, hsl(188 94% 43% / 0.14), transparent 30rem),
-      linear-gradient(135deg, hsl(var(--background)), hsl(224 44% 9%));
+      radial-gradient(circle at 8% 0%, hsl(268 95% 70% / 0.18), transparent 34rem),
+      radial-gradient(circle at 92% 10%, hsl(194 95% 56% / 0.14), transparent 34rem),
+      radial-gradient(circle at 50% 108%, hsl(252 86% 58% / 0.18), transparent 38rem),
+      linear-gradient(135deg, hsl(var(--background)), hsl(218 48% 10%) 48%, hsl(256 45% 11%));
   }
 }
 
@@ -68,23 +70,23 @@ body {
 
 @layer components {
   .glass-panel {
-    border: 1px solid hsl(var(--border) / 0.74);
-    background: linear-gradient(145deg, hsl(var(--surface) / 0.86), hsl(var(--surface) / 0.62));
-    box-shadow: 0 24px 80px hsl(222 47% 11% / 0.08);
+    border: 1px solid hsl(0 0% 100% / 0.7);
+    background: linear-gradient(145deg, hsl(0 0% 100% / 0.82), hsl(245 100% 98% / 0.58));
+    box-shadow: 0 24px 80px hsl(247 58% 25% / 0.12);
     backdrop-filter: blur(18px) saturate(145%);
   }
 
   .premium-card {
-    border: 1px solid hsl(var(--border) / 0.8);
-    background: hsl(var(--surface) / 0.88);
-    box-shadow: 0 18px 55px hsl(222 47% 11% / 0.08);
+    border: 1px solid hsl(0 0% 100% / 0.72);
+    background: linear-gradient(145deg, hsl(0 0% 100% / 0.9), hsl(235 100% 98% / 0.74));
+    box-shadow: 0 18px 55px hsl(247 58% 25% / 0.1);
     backdrop-filter: blur(16px);
   }
 
   .soft-grid-bg {
     background-image:
-      linear-gradient(hsl(222 47% 11% / 0.035) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(222 47% 11% / 0.035) 1px, transparent 1px);
+      linear-gradient(hsl(252 86% 58% / 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(194 95% 56% / 0.05) 1px, transparent 1px);
     background-size: 36px 36px;
   }
 
@@ -98,9 +100,21 @@ body {
 }
 
 @media (prefers-color-scheme: dark) {
+  .glass-panel {
+    border-color: hsl(0 0% 100% / 0.12);
+    background: linear-gradient(145deg, hsl(238 34% 12% / 0.82), hsl(252 42% 18% / 0.52));
+    box-shadow: 0 24px 80px hsl(0 0% 0% / 0.22);
+  }
+
+  .premium-card {
+    border-color: hsl(0 0% 100% / 0.12);
+    background: linear-gradient(145deg, hsl(238 34% 12% / 0.84), hsl(252 42% 18% / 0.48));
+    box-shadow: 0 18px 55px hsl(0 0% 0% / 0.22);
+  }
+
   .soft-grid-bg {
     background-image:
-      linear-gradient(hsl(210 40% 98% / 0.045) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(210 40% 98% / 0.045) 1px, transparent 1px);
+      linear-gradient(hsl(262 92% 74% / 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(194 95% 56% / 0.07) 1px, transparent 1px);
   }
 }
