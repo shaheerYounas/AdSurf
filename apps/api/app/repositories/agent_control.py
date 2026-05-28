@@ -9,6 +9,7 @@ from apps.api.app.core.config import get_settings
 from apps.api.app.core.database import get_database_engine
 from apps.api.app.core.errors import ApiError
 from apps.api.app.schemas.agent_control import AgentConfig, AgentRunEvent
+from apps.api.app.schemas.agent_control import AgentProvider
 from apps.api.app.services.agent_registry import AGENT_DEFINITION_BY_ID, list_agent_definitions
 
 _CONFIG_DB_COLUMNS = [
@@ -325,7 +326,15 @@ def new_agent_event(*, workspace_id: UUID, agent_id: str, event_type: str, messa
 
 def _default_config(*, workspace_id: UUID, product_id: UUID | None, agent_id: str) -> AgentConfig:
     definition = AGENT_DEFINITION_BY_ID.get(agent_id)
-    return AgentConfig(workspace_id=workspace_id, product_id=product_id, agent_id=agent_id, enabled=definition.enabled_by_default if definition else True)
+    settings = get_settings()
+    provider = AgentProvider.DEEPSEEK
+    if settings.deepseek_api_key or (settings.ai_provider == "deepseek" and settings.ai_api_key):
+        provider = AgentProvider.DEEPSEEK
+    elif settings.ai_api_key and settings.ai_base_url:
+        provider = AgentProvider.PRIMARY
+    elif settings.ai_fallback_api_key and settings.ai_fallback_base_url:
+        provider = AgentProvider.FALLBACK
+    return AgentConfig(workspace_id=workspace_id, product_id=product_id, agent_id=agent_id, enabled=definition.enabled_by_default if definition else True, provider=provider)
 
 
 def _config_from_row(row: RowMapping) -> AgentConfig:

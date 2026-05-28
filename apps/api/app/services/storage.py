@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path, PurePosixPath
 import json
+import os
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
 from urllib.request import Request, urlopen
@@ -47,14 +48,17 @@ class LocalFakeStorageService(StorageService):
 
     def read_upload_object(self, *, storage_path: str) -> bytes:
         path = self._local_path(storage_path)
-        if not path.exists() or not path.is_file():
-            raise ApiError(code="UPLOAD_OBJECT_NOT_FOUND", message="Uploaded object was not found in storage.", status_code=404)
-        return path.read_bytes()
+        try:
+            with open(_windows_extended_path(path), "rb") as handle:
+                return handle.read()
+        except FileNotFoundError as exc:
+            raise ApiError(code="UPLOAD_OBJECT_NOT_FOUND", message="Uploaded object was not found in storage.", status_code=404) from exc
 
     def write_upload_object(self, *, storage_path: str, content: bytes) -> None:
         path = self._local_path(storage_path)
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(content)
+        with open(_windows_extended_path(path), "wb") as handle:
+            handle.write(content)
 
     def _local_path(self, storage_path: str) -> Path:
         parts = [part for part in PurePosixPath(storage_path.lstrip("/")).parts if part not in {"", "."}]
@@ -183,3 +187,10 @@ def get_storage_service() -> StorageService:
         message="Storage adapter must be configured as fake or supabase.",
         status_code=503,
     )
+
+
+def _windows_extended_path(path: Path) -> str:
+    text = str(path)
+    if os.name == "nt" and not text.startswith("\\\\?\\"):
+        return "\\\\?\\" + text
+    return text

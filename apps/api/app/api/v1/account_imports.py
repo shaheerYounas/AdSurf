@@ -6,7 +6,9 @@ from fastapi import APIRouter, Depends
 from apps.api.app.core.auth import PRODUCT_PROFILE_READ_ROLES, PRODUCT_PROFILE_WRITE_ROLES, WorkspacePrincipal, require_workspace_member
 from apps.api.app.core.errors import ApiError
 from apps.api.app.repositories.account_imports import AccountImportRepository, get_account_import_repository, new_account_import
+from apps.api.app.repositories.agent_control import AgentControlRepository, get_agent_control_repository
 from apps.api.app.repositories.audit_logs import AuditLogRepository, get_audit_log_repository
+from apps.api.app.repositories.monitoring import MonitoringRepository, get_monitoring_repository
 from apps.api.app.repositories.product_profiles import ProductProfileRepository, get_product_profile_repository
 from apps.api.app.repositories.upload_parsing import UploadParsingRepository, get_upload_parsing_repository
 from apps.api.app.repositories.uploads import UploadRepository, get_upload_repository
@@ -32,6 +34,8 @@ def create_account_import(
     product_repository: ProductProfileRepository = Depends(get_product_profile_repository),
     account_import_repository: AccountImportRepository = Depends(get_account_import_repository),
     workflow_repository: WorkflowRepository = Depends(get_workflow_repository),
+    monitoring_repository: MonitoringRepository = Depends(get_monitoring_repository),
+    agent_control_repository: AgentControlRepository = Depends(get_agent_control_repository),
     audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
 ) -> dict:
     logging.info(f"Starting account import creation for workspace {workspace_id} using upload {payload.upload_id}")
@@ -112,11 +116,13 @@ def create_account_import(
     AdsWorkflowRunner(
         workflow_repository=workflow_repository,
         account_import_repository=account_import_repository,
+        monitoring_repository=monitoring_repository,
     ).run_account_import_workflow(
         workflow_id=workflow.id,
         workspace_id=workspace_id,
         account_import_id=import_record.id,
         upload_id=upload.id,
+        agent_config={config.agent_id: config.model_dump(mode="json") for config in agent_control_repository.list_configs(workspace_id=workspace_id)},
     )
     audit_repository.record(
         workspace_id=workspace_id,

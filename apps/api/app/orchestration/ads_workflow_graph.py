@@ -19,6 +19,7 @@ from apps.api.app.orchestration.nodes import (
 )
 from apps.api.app.orchestration.router import route_after_report_detection
 from apps.api.app.repositories.account_imports import AccountImportRepository
+from apps.api.app.repositories.monitoring import MonitoringRepository
 from apps.api.app.repositories.workflows import WorkflowRepository
 
 
@@ -74,10 +75,12 @@ class AdsWorkflowRunner:
         *,
         workflow_repository: WorkflowRepository,
         account_import_repository: AccountImportRepository,
+        monitoring_repository: MonitoringRepository,
     ) -> None:
         self.context = WorkflowNodeContext(
             workflow_repository=workflow_repository,
             account_import_repository=account_import_repository,
+            monitoring_repository=monitoring_repository,
         )
 
     def run_account_import_workflow(

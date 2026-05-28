@@ -118,7 +118,7 @@ function Configuration({ config, onConfigChange }: { config?: AgentConfig; onCon
       <div className="grid gap-3 md:grid-cols-2">
         <Toggle label="Enabled" checked={config.enabled} onChange={(enabled) => onConfigChange({ enabled })} />
         <Select label="Mode" value={config.mode} options={["deterministic", "ai", "hybrid"]} onChange={(mode) => onConfigChange({ mode: mode as AgentConfig["mode"] })} />
-        <Select label="Provider" value={config.provider} options={["deepseek", "deterministic", "fallback"]} onChange={(provider) => onConfigChange({ provider: provider as AgentConfig["provider"] })} />
+        <Select label="Provider" value={config.provider} options={["primary", "deepseek", "fallback", "deterministic"]} onChange={(provider) => onConfigChange({ provider: provider as AgentConfig["provider"] })} />
         <TextInput label="Model" value={config.model ?? ""} onChange={(model) => onConfigChange({ model: model || null })} placeholder="deepseek-chat" />
         <Select label="Strictness" value={config.strictness_level} options={["conservative", "balanced", "aggressive"]} onChange={(strictness_level) => onConfigChange({ strictness_level: strictness_level as AgentConfig["strictness_level"] })} />
         <Select label="Confidence threshold" value={config.confidence_threshold} options={["low", "medium", "high"]} onChange={(confidence_threshold) => onConfigChange({ confidence_threshold: confidence_threshold as AgentConfig["confidence_threshold"] })} />

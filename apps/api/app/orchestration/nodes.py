@@ -1,22 +1,31 @@
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from decimal import Decimal
+from hashlib import sha256
+import json
 from time import perf_counter
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from apps.api.app.orchestration.checkpoints import persist_node_state
 from apps.api.app.orchestration.events import checkpoint, emit_event
 from apps.api.app.orchestration.graph_state import AdsWorkflowState, touch_state
 from apps.api.app.orchestration.validation import validate_recommendation_payload
 from apps.api.app.repositories.account_imports import AccountImportRepository
+from apps.api.app.repositories.monitoring import MonitoringRepository
 from apps.api.app.repositories.workflows import WorkflowRepository
-from apps.api.app.schemas.account_imports import EntityType
+from apps.api.app.schemas.account_imports import AccountImportEntity, EntityType
+from apps.api.app.schemas.agent_control import AgentConfig
+from apps.api.app.schemas.monitoring import Recommendation, RecommendationConfidence, RecommendationEntityType, RecommendationPriority, RecommendationStatus, RecommendationType
 from apps.api.app.schemas.workflows import WorkflowStatus
+from apps.api.app.services.ai_client import AiClientError
+from apps.api.app.services.ai_provider_factory import build_agent_ai_client
 
 
 @dataclass(frozen=True)
 class WorkflowNodeContext:
     workflow_repository: WorkflowRepository
     account_import_repository: AccountImportRepository
+    monitoring_repository: MonitoringRepository
 
 
 def start_workflow_node(state: AdsWorkflowState, context: WorkflowNodeContext) -> AdsWorkflowState:
@@ -128,10 +137,11 @@ def ai_recommendation_brain_node(state: AdsWorkflowState, context: WorkflowNodeC
     def work(current: AdsWorkflowState) -> AdsWorkflowState:
         grouped_entities = current.get("grouped_entities") or {}
         grouped_keys = set(grouped_entities.keys())
-        agent_config = current.get("agent_config") or {}
+        agent_config = _agent_config_for(current, "ai_recommendation_brain_agent")
+        recommendations, llm_metadata = _ai_or_deterministic_recommendations(current=current, grouped_entities=grouped_entities, agent_config=agent_config, context=context)
         valid: list[dict] = []
-        rejected: list[dict] = []
-        for recommendation in _deterministic_recommendations(grouped_entities):
+        rejected: list[dict] = list(current.get("rejected_recommendations") or [])
+        for recommendation in recommendations:
             is_valid, errors = validate_recommendation_payload(
                 recommendation=recommendation,
                 grouped_entity_keys=grouped_keys,
@@ -141,10 +151,12 @@ def ai_recommendation_brain_node(state: AdsWorkflowState, context: WorkflowNodeC
                 valid.append(recommendation)
             else:
                 rejected.append({"recommendation": recommendation, "validation_errors": errors})
+        next_status = WorkflowStatus.FAILED.value if current.get("errors") and not valid else WorkflowStatus.RUNNING.value
         return {
-            **touch_state(current, node_name="ai_recommendation_brain", status=WorkflowStatus.RUNNING.value),
+            **touch_state(current, node_name="ai_recommendation_brain", status=next_status),
             "recommendations": valid,
             "rejected_recommendations": rejected,
+            "llm_metadata": llm_metadata,
         }
 
     return _run_node("ai_recommendation_brain", state, context, work, "Recommendation decisions generated inside approval-only boundaries.", agent_id="ai_recommendation_brain_agent")
@@ -185,9 +197,25 @@ def stakeholder_reporting_agent_node(state: AdsWorkflowState, context: WorkflowN
 
 def human_approval_gate_node(state: AdsWorkflowState, context: WorkflowNodeContext) -> AdsWorkflowState:
     def work(current: AdsWorkflowState) -> AdsWorkflowState:
+        if not current.get("recommendations") and current.get("grouped_entities"):
+            current = {
+                **current,
+                "recommendations": _deterministic_recommendations(current.get("grouped_entities") or {}),
+                "llm_metadata": {**(current.get("llm_metadata") or {}), "used_ai": False, "fallback_used": True, "fallback_reason": "No recommendation candidates were available before approval gate."},
+            }
+        recommendation_ids = _persist_recommendations(current, context)
+        gate_id = context.workflow_repository.create_human_approval_gate(
+            workflow_id=UUID(current["workflow_id"]),
+            workspace_id=UUID(current["workspace_id"]),
+            gate_type="recommendation_review",
+            requested_action_json={"recommendation_ids": recommendation_ids, "approval_required": True, "executes_live_amazon_change": False},
+            evidence_json={"account_import_id": current.get("account_import_id"), "recommendation_count": len(recommendation_ids), "safety_boundaries": current.get("safety_boundaries", {})},
+        )
         return {
             **touch_state(current, node_name="human_approval_gate", status=WorkflowStatus.WAITING_FOR_HUMAN.value),
             "human_approval_required": True,
+            "persisted_recommendation_ids": recommendation_ids,
+            "human_approval_gate_id": str(gate_id),
             "dashboard_summary": {
                 **(current.get("dashboard_summary") or {}),
                 "approval_gate": "waiting_for_human",
@@ -389,6 +417,235 @@ def _deterministic_recommendations(grouped_entities: dict) -> list[dict]:
             }
         )
     return recommendations[:100]
+
+
+def _ai_or_deterministic_recommendations(*, current: AdsWorkflowState, grouped_entities: dict, agent_config: dict, context: WorkflowNodeContext) -> tuple[list[dict], dict]:
+    mode = str(agent_config.get("mode") or "hybrid")
+    provider = str(agent_config.get("provider") or "deepseek")
+    if mode == "deterministic" or provider == "deterministic":
+        return _deterministic_recommendations(grouped_entities), {"used_ai": False, "provider": "deterministic", "fallback_used": False}
+
+    messages = _ai_messages(current=current, grouped_entities=grouped_entities, agent_config=agent_config)
+    prompt_hash = sha256(json.dumps({"messages": messages}, sort_keys=True, default=str).encode("utf-8")).hexdigest()
+    try:
+        client = build_agent_ai_client(agent_id="ai_recommendation_brain_agent", agent_config=agent_config)
+        emit_event(
+            context.workflow_repository,
+            workflow_id=UUID(current["workflow_id"]),
+            workspace_id=UUID(current["workspace_id"]),
+            node_name="ai_recommendation_brain",
+            agent_id="ai_recommendation_brain_agent",
+            event_type="llm_call_started",
+            message=f"{client.provider} called for account-level recommendations.",
+            metadata_json={"provider": client.provider, "model": client.model},
+            provider=client.provider,
+            model=client.model,
+        )
+        response = client.complete_json(messages=messages)
+        raw_recommendations = response.content_json.get("recommendations", [])
+        recommendations = [_normalize_ai_recommendation(item) for item in raw_recommendations if isinstance(item, dict)]
+        context.workflow_repository.insert_llm_call(
+            workflow_id=UUID(current["workflow_id"]),
+            agent_id="ai_recommendation_brain_agent",
+            provider=response.provider,
+            model=response.model,
+            prompt_hash=prompt_hash,
+            input_summary_json={"account_import_id": current.get("account_import_id"), "group_count": len(grouped_entities), "row_count": current.get("rows_count")},
+            output_json=response.content_json,
+            error_json={},
+            status="succeeded",
+            latency_ms=response.latency_ms,
+        )
+        emit_event(
+            context.workflow_repository,
+            workflow_id=UUID(current["workflow_id"]),
+            workspace_id=UUID(current["workspace_id"]),
+            node_name="ai_recommendation_brain",
+            agent_id="ai_recommendation_brain_agent",
+            event_type="llm_call_completed",
+            message=f"{response.provider} returned {len(recommendations)} recommendation candidates.",
+            metadata_json={"provider": response.provider, "model": response.model, "candidate_count": len(recommendations)},
+            latency_ms=response.latency_ms,
+            provider=response.provider,
+            model=response.model,
+        )
+        if recommendations:
+            return recommendations[: int(agent_config.get("max_recommendations") or 100)], {"used_ai": True, "provider": response.provider, "model": response.model, "fallback_used": False}
+        raise AiClientError("AI returned no recommendation candidates.")
+    except Exception as exc:  # noqa: BLE001 - provider failures must fall back safely.
+        context.workflow_repository.insert_llm_call(
+            workflow_id=UUID(current["workflow_id"]),
+            agent_id="ai_recommendation_brain_agent",
+            provider=provider,
+            model=str(agent_config.get("model") or "default"),
+            prompt_hash=prompt_hash,
+            input_summary_json={"account_import_id": current.get("account_import_id"), "group_count": len(grouped_entities), "row_count": current.get("rows_count")},
+            output_json={},
+            error_json={"message": str(exc)},
+            status="failed",
+            latency_ms=0,
+        )
+        emit_event(
+            context.workflow_repository,
+            workflow_id=UUID(current["workflow_id"]),
+            workspace_id=UUID(current["workspace_id"]),
+            node_name="ai_recommendation_brain",
+            agent_id="ai_recommendation_brain_agent",
+            event_type="fallback_used" if mode == "hybrid" else "llm_call_failed",
+            message="AI provider failed; deterministic fallback used." if mode == "hybrid" else "AI provider failed.",
+            metadata_json={"error": str(exc), "provider": provider, "fallback_allowed": mode == "hybrid"},
+        )
+        if mode == "ai":
+            errors = list(current.get("errors") or [])
+            errors.append({"code": "AI_PROVIDER_FAILED", "message": str(exc)})
+            current["errors"] = errors
+            return [], {"used_ai": False, "provider": provider, "fallback_used": False, "error": str(exc)}
+        return _deterministic_recommendations(grouped_entities), {"used_ai": False, "provider": provider, "fallback_used": True, "error": str(exc)}
+
+
+def _ai_messages(*, current: AdsWorkflowState, grouped_entities: dict, agent_config: dict) -> list[dict[str, str]]:
+    payload = {
+        "report_context": {
+            "report_type": current.get("detected_report_type") or current.get("report_type"),
+            "scope": "account_bulk_report",
+            "row_count": current.get("rows_count", 0),
+            "detected_products": current.get("product_mappings", []),
+        },
+        "agent_config": agent_config,
+        "grouped_metrics": {
+            "account": current.get("metrics_rollups", {}).get("account", {}),
+            "entities": [{"entity_key": key, **value} for key, value in grouped_entities.items()][: int(agent_config.get("max_groups_per_ai_call") or 100)],
+        },
+        "safety_boundaries": current.get("safety_boundaries", {}),
+        "required_output_shape": {
+            "recommendations": [
+                {
+                    "scope_level": "account | product | campaign | ad_group | target | search_term",
+                    "entity_type": "account | product | campaign | ad_group | target | search_term",
+                    "entity_key": "must match one provided entity_key",
+                    "recommendation_type": "keep_running | increase_bid | decrease_bid | pause_review | add_negative_exact | add_negative_phrase | move_to_exact | data_quality_review | budget_review",
+                    "priority": "critical | high | medium | low",
+                    "confidence": "high | medium | low",
+                    "reasoning_summary": "short approver-facing reason",
+                    "evidence": {},
+                    "proposed_action": {"requires_human_approval": True, "executes_live_amazon_change": False},
+                    "risk_note": "short risk note",
+                    "approval_required": True,
+                    "executes_live_amazon_change": False,
+                }
+            ]
+        },
+    }
+    system = (
+        "You are AdSurf's AI Recommendation Brain for Amazon Ads account reports. "
+        "Return strict JSON only. You may create recommendation decisions, but you must not approve, reject, "
+        "execute, export, or claim live Amazon Ads changes. Every recommendation must require human approval "
+        "and executes_live_amazon_change must be false."
+    )
+    return [{"role": "system", "content": system}, {"role": "user", "content": json.dumps(payload, sort_keys=True, default=str)}]
+
+
+def _normalize_ai_recommendation(item: dict) -> dict:
+    proposed_action = item.get("proposed_action") or {}
+    return {
+        **item,
+        "scope_level": item.get("scope_level") or item.get("entity_type"),
+        "recommendation_type": item.get("recommendation_type") or item.get("type"),
+        "priority": item.get("priority") or "medium",
+        "confidence": item.get("confidence") or "medium",
+        "evidence": item.get("evidence") or {},
+        "reasoning_summary": item.get("reasoning_summary") or item.get("reasoning") or "",
+        "proposed_action": {
+            **proposed_action,
+            "requires_human_approval": True,
+            "executes_live_amazon_change": False,
+        },
+        "approval_required": True,
+        "executes_live_amazon_change": False,
+    }
+
+
+def _persist_recommendations(state: AdsWorkflowState, context: WorkflowNodeContext) -> list[str]:
+    if state.get("persisted_recommendation_ids"):
+        return list(state["persisted_recommendation_ids"])
+    account_import_id = state.get("account_import_id")
+    if not account_import_id:
+        return []
+    workspace_id = UUID(state["workspace_id"])
+    import_id = UUID(account_import_id)
+    existing = [
+        item
+        for item in context.monitoring_repository.list_recommendations(workspace_id=workspace_id)
+        if item.account_import_id == import_id and item.decision_source in {"langgraph_ai", "langgraph_deterministic"}
+    ]
+    if existing:
+        return [str(item.id) for item in existing]
+    entities = context.account_import_repository.list_entities(workspace_id=workspace_id, account_import_id=import_id)
+    entity_by_key = {item.entity_key: item for item in entities}
+    recommendations = [
+        _recommendation_from_state_item(workspace_id=workspace_id, account_import_id=import_id, item=item, entity=entity_by_key.get(str(item.get("entity_key", ""))), decision_source="langgraph_ai" if state.get("llm_metadata", {}).get("used_ai") else "langgraph_deterministic")
+        for item in state.get("recommendations", [])
+        if item.get("recommendation_type")
+    ]
+    context.monitoring_repository.insert_recommendations(recommendations=[item for item in recommendations if item is not None])
+    return [str(item.id) for item in recommendations if item is not None]
+
+
+def _recommendation_from_state_item(*, workspace_id: UUID, account_import_id: UUID, item: dict, entity: AccountImportEntity | None, decision_source: str) -> Recommendation | None:
+    try:
+        recommendation_type = RecommendationType(str(item["recommendation_type"]))
+        entity_type = RecommendationEntityType(str(item.get("entity_type") or item.get("scope_level") or "search_term"))
+        priority = RecommendationPriority(str(item.get("priority") or "medium"))
+        confidence = RecommendationConfidence(str(item.get("confidence") or "medium"))
+    except ValueError:
+        return None
+    now = datetime.now(UTC)
+    metrics = entity.metrics_json if entity else item.get("evidence", {})
+    proposed_action = item.get("proposed_action") or {}
+    return Recommendation(
+        id=uuid4(),
+        workspace_id=workspace_id,
+        product_id=entity.product_id if entity else None,
+        account_import_id=account_import_id,
+        entity_key=str(item.get("entity_key") or (entity.entity_key if entity else "")),
+        decision_source=decision_source,
+        recommendation_type=recommendation_type,
+        entity_type=entity_type,
+        status=RecommendationStatus.PENDING_APPROVAL,
+        priority=priority,
+        confidence=confidence,
+        rule_version_id="langgraph_account_workflow_v1",
+        rule_name="langgraph_account_ai_recommendation_brain",
+        campaign_name=item.get("campaign_name") or (entity.campaign_name if entity else None),
+        ad_group_name=item.get("ad_group_name") or (entity.ad_group_name if entity else None),
+        targeting=item.get("targeting") or (entity.targeting if entity else None),
+        customer_search_term=item.get("customer_search_term") or (entity.customer_search_term if entity else None),
+        input_metrics_json=metrics,
+        current_metric_snapshot_json=metrics,
+        evidence_json={
+            "reasoning_summary": item.get("reasoning_summary"),
+            "evidence": item.get("evidence"),
+            "risk_note": item.get("risk_note"),
+            "decision_source": decision_source,
+            "approval_boundary": _approval_boundary(),
+        },
+        proposed_action_json={**proposed_action, "requires_human_approval": True, "executes_live_amazon_change": False, "amazon_ads_api_mutation": False},
+        explanation_json={"summary": item.get("reasoning_summary") or "Review recommendation before approval.", "approval_required": True, "execution_boundary": "recommendation_only_no_live_amazon_change"},
+        approval_boundary=_approval_boundary(),
+        created_at=now,
+        updated_at=now,
+    )
+
+
+def _agent_config_for(state: AdsWorkflowState, agent_id: str) -> dict:
+    configs = state.get("agent_config") or {}
+    if agent_id in configs and isinstance(configs[agent_id], dict):
+        return configs[agent_id]
+    return configs if isinstance(configs, dict) else {}
+
+
+def _approval_boundary() -> dict:
+    return {"requires_human_approval": True, "executes_live_amazon_change": False, "amazon_ads_api_mutation": False}
 
 
 def _decimal(value) -> Decimal:

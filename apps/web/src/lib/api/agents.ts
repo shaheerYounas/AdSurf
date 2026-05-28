@@ -18,7 +18,7 @@ export type AgentConfig = {
   agent_id: string;
   enabled: boolean;
   mode: "deterministic" | "ai" | "hybrid";
-  provider: "deepseek" | "fallback" | "deterministic";
+  provider: "primary" | "deepseek" | "fallback" | "deterministic";
   model: string | null;
   strictness_level: "conservative" | "balanced" | "aggressive";
   confidence_threshold: "low" | "medium" | "high";

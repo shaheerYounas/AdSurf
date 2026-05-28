@@ -13,6 +13,7 @@ from apps.api.app.schemas.agent_control import AgentConfig, AgentConfigPatch, Ag
 from apps.api.app.schemas.envelope import success_response
 from apps.api.app.schemas.monitoring import AiRun
 from apps.api.app.services.account_agent_workflow import build_account_agent_workflow_runs, build_account_workflow_events
+from apps.api.app.services.ai_provider_factory import available_backend_ai_providers
 from apps.api.app.services.agent_registry import AGENT_DEFINITION_BY_ID, AGENT_WORKFLOW_ORDER, agent_id_for_run_name, list_agent_definitions
 
 router = APIRouter()
@@ -42,6 +43,16 @@ def list_agents(workspace_id: UUID, principal: WorkspacePrincipal = Depends(requ
     principal.ensure_workspace(workspace_id)
     principal.require_role(PRODUCT_PROFILE_READ_ROLES)
     return success_response(data=[agent.model_dump(mode="json") for agent in list_agent_definitions()])
+
+
+@router.get("/workspaces/{workspace_id}/agent-ai-providers")
+def list_agent_ai_providers(workspace_id: UUID, principal: WorkspacePrincipal = Depends(require_workspace_member)) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_READ_ROLES)
+    return success_response(
+        data=available_backend_ai_providers(),
+        meta={"secrets_exposed": False, "message": "API keys are read server-side only and are never returned to the frontend."},
+    )
 
 
 @router.get("/workspaces/{workspace_id}/agent-configs")

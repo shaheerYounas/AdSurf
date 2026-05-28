@@ -47,12 +47,30 @@ class WorkflowRepository(ABC):
     def list_events(self, *, workspace_id: UUID, workflow_id: UUID) -> list[AgentWorkflowEvent]:
         raise NotImplementedError
 
+    @abstractmethod
+    def insert_llm_call(self, *, workflow_id: UUID, agent_id: str, provider: str, model: str, prompt_hash: str, input_summary_json: dict, output_json: dict, error_json: dict, status: str, latency_ms: int | None = None, tokens_input: int | None = None, tokens_output: int | None = None, cost_usd: str | None = None) -> UUID:
+        raise NotImplementedError
+
+    @abstractmethod
+    def create_human_approval_gate(self, *, workflow_id: UUID, workspace_id: UUID, gate_type: str, requested_action_json: dict, evidence_json: dict) -> UUID:
+        raise NotImplementedError
+
+    @abstractmethod
+    def list_human_approval_gates(self, *, workspace_id: UUID, status: str | None = None) -> list[dict]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def decide_human_approval_gate(self, *, workspace_id: UUID, gate_id: UUID, status: str, approver_user_id: str, decision_note: str) -> dict | None:
+        raise NotImplementedError
+
 
 class LocalWorkflowRepository(WorkflowRepository):
     def __init__(self) -> None:
         self._workflows: dict[UUID, AgentWorkflow] = {}
         self._checkpoints: dict[UUID, list[AgentWorkflowCheckpoint]] = {}
         self._events: dict[UUID, list[AgentWorkflowEvent]] = {}
+        self._llm_calls: dict[UUID, dict] = {}
+        self._approval_gates: dict[UUID, dict] = {}
 
     def create_workflow(self, *, workflow: AgentWorkflow) -> AgentWorkflow:
         self._workflows[workflow.id] = workflow
@@ -100,6 +118,57 @@ class LocalWorkflowRepository(WorkflowRepository):
             [event for event in self._events.get(workflow_id, []) if event.workspace_id == workspace_id],
             key=lambda item: item.created_at,
         )
+
+    def insert_llm_call(self, *, workflow_id: UUID, agent_id: str, provider: str, model: str, prompt_hash: str, input_summary_json: dict, output_json: dict, error_json: dict, status: str, latency_ms: int | None = None, tokens_input: int | None = None, tokens_output: int | None = None, cost_usd: str | None = None) -> UUID:
+        call_id = uuid4()
+        self._llm_calls[call_id] = {
+            "id": call_id,
+            "workflow_id": workflow_id,
+            "agent_id": agent_id,
+            "provider": provider,
+            "model": model,
+            "prompt_hash": prompt_hash,
+            "input_summary_json": input_summary_json,
+            "output_json": output_json,
+            "error_json": error_json,
+            "status": status,
+            "latency_ms": latency_ms,
+            "tokens_input": tokens_input,
+            "tokens_output": tokens_output,
+            "cost_usd": cost_usd,
+            "created_at": datetime.now(UTC),
+        }
+        return call_id
+
+    def create_human_approval_gate(self, *, workflow_id: UUID, workspace_id: UUID, gate_type: str, requested_action_json: dict, evidence_json: dict) -> UUID:
+        gate_id = uuid4()
+        self._approval_gates[gate_id] = {
+            "id": gate_id,
+            "workflow_id": workflow_id,
+            "workspace_id": workspace_id,
+            "gate_type": gate_type,
+            "status": "waiting",
+            "requested_action_json": requested_action_json,
+            "evidence_json": evidence_json,
+            "created_at": datetime.now(UTC),
+        }
+        return gate_id
+
+    def list_human_approval_gates(self, *, workspace_id: UUID, status: str | None = None) -> list[dict]:
+        gates = [
+            gate
+            for gate in self._approval_gates.values()
+            if gate["workspace_id"] == workspace_id and (status is None or gate["status"] == status)
+        ]
+        return sorted(gates, key=lambda item: item["created_at"], reverse=True)
+
+    def decide_human_approval_gate(self, *, workspace_id: UUID, gate_id: UUID, status: str, approver_user_id: str, decision_note: str) -> dict | None:
+        gate = self._approval_gates.get(gate_id)
+        if not gate or gate["workspace_id"] != workspace_id:
+            return None
+        updated = {**gate, "status": status, "approver_user_id": approver_user_id, "decision_note": decision_note, "decided_at": datetime.now(UTC)}
+        self._approval_gates[gate_id] = updated
+        return updated
 
 
 class PostgresWorkflowRepository(WorkflowRepository):
@@ -226,6 +295,102 @@ class PostgresWorkflowRepository(WorkflowRepository):
                 {"workspace_id": workspace_id, "workflow_id": workflow_id},
             ).mappings().all()
         return [_event_from_row(row) for row in rows]
+
+    def insert_llm_call(self, *, workflow_id: UUID, agent_id: str, provider: str, model: str, prompt_hash: str, input_summary_json: dict, output_json: dict, error_json: dict, status: str, latency_ms: int | None = None, tokens_input: int | None = None, tokens_output: int | None = None, cost_usd: str | None = None) -> UUID:
+        call_id = uuid4()
+        with self._engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    insert into agent_llm_calls (
+                        id, workflow_id, agent_id, provider, model, prompt_hash, input_summary_json,
+                        output_json, error_json, tokens_input, tokens_output, cost_usd, latency_ms, status
+                    )
+                    values (
+                        :id, :workflow_id, :agent_id, :provider, :model, :prompt_hash, cast(:input_summary_json as jsonb),
+                        cast(:output_json as jsonb), cast(:error_json as jsonb), :tokens_input, :tokens_output, :cost_usd, :latency_ms, :status
+                    )
+                    """
+                ),
+                {
+                    "id": call_id,
+                    "workflow_id": workflow_id,
+                    "agent_id": agent_id,
+                    "provider": provider,
+                    "model": model,
+                    "prompt_hash": prompt_hash,
+                    "input_summary_json": _json_dumps(input_summary_json),
+                    "output_json": _json_dumps(output_json),
+                    "error_json": _json_dumps(error_json),
+                    "tokens_input": tokens_input,
+                    "tokens_output": tokens_output,
+                    "cost_usd": cost_usd,
+                    "latency_ms": latency_ms,
+                    "status": status,
+                },
+            )
+        return call_id
+
+    def create_human_approval_gate(self, *, workflow_id: UUID, workspace_id: UUID, gate_type: str, requested_action_json: dict, evidence_json: dict) -> UUID:
+        gate_id = uuid4()
+        with self._engine.begin() as connection:
+            connection.execute(
+                text(
+                    """
+                    insert into human_approval_gates (
+                        id, workflow_id, workspace_id, gate_type, status, requested_action_json, evidence_json
+                    )
+                    values (
+                        :id, :workflow_id, :workspace_id, :gate_type, 'waiting', cast(:requested_action_json as jsonb), cast(:evidence_json as jsonb)
+                    )
+                    """
+                ),
+                {
+                    "id": gate_id,
+                    "workflow_id": workflow_id,
+                    "workspace_id": workspace_id,
+                    "gate_type": gate_type,
+                    "requested_action_json": _json_dumps(requested_action_json),
+                    "evidence_json": _json_dumps(evidence_json),
+                },
+            )
+        return gate_id
+
+    def list_human_approval_gates(self, *, workspace_id: UUID, status: str | None = None) -> list[dict]:
+        clauses = ["workspace_id = :workspace_id"]
+        params = {"workspace_id": workspace_id, "status": status}
+        if status:
+            clauses.append("status = :status")
+        with self._engine.begin() as connection:
+            rows = connection.execute(
+                text(f"select * from human_approval_gates where {' and '.join(clauses)} order by created_at desc"),
+                params,
+            ).mappings().all()
+        return [dict(row) for row in rows]
+
+    def decide_human_approval_gate(self, *, workspace_id: UUID, gate_id: UUID, status: str, approver_user_id: str, decision_note: str) -> dict | None:
+        with self._engine.begin() as connection:
+            row = connection.execute(
+                text(
+                    """
+                    update human_approval_gates
+                    set status = :status,
+                        approver_user_id = :approver_user_id,
+                        decision_note = :decision_note,
+                        decided_at = now()
+                    where workspace_id = :workspace_id and id = :gate_id and status = 'waiting'
+                    returning *
+                    """
+                ),
+                {
+                    "workspace_id": workspace_id,
+                    "gate_id": gate_id,
+                    "status": status,
+                    "approver_user_id": _uuid_or_none(approver_user_id),
+                    "decision_note": decision_note,
+                },
+            ).mappings().first()
+        return dict(row) if row else None
 
 
 _local_repository = LocalWorkflowRepository()

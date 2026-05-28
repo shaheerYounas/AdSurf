@@ -38,6 +38,7 @@ class AgentConfidenceThreshold(StrEnum):
 
 
 class AgentProvider(StrEnum):
+    PRIMARY = "primary"
     DEEPSEEK = "deepseek"
     FALLBACK = "fallback"
     DETERMINISTIC = "deterministic"

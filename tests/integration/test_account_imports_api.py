@@ -77,11 +77,26 @@ def test_account_import_detects_and_groups_bulk_report(monkeypatch, tmp_path) ->
 
     workflow = client.get(f"/v1/workspaces/{workspace_id}/workflows/{data['workflow_id']}", headers=auth_headers(workspace_id))
     events = client.get(f"/v1/workspaces/{workspace_id}/workflows/{data['workflow_id']}/events", headers=auth_headers(workspace_id))
+    gates = client.get(f"/v1/workspaces/{workspace_id}/approval-gates", headers=auth_headers(workspace_id, role="viewer"))
+    graph_recommendations = client.get(f"/v1/workspaces/{workspace_id}/recommendations", headers=auth_headers(workspace_id, role="viewer"))
     assert workflow.status_code == 200
     assert workflow.json()["data"]["workflow"]["status"] in {"waiting_for_human", "succeeded"}
     assert workflow.json()["data"]["workflow"]["state_json"]["safety_boundaries"]["executes_live_amazon_change"] is False
     assert events.status_code == 200
     assert any(event["event_type"] == "node_started" for event in events.json()["data"])
+    assert gates.status_code == 200
+    assert gates.json()["data"]
+    assert gates.json()["data"][0]["status"] == "waiting"
+    assert graph_recommendations.status_code == 200
+    assert any(item["account_import_id"] == data["import_record"]["id"] for item in graph_recommendations.json()["data"])
+
+    approved_gate = client.post(
+        f"/v1/workspaces/{workspace_id}/approval-gates/{gates.json()['data'][0]['id']}/approve",
+        headers=auth_headers(workspace_id, role="approver"),
+        json={"reason": "Reviewed gate during integration test"},
+    )
+    assert approved_gate.status_code == 200
+    assert approved_gate.json()["data"]["status"] == "approved"
 
 
 def test_account_import_agent_analysis_creates_runs_and_approval_only_recommendations(monkeypatch, tmp_path) -> None:

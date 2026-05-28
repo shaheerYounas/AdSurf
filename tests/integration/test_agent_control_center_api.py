@@ -32,6 +32,11 @@ def test_agent_registry_and_config_role_protection(monkeypatch, tmp_path) -> Non
     assert updated.status_code == 200
     assert updated.json()["data"]["enabled"] is False
 
+    providers = client.get(f"/v1/workspaces/{workspace_id}/agent-ai-providers", headers=auth_headers(workspace_id, role="viewer"))
+    assert providers.status_code == 200
+    assert providers.json()["meta"]["secrets_exposed"] is False
+    assert {"primary", "deepseek", "fallback", "deterministic"}.issubset({item["provider"] for item in providers.json()["data"]})
+
 
 def test_disabled_agent_is_skipped_and_workflow_graph_exposes_edges(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("AI_RECOMMENDATION_MODE", "deterministic_fallback")
