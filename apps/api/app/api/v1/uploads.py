@@ -1,7 +1,7 @@
 import logging
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, Header, Query, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, Query, Request, status
 
 from apps.api.app.core.auth import (
     PRODUCT_PROFILE_READ_ROLES,
@@ -12,6 +12,8 @@ from apps.api.app.core.auth import (
 from apps.api.app.core.errors import ApiError
 from apps.api.app.domain.uploads import build_upload_storage_path, sanitize_upload_filename, validate_upload_request
 from apps.api.app.repositories.audit_logs import AuditLogRepository, get_audit_log_repository
+from apps.api.app.repositories.account_imports import AccountImportRepository, get_account_import_repository
+from apps.api.app.repositories.agent_control import AgentControlRepository, get_agent_control_repository
 from apps.api.app.repositories.column_mapping import ColumnMappingRepository, get_column_mapping_repository
 from apps.api.app.repositories.jobs import JobRepository, get_job_repository
 from apps.api.app.repositories.keyword_review import KeywordReviewRepository, get_keyword_review_repository
@@ -19,6 +21,9 @@ from apps.api.app.repositories.keyword_scoring import KeywordScoringRepository, 
 from apps.api.app.repositories.product_profiles import ProductProfileRepository, get_product_profile_repository
 from apps.api.app.repositories.upload_parsing import UploadParsingRepository, get_upload_parsing_repository
 from apps.api.app.repositories.uploads import UploadRepository, get_upload_repository
+from apps.api.app.repositories.monitoring import MonitoringRepository, get_monitoring_repository
+from apps.api.app.repositories.workflows import WorkflowRepository, get_workflow_repository
+from apps.api.app.schemas.account_imports import AccountImportResponse
 from apps.api.app.schemas.column_mapping import ColumnMappingCreateRequest, ColumnMappingStatus
 from apps.api.app.schemas.envelope import success_response
 from apps.api.app.schemas.keyword_review import (
@@ -35,11 +40,160 @@ from apps.api.app.schemas.uploads import (
 )
 from apps.api.app.services.column_discovery import ColumnDiscoveryService
 from apps.api.app.services.column_mapping import ColumnMappingService
+from apps.api.app.services.account_import_builder import create_account_import_from_processed_upload
 from apps.api.app.services.keyword_scoring import KeywordScoringFailedError, KeywordScoringService
 from apps.api.app.services.keyword_review import KeywordReviewService
 from apps.api.app.services.storage import StorageService, get_storage_service
+from apps.api.app.services.upload_processing_worker import UploadProcessingWorker
+from apps.api.app.services.workflow_queue import enqueue_account_import_workflow
 
 router = APIRouter()
+
+
+@router.post("/workspaces/{workspace_id}/uploads/report", status_code=status.HTTP_201_CREATED)
+async def upload_account_report_multipart(
+    workspace_id: UUID,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    upload_repository: UploadRepository = Depends(get_upload_repository),
+    parsing_repository: UploadParsingRepository = Depends(get_upload_parsing_repository),
+    product_repository: ProductProfileRepository = Depends(get_product_profile_repository),
+    account_import_repository: AccountImportRepository = Depends(get_account_import_repository),
+    workflow_repository: WorkflowRepository = Depends(get_workflow_repository),
+    monitoring_repository: MonitoringRepository = Depends(get_monitoring_repository),
+    agent_control_repository: AgentControlRepository = Depends(get_agent_control_repository),
+    job_repository: JobRepository = Depends(get_job_repository),
+    audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
+    storage_service: StorageService = Depends(get_storage_service),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
+    try:
+        form = await request.form()
+    except Exception as exc:  # noqa: BLE001 - missing multipart parser should be user-facing.
+        raise ApiError(
+            code="MULTIPART_UPLOAD_REQUIRED",
+            message="Upload Report requires multipart/form-data with a file field.",
+            status_code=400,
+        ) from exc
+    file_part = form.get("file")
+    if file_part is None or not hasattr(file_part, "read"):
+        raise ApiError(code="REPORT_FILE_REQUIRED", message="Upload Report requires a file field.", status_code=400)
+
+    content = await file_part.read()
+    filename = getattr(file_part, "filename", "") or "report.csv"
+    mime_type = getattr(file_part, "content_type", None) or "text/csv"
+    if not content:
+        raise ApiError(code="REPORT_FILE_EMPTY", message="Upload Report requires a non-empty file.", status_code=400)
+
+    payload = UploadInitRequest(
+        original_filename=filename,
+        mime_type=mime_type,
+        file_size_bytes=len(content),
+        source_type="account_bulk_report",
+    )
+    sanitized_filename = validate_upload_request(
+        original_filename=payload.original_filename,
+        mime_type=payload.mime_type,
+        file_size_bytes=payload.file_size_bytes,
+        source_type=payload.source_type,
+    )
+    upload_id = uuid4()
+    storage_path = build_upload_storage_path(
+        workspace_id=workspace_id,
+        product_id=None,
+        upload_id=upload_id,
+        sanitized_filename=sanitized_filename,
+    )
+    upload = upload_repository.create_initialized(
+        upload_id=upload_id,
+        workspace_id=workspace_id,
+        product_id=None,
+        payload=payload,
+        storage_path=storage_path,
+        actor_user_id=principal.user_id,
+        idempotency_key=str(uuid4()),
+    )
+    storage_service.write_upload_object(storage_path=upload.storage_path, content=content)
+    queued_upload = upload_repository.mark_queued_for_processing(workspace_id=workspace_id, upload_id=upload.id)
+    if queued_upload is None:
+        raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found after creation.", status_code=404)
+    job, job_created = job_repository.enqueue_process_upload(upload=queued_upload)
+    audit_repository.record(
+        workspace_id=workspace_id,
+        actor_user_id=principal.user_id,
+        action="upload.report_received",
+        entity_type="upload",
+        entity_id=upload.id,
+        details={"file_size_bytes": len(content), "job_id": str(job.id), "multipart_endpoint": True},
+    )
+    if job_created:
+        audit_repository.record(
+            workspace_id=workspace_id,
+            actor_user_id=principal.user_id,
+            action="job.queued",
+            entity_type="job",
+            entity_id=job.id,
+            details={"job_type": job.job_type, "upload_id": str(upload.id), "multipart_endpoint": True},
+        )
+
+    _process_upload_locally_until_complete(
+        workspace_id=workspace_id,
+        upload_id=upload.id,
+        job_id=job.id,
+        job_repository=job_repository,
+        upload_repository=upload_repository,
+        parsing_repository=parsing_repository,
+        audit_repository=audit_repository,
+        storage_service=storage_service,
+    )
+    result = create_account_import_from_processed_upload(
+        workspace_id=workspace_id,
+        upload_id=upload.id,
+        actor_user_id=principal.user_id,
+        upload_repository=upload_repository,
+        parsing_repository=parsing_repository,
+        product_repository=product_repository,
+        account_import_repository=account_import_repository,
+        workflow_repository=workflow_repository,
+    )
+    enqueue_account_import_workflow(
+        background_tasks=background_tasks,
+        workflow_repository=workflow_repository,
+        account_import_repository=account_import_repository,
+        monitoring_repository=monitoring_repository,
+        workflow_id=result.workflow.id,
+        workspace_id=workspace_id,
+        account_import_id=result.import_record.id,
+        upload_id=upload.id,
+        agent_config={config.agent_id: config.model_dump(mode="json") for config in agent_control_repository.list_configs(workspace_id=workspace_id)},
+    )
+    audit_repository.record(
+        workspace_id=workspace_id,
+        actor_user_id=principal.user_id,
+        action="account_import.created",
+        entity_type="account_import",
+        entity_id=result.import_record.id,
+        details={
+            "upload_id": str(upload.id),
+            "workflow_id": str(result.workflow.id),
+            "detected_report_type": result.detection.detected_report_type.value,
+            "detection_confidence": result.detection.confidence.value,
+            "entity_count": len(result.resolution.entities),
+            "execution_boundary": "analysis_only_no_live_amazon_change",
+            "multipart_endpoint": True,
+        },
+    )
+    return success_response(
+        data=AccountImportResponse(
+            import_record=result.import_record,
+            detection=result.detection,
+            entities=result.resolution.entities,
+            product_mapping_suggestions=result.resolution.product_mapping_suggestions,
+            workflow_id=result.workflow.id,
+        ).model_dump(mode="json")
+    )
 
 
 @router.post(
@@ -805,6 +959,42 @@ def _scoring_summary(run) -> KeywordScoringSummary:
         approved_count=run.approved_count,
         rejected_count=run.rejected_count,
         error_count=run.error_count,
+    )
+
+
+def _process_upload_locally_until_complete(
+    *,
+    workspace_id: UUID,
+    upload_id: UUID,
+    job_id: UUID,
+    job_repository: JobRepository,
+    upload_repository: UploadRepository,
+    parsing_repository: UploadParsingRepository,
+    audit_repository: AuditLogRepository,
+    storage_service: StorageService,
+) -> None:
+    worker = UploadProcessingWorker(
+        job_repository=job_repository,
+        upload_repository=upload_repository,
+        parsing_repository=parsing_repository,
+        audit_repository=audit_repository,
+        storage_service=storage_service,
+        worker_id=f"multipart-upload-{job_id}",
+    )
+    for _ in range(25):
+        upload = upload_repository.get(workspace_id=workspace_id, upload_id=upload_id)
+        if upload and upload.status == UploadStatus.PROCESSED:
+            return
+        worker.process_one()
+    upload = upload_repository.get(workspace_id=workspace_id, upload_id=upload_id)
+    if upload and upload.status == UploadStatus.PROCESSED:
+        return
+    job = job_repository.get(workspace_id=workspace_id, job_id=job_id)
+    raise ApiError(
+        code="UPLOAD_PROCESSING_NOT_COMPLETED",
+        message="Report was stored and queued, but local processing did not complete.",
+        status_code=409,
+        details={"upload_id": str(upload_id), "job_id": str(job_id), "job_status": job.status.value if job else None},
     )
 
 

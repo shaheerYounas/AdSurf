@@ -2,10 +2,12 @@ from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 
+from apps.api.app.core.config import get_settings
 from apps.api.app.main import app
 from apps.api.app.repositories.audit_logs import get_audit_log_repository
 from apps.api.app.repositories.jobs import get_job_repository
 from apps.api.app.repositories.uploads import get_upload_repository
+from apps.api.app.schemas.jobs import JobStatus
 from apps.api.app.schemas.uploads import UploadStatus
 
 
@@ -64,6 +66,32 @@ def test_init_upload_success_returns_signed_target() -> None:
     assert data["upload_url"].startswith("local-fake://signed-upload/")
     assert data["storage_path"].startswith(f"/workspaces/{workspace_id}/products/{product_id}/uploads/")
     assert data["storage_path"].endswith("/raw/Competitor_Report.csv")
+
+
+def test_multipart_report_upload_creates_import_and_workflow(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("LOCAL_UPLOAD_STORAGE_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+    _cancel_existing_queued_jobs()
+    workspace_id = str(uuid4())
+    content = (
+        "ASIN,SKU,Product,Campaign Name,Ad Group Name,Targeting,Customer Search Term,Impressions,Clicks,Spend,7 Day Total Sales,7 Day Total Orders\n"
+        "B0TESTASIN,SHOE-1,Existing Shoe,Campaign A,Group A,running shoes,blue running shoes,100,12,24.50,80,2\n"
+    ).encode()
+
+    response = client.post(
+        f"/v1/workspaces/{workspace_id}/uploads/report",
+        headers=auth_headers(workspace_id, role="analyst"),
+        files={"file": ("account-report.csv", content, "text/csv")},
+    )
+
+    assert response.status_code == 201
+    data = response.json()["data"]
+    assert data["import_record"]["upload_id"]
+    assert data["import_record"]["processed_rows"] == 1
+    assert data["workflow_id"]
+    workflow = client.get(f"/v1/workspaces/{workspace_id}/workflows/{data['workflow_id']}", headers=auth_headers(workspace_id, role="viewer"))
+    assert workflow.status_code == 200
+    assert workflow.json()["data"]["workflow"]["state_json"]["safety_boundaries"]["executes_live_amazon_change"] is False
 
 
 def test_init_upload_rejects_unsupported_mime_type() -> None:
@@ -365,3 +393,11 @@ def _set_local_upload_status(*, workspace_id: str, upload_id: str, status: Uploa
     current = repository.get(workspace_id=workspace_uuid, upload_id=upload_uuid)
     assert current is not None
     repository._uploads[workspace_uuid][upload_uuid] = current.model_copy(update={"status": status})
+
+
+def _cancel_existing_queued_jobs() -> None:
+    repository = get_job_repository()
+    for workspace_id, jobs in list(repository._jobs.items()):
+        for job_id, job in list(jobs.items()):
+            if job.status == JobStatus.QUEUED:
+                repository.update_status(workspace_id=workspace_id, job_id=job_id, status=JobStatus.CANCELLED)

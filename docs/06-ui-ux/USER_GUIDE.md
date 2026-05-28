@@ -242,12 +242,12 @@ When `Agents` is opened, the main AdSurf sidebar changes into an Agent Ops sub-m
 The Agent Control Center shows:
 
 - An upload-first entry point for account-level reports and bulk sheets.
-- A normal Upload Amazon Ads Report card at the top of the workflow with file picker, upload button, Simple/Advanced Mode toggle, and safety labels.
+- A normal Upload Amazon Ads Report card at the top of the workflow with file picker, upload button, Simple/Advanced Mode toggle, and safety labels. The button stays disabled until a file is selected and then sends the file to the backend multipart workflow endpoint.
 - Simple Mode for everyday users and Advanced Mode for operators who need raw input/output, template, and deep configuration context.
 - Agent Team Dashboard cards with status, current task, mode, provider/model, strictness, confidence threshold, tools/data access, memory/context limits, permissions, cost/time, recommendation count, last run, and error state.
 - A Visual Workflow Canvas showing Report Upload, Report Detection, Product Resolution, Metrics Analysis, AI Recommendation Brain, Bid Optimization, Negative Keyword, Budget Allocation, Pause Review, Stakeholder Reporting, and Human Approval.
 - A right Agent Inspector on wide desktop screens, or a full-width inspector below the workflow on narrower screens. Inspector tabs wrap cleanly and include Overview, Configuration, Prompt / Business Goal, Input Data, Output, Recommendations, Permissions, Trace, and Safety.
-- A Trace Timeline with events such as queued, started, input prepared, model called, output received, validation passed or failed, recommendations created, waiting for human approval, fallback used, stopped, paused, or failed.
+- A Trace Timeline with events such as queued, started, input prepared, model called, output received, validation passed or failed, recommendations created, waiting for human approval, fallback used, stopped, paused, or failed. Upload-created workflows also have durable workflow events available from the workflow status API.
 - Human Approval Checkpoints with recommendation cards, metric evidence, risk chips, proposed actions, and approve/reject controls.
 - Agent Templates that prefill configuration for conservative profitability, growth scaling, wasted spend cleanup, launch review, or agency audit work.
 - Control buttons for run analysis, pause all, resume all, stop all, rerun failed, configure agents, view approvals, and rerun from a selected agent. Account-level Run analysis creates deterministic agent runs and approval-only recommendations from grouped report entities.
@@ -362,12 +362,13 @@ Before downloading an export:
 The main workflow begins in the Agent Control Center with **Upload Amazon Ads Report**.
 
 1. Choose a CSV/XLS/XLSX Amazon Ads report or bulk sheet.
-2. AdSurf uploads and parses the file.
-3. AdSurf detects the report type and available entity levels.
-4. AdSurf groups rows by account, product, campaign, ad group, target, and search term where columns allow it.
-5. Review product mapping suggestions for new or unknown ASINs/SKUs.
-6. Configure agents, then run analysis.
-7. Review grouped recommendations and approve or reject with notes.
+2. AdSurf uploads the file through the account report endpoint and shows a loading state.
+3. The backend stores the file, parses rows, creates the account import, creates a workflow ID, and starts the LangGraph workflow through the local queue adapter.
+4. AdSurf detects the report type and available entity levels.
+5. AdSurf groups rows by account, product, campaign, ad group, target, and search term where columns allow it.
+6. Review product mapping suggestions for new or unknown ASINs/SKUs.
+7. Watch workflow status, trace events, recommendations, and approval checkpoints update.
+8. Review grouped recommendations and approve or reject with notes.
 
 Single-product uploads still exist on product pages for focused keyword and monitoring workflows. Account bulk upload is the preferred path for sellers and agencies managing many products.
 

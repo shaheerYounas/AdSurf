@@ -7,6 +7,7 @@ dependencies = [
   "fastapi",
   "langgraph",
   "psycopg[binary]",
+  "python-multipart",
   "python-dotenv",
   "pydantic",
   "sqlalchemy",

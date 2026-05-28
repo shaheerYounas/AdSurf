@@ -1,25 +1,22 @@
-import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 
 from apps.api.app.core.auth import PRODUCT_PROFILE_READ_ROLES, PRODUCT_PROFILE_WRITE_ROLES, WorkspacePrincipal, require_workspace_member
 from apps.api.app.core.errors import ApiError
-from apps.api.app.repositories.account_imports import AccountImportRepository, get_account_import_repository, new_account_import
+from apps.api.app.repositories.account_imports import AccountImportRepository, get_account_import_repository
 from apps.api.app.repositories.agent_control import AgentControlRepository, get_agent_control_repository
 from apps.api.app.repositories.audit_logs import AuditLogRepository, get_audit_log_repository
 from apps.api.app.repositories.monitoring import MonitoringRepository, get_monitoring_repository
 from apps.api.app.repositories.product_profiles import ProductProfileRepository, get_product_profile_repository
 from apps.api.app.repositories.upload_parsing import UploadParsingRepository, get_upload_parsing_repository
 from apps.api.app.repositories.uploads import UploadRepository, get_upload_repository
-from apps.api.app.repositories.workflows import WorkflowRepository, get_workflow_repository, new_workflow
-from apps.api.app.schemas.account_imports import AccountImportCreateRequest, AccountImportResponse, AccountImportStatus
+from apps.api.app.repositories.workflows import WorkflowRepository, get_workflow_repository
+from apps.api.app.schemas.account_imports import AccountImportCreateRequest, AccountImportResponse
 from apps.api.app.schemas.envelope import success_response
-from apps.api.app.schemas.upload_parsing import ParsedUploadRow, UploadParseStatus
-from apps.api.app.schemas.uploads import UploadStatus
-from apps.api.app.orchestration.ads_workflow_graph import AdsWorkflowRunner
-from apps.api.app.services.product_entity_resolver import ProductEntityResolver
+from apps.api.app.services.account_import_builder import create_account_import_from_processed_upload, latest_succeeded_parse_run, load_rows
 from apps.api.app.services.report_type_detector import ReportTypeDetector
+from apps.api.app.services.workflow_queue import enqueue_account_import_workflow
 
 router = APIRouter()
 
@@ -28,6 +25,7 @@ router = APIRouter()
 def create_account_import(
     workspace_id: UUID,
     payload: AccountImportCreateRequest,
+    background_tasks: BackgroundTasks,
     principal: WorkspacePrincipal = Depends(require_workspace_member),
     upload_repository: UploadRepository = Depends(get_upload_repository),
     parsing_repository: UploadParsingRepository = Depends(get_upload_parsing_repository),
@@ -38,90 +36,28 @@ def create_account_import(
     agent_control_repository: AgentControlRepository = Depends(get_agent_control_repository),
     audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
 ) -> dict:
-    logging.info(f"Starting account import creation for workspace {workspace_id} using upload {payload.upload_id}")
     principal.ensure_workspace(workspace_id)
     principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
-    
-    upload = upload_repository.get(workspace_id=workspace_id, upload_id=payload.upload_id)
-    if upload is None:
-        logging.error(f"Upload {payload.upload_id} not found in workspace {workspace_id}")
-        raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
-    if upload.status != UploadStatus.PROCESSED:
-        logging.warning(f"Upload {payload.upload_id} has invalid status {upload.status}; requires PROCESSED")
-        raise ApiError(code="UPLOAD_NOT_PROCESSED", message="Account import requires a processed upload.", status_code=409)
-    parse_run = _latest_succeeded_parse_run(workspace_id=workspace_id, upload_id=upload.id, parsing_repository=parsing_repository)
-    rows = _load_rows(workspace_id=workspace_id, parse_run_id=parse_run.id, parsing_repository=parsing_repository)
-    if not rows:
-        raise ApiError(code="ACCOUNT_IMPORT_EMPTY", message="Account import requires parsed rows.", status_code=409)
 
-    detection = ReportTypeDetector().detect(headers=rows[0].row_data_json.keys(), sample_rows=[row.row_data_json for row in rows[:25]])
-    warnings = []
-    if not detection.required_columns_present:
-        logging.warning(f"Detection warning for upload {upload.id}: missing required columns {detection.missing_columns}")
-        warnings.append(
-            {
-                "code": "REPORT_COLUMNS_MISSING",
-                "message": "Detected report is missing columns required for full analysis.",
-                "details": {"missing_columns": detection.missing_columns, "detected_report_type": detection.detected_report_type.value},
-            }
-        )
-    
-    logging.info(f"Creating new account import record for upload {upload.id} with detected type {detection.detected_report_type}")
-    import_record = new_account_import(
+    result = create_account_import_from_processed_upload(
         workspace_id=workspace_id,
-        upload_id=upload.id,
-        parse_run_id=parse_run.id,
-        report_type=upload.source_type,
-        detected_report_type=detection.detected_report_type,
-        detection_confidence=detection.confidence,
-        total_rows=len(rows),
-        processed_rows=0,
-        error_rows=len(warnings),
-        warnings=warnings,
-        created_by=principal.user_id,
-        needs_mapping=False,
+        upload_id=payload.upload_id,
+        actor_user_id=principal.user_id,
+        upload_repository=upload_repository,
+        parsing_repository=parsing_repository,
+        product_repository=product_repository,
+        account_import_repository=account_import_repository,
+        workflow_repository=workflow_repository,
     )
-    resolution = ProductEntityResolver().resolve(
-        import_record=import_record,
-        rows=rows,
-        existing_products=product_repository.list(workspace_id),
-    )
-    status = AccountImportStatus.READY_FOR_ANALYSIS
-    if not detection.required_columns_present:
-        status = AccountImportStatus.DETECTED
-    elif resolution.product_mapping_suggestions:
-        status = AccountImportStatus.NEEDS_MAPPING
-    import_record = import_record.model_copy(update={"status": status, "processed_rows": len(rows)})
-    import_record = account_import_repository.create_import(import_record=import_record)
-    account_import_repository.insert_entities(entities=resolution.entities)
-    account_import_repository.insert_mapping_suggestions(suggestions=resolution.product_mapping_suggestions)
-    workflow = workflow_repository.create_workflow(
-        workflow=new_workflow(
-            workspace_id=workspace_id,
-            account_import_id=import_record.id,
-            upload_id=upload.id,
-            created_by=principal.user_id,
-            state_json={
-                "account_import_id": str(import_record.id),
-                "upload_id": str(upload.id),
-                "status": "pending",
-                "safety_boundaries": {
-                    "recommendation_only": True,
-                    "requires_human_approval": True,
-                    "executes_live_amazon_change": False,
-                },
-            },
-        )
-    )
-    AdsWorkflowRunner(
+    enqueue_account_import_workflow(
+        background_tasks=background_tasks,
         workflow_repository=workflow_repository,
         account_import_repository=account_import_repository,
         monitoring_repository=monitoring_repository,
-    ).run_account_import_workflow(
-        workflow_id=workflow.id,
+        workflow_id=result.workflow.id,
         workspace_id=workspace_id,
-        account_import_id=import_record.id,
-        upload_id=upload.id,
+        account_import_id=result.import_record.id,
+        upload_id=result.import_record.upload_id,
         agent_config={config.agent_id: config.model_dump(mode="json") for config in agent_control_repository.list_configs(workspace_id=workspace_id)},
     )
     audit_repository.record(
@@ -129,26 +65,25 @@ def create_account_import(
         actor_user_id=principal.user_id,
         action="account_import.created",
         entity_type="account_import",
-        entity_id=import_record.id,
+        entity_id=result.import_record.id,
         details={
-            "upload_id": str(upload.id),
-            "parse_run_id": str(parse_run.id),
-            "detected_report_type": detection.detected_report_type.value,
-            "detection_confidence": detection.confidence.value,
-            "entity_count": len(resolution.entities),
-            "mapping_suggestion_count": len(resolution.product_mapping_suggestions),
-            "workflow_id": str(workflow.id),
+            "upload_id": str(result.import_record.upload_id),
+            "parse_run_id": str(result.import_record.parse_run_id),
+            "detected_report_type": result.detection.detected_report_type.value,
+            "detection_confidence": result.detection.confidence.value,
+            "entity_count": len(result.resolution.entities),
+            "mapping_suggestion_count": len(result.resolution.product_mapping_suggestions),
+            "workflow_id": str(result.workflow.id),
             "execution_boundary": "analysis_only_no_live_amazon_change",
         },
     )
-    logging.info(f"Account import creation successful for upload {upload.id}")
     return success_response(
         data=AccountImportResponse(
-            import_record=import_record,
-            detection=detection,
-            entities=resolution.entities,
-            product_mapping_suggestions=resolution.product_mapping_suggestions,
-            workflow_id=workflow.id,
+            import_record=result.import_record,
+            detection=result.detection,
+            entities=result.resolution.entities,
+            product_mapping_suggestions=result.resolution.product_mapping_suggestions,
+            workflow_id=result.workflow.id,
         ).model_dump(mode="json")
     )
 
@@ -165,8 +100,8 @@ def detect_upload_report_type(
     upload = upload_repository.get(workspace_id=workspace_id, upload_id=upload_id)
     if upload is None:
         raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
-    parse_run = _latest_succeeded_parse_run(workspace_id=workspace_id, upload_id=upload.id, parsing_repository=parsing_repository)
-    rows = _load_rows(workspace_id=workspace_id, parse_run_id=parse_run.id, parsing_repository=parsing_repository, limit=25)
+    parse_run = latest_succeeded_parse_run(workspace_id=workspace_id, upload_id=upload.id, parsing_repository=parsing_repository)
+    rows = load_rows(workspace_id=workspace_id, parse_run_id=parse_run.id, parsing_repository=parsing_repository, limit=25)
     detection = ReportTypeDetector().detect(headers=rows[0].row_data_json.keys() if rows else [], sample_rows=[row.row_data_json for row in rows])
     return success_response(data=detection.model_dump(mode="json"))
 
@@ -232,27 +167,6 @@ def list_product_mapping_suggestions(
     _require_import(workspace_id=workspace_id, account_import_id=account_import_id, repository=account_import_repository)
     suggestions = account_import_repository.list_mapping_suggestions(workspace_id=workspace_id, account_import_id=account_import_id)
     return success_response(data=[suggestion.model_dump(mode="json") for suggestion in suggestions], meta={"total": len(suggestions)})
-
-
-def _latest_succeeded_parse_run(*, workspace_id: UUID, upload_id: UUID, parsing_repository: UploadParsingRepository):
-    parse_runs = parsing_repository.list_runs(workspace_id=workspace_id, upload_id=upload_id)
-    parse_run = next((run for run in parse_runs if run.status == UploadParseStatus.SUCCEEDED), None)
-    if parse_run is None:
-        raise ApiError(code="PARSE_RUN_NOT_FOUND", message="Account import requires a succeeded parse run.", status_code=409)
-    return parse_run
-
-
-def _load_rows(*, workspace_id: UUID, parse_run_id: UUID, parsing_repository: UploadParsingRepository, limit: int | None = None) -> list[ParsedUploadRow]:
-    rows: list[ParsedUploadRow] = []
-    page = 1
-    while True:
-        page_rows, total = parsing_repository.list_rows(workspace_id=workspace_id, parse_run_id=parse_run_id, page=page, page_size=500)
-        rows.extend(page_rows)
-        if limit and len(rows) >= limit:
-            return rows[:limit]
-        if len(rows) >= total:
-            return rows
-        page += 1
 
 
 def _require_import(*, workspace_id: UUID, account_import_id: UUID, repository: AccountImportRepository):

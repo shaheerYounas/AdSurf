@@ -42,6 +42,7 @@ import {
 } from "@/lib/api/agents";
 import { uploadAccountReport, type AccountImportResponse, type UploadAccountReportProgress } from "@/lib/api/account-imports";
 import { decideRecommendation, getRecommendations, runAccountImportAnalysis, runMonitoringAnalysis, type Recommendation } from "@/lib/api/monitoring";
+import { controlWorkflow, getWorkflow, getWorkflowEvents, type WorkflowEvent, type WorkflowSummary } from "@/lib/api/workflows";
 
 type ControlAction = "pause" | "resume" | "stop" | "rerun";
 type ExperienceMode = "simple" | "advanced";
@@ -104,6 +105,8 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   const [configs, setConfigs] = useState<AgentConfig[]>([]);
   const [runs, setRuns] = useState<AgentRun[]>([]);
   const [workflow, setWorkflow] = useState<AgentWorkflow | null>(null);
+  const [durableWorkflow, setDurableWorkflow] = useState<WorkflowSummary | null>(null);
+  const [workflowEvents, setWorkflowEvents] = useState<WorkflowEvent[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("report_upload_node");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
@@ -114,9 +117,11 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [experienceMode, setExperienceMode] = useState<ExperienceMode>("simple");
   const [environmentMode, setEnvironmentMode] = useState<AgentConfig["mode"]>("hybrid");
   const activeImportId = accountImport?.import_record.id ?? importId ?? null;
+  const activeWorkflowId = accountImport?.workflow_id ?? durableWorkflow?.workflow.id ?? null;
   const activeImportKind: "account" | "monitoring" | null = accountImport ? "account" : importId ? "monitoring" : null;
 
   useEffect(() => {
@@ -131,12 +136,12 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
     for (const run of runs) if (!map.has(run.agent_id)) map.set(run.agent_id, run);
     return map;
   }, [runs]);
-  const workflowNodes = useMemo(() => buildWorkflowNodes({ agentCatalog, configByAgent, latestRunByAgent, workflow, recommendations }), [agentCatalog, configByAgent, latestRunByAgent, workflow, recommendations]);
+  const workflowNodes = useMemo(() => buildWorkflowNodes({ agentCatalog, configByAgent, latestRunByAgent, workflow, durableWorkflow, recommendations }), [agentCatalog, configByAgent, latestRunByAgent, workflow, durableWorkflow, recommendations]);
   const workflowEdges = useMemo(() => buildWorkflowEdges(workflow), [workflow]);
   const selectedAgent = agentCatalog.find((agent) => agent.agent_id === selectedAgentId) ?? agentCatalog[0];
   const selectedRun = runs.find((run) => run.id === selectedRunId) ?? latestRunByAgent.get(selectedAgent?.agent_id ?? "");
   const selectedConfig = selectedAgent ? configByAgent.get(selectedAgent.agent_id) : undefined;
-  const visibleEvents = workflow?.events ?? runs.map(runToEvent);
+  const visibleEvents = workflowEvents.length ? workflowEvents.map(workflowEventToAgentEvent) : workflow?.events ?? runs.map(runToEvent);
   const pendingApprovals = recommendations.filter((item) => item.status === "pending_approval" || item.status === "pending");
   const highPriorityApprovals = pendingApprovals.filter((item) => ["critical", "high"].includes(item.priority));
   const dangerousApprovals = pendingApprovals.filter((item) => ["pause_review", "add_negative_exact", "add_negative_phrase", "decrease_bid"].includes(item.recommendation_type));
@@ -144,25 +149,41 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   const failedCount = workflowNodes.filter((node) => node.status === "failed").length;
   const completedCount = workflowNodes.filter((node) => ["completed", "succeeded"].includes(node.status)).length;
 
-  async function load(importOverride?: { id: string; kind: "account" | "monitoring" }) {
+  async function load(importOverride?: { id: string; kind: "account" | "monitoring"; workflowId?: string | null }) {
     const workflowImportId = importOverride?.id ?? activeImportId;
     const workflowImportKind = importOverride?.kind ?? activeImportKind;
     setIsLoading(true);
     setMessage(null);
     try {
-      const [loadedAgents, loadedConfigs, loadedRuns, loadedRecommendations] = await Promise.all([
+      const [agentsResult, configsResult, runsResult, recommendationsResult] = await Promise.allSettled([
         getAgents(workspaceId),
         getAgentConfigs(workspaceId, productId),
         getAgentRuns(workspaceId, workflowImportId ?? undefined),
-        getRecommendations(workspaceId).catch(() => []),
+        getRecommendations(workspaceId),
       ]);
+      if (agentsResult.status === "rejected") throw agentsResult.reason;
+      if (configsResult.status === "rejected") throw configsResult.reason;
+      if (runsResult.status === "rejected") throw runsResult.reason;
+      const loadedAgents = agentsResult.value;
+      const loadedConfigs = configsResult.value;
+      const loadedRuns = runsResult.value;
+      const loadedRecommendations = recommendationsResult.status === "fulfilled" ? recommendationsResult.value : [];
       setAgents(loadedAgents);
       setConfigs(loadedConfigs);
       setRuns(loadedRuns);
       setRecommendations(loadedRecommendations);
       if (workflowImportId && workflowImportKind === "account") setWorkflow(await getAccountImportAgentWorkflow(workflowImportId, workspaceId));
       if (workflowImportId && workflowImportKind === "monitoring") setWorkflow(await getAgentWorkflow(workflowImportId, workspaceId));
+      const workflowId = importOverride?.workflowId ?? accountImport?.workflow_id ?? durableWorkflow?.workflow.id ?? null;
+      if (workflowId) {
+        const [summary, events] = await Promise.all([getWorkflow(workflowId, workspaceId), getWorkflowEvents(workflowId, workspaceId)]);
+        setDurableWorkflow(summary);
+        setWorkflowEvents(events);
+      }
       setEnvironmentMode(loadedConfigs[0]?.mode ?? "hybrid");
+      if (recommendationsResult.status === "rejected") {
+        setMessage(recommendationsResult.reason instanceof Error ? recommendationsResult.reason.message : "Recommendations could not be loaded.");
+      }
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "Agent Control Center could not be loaded.");
     } finally {
@@ -185,6 +206,8 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
         },
       });
       setAccountImport(result);
+      setDurableWorkflow(null);
+      setWorkflowEvents([]);
       setSelectedAgentId("report_detection_agent");
       setUploadStatus({
         kind: "success",
@@ -193,7 +216,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
       });
       setMessage("Report detected, entities grouped, and product mapping suggestions prepared.");
       setWorkflow(null);
-      await load({ id: result.import_record.id, kind: "account" });
+      await load({ id: result.import_record.id, kind: "account", workflowId: result.workflow_id });
     } catch (caught) {
       if (process.env.NODE_ENV !== "production") console.error("Account report upload failed", caught);
       const text = caught instanceof Error ? caught.message : "Account report upload could not be completed.";
@@ -207,12 +230,60 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   async function saveConfig(agentId: string, patch: Partial<AgentConfig>) {
     setMessage(null);
     try {
+      setIsSavingConfig(true);
       await updateAgentConfig(agentId, { ...patch, product_id: productId ?? null, reason: "Updated from Agent Control Center" }, workspaceId);
       setMessage("Agent configuration saved.");
       await load();
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "Agent configuration could not be saved.");
+    } finally {
+      setIsSavingConfig(false);
     }
+  }
+
+  async function updateEnvironmentMode(mode: AgentConfig["mode"]) {
+    setEnvironmentMode(mode);
+    setIsSavingConfig(true);
+    setMessage(`Saving ${mode} mode across agents.`);
+    try {
+      for (const config of configs) {
+        await updateAgentConfig(config.agent_id, { mode, product_id: productId ?? null, reason: "Environment mode updated from top bar" }, workspaceId);
+      }
+      setMessage(`Environment mode saved as ${mode}.`);
+      await load();
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "Environment mode could not be saved.");
+    } finally {
+      setIsSavingConfig(false);
+    }
+  }
+
+  function openAgentConfiguration(agentId?: string, runId?: string | null) {
+    if (agentId) setSelectedAgentId(agentId);
+    setSelectedRunId(runId ?? null);
+    setExperienceMode("advanced");
+    setTimeout(() => document.getElementById("agent-inspector")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }
+
+  function openTrace(agentId?: string, runId?: string | null) {
+    if (agentId) setSelectedAgentId(agentId);
+    setSelectedRunId(runId ?? null);
+    document.getElementById("agent-trace-timeline")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function controlActiveWorkflow(action: ControlAction) {
+    if (!activeWorkflowId) return false;
+    setMessage(`${action} requested for workflow ${activeWorkflowId}.`);
+    try {
+      await controlWorkflow(activeWorkflowId, action, `${action} requested from Agent Control Center`, workspaceId);
+      const [summary, events] = await Promise.all([getWorkflow(activeWorkflowId, workspaceId), getWorkflowEvents(activeWorkflowId, workspaceId)]);
+      setDurableWorkflow(summary);
+      setWorkflowEvents(events);
+      setMessage(`Workflow ${action} saved. No live Amazon Ads change executed.`);
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : `Workflow ${action} could not be saved.`);
+    }
+    return true;
   }
 
   async function toggleAgent(agentId: string) {
@@ -284,7 +355,10 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
     setIsRunningAnalysis(true);
     setMessage("Running agents across the selected import. Recommendation only; human approval is required.");
     try {
-      if (activeImportKind === "account") {
+      if (activeImportKind === "account" && activeWorkflowId) {
+        await controlWorkflow(activeWorkflowId, "rerun", "Run analysis requested from Agent Control Center", workspaceId);
+        setMessage(`Workflow rerun queued for ${activeWorkflowId}. No live Amazon Ads change executed.`);
+      } else if (activeImportKind === "account") {
         const result = await runAccountImportAnalysis(activeImportId, workspaceId);
         setMessage(`Agent analysis completed: ${result.run_count} agents ran and ${result.recommendation_count} recommendations were created. No live Amazon Ads change executed.`);
       } else {
@@ -304,14 +378,12 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
       <main className="min-w-0 space-y-6">
           <TopCommandBar
             environmentMode={environmentMode}
-            isLoading={isLoading || isRunningAnalysis}
-            onEnvironmentChange={(mode) => {
-              setEnvironmentMode(mode);
-              void Promise.all(configs.map((config) => updateAgentConfig(config.agent_id, { mode, product_id: productId ?? null, reason: "Environment mode updated from top bar" }, workspaceId))).then(() => load());
-            }}
+            isLoading={isLoading || isRunningAnalysis || isSavingConfig}
+            onEnvironmentChange={updateEnvironmentMode}
             onRefresh={load}
             onRunAnalysis={runAnalysis}
-            onBulkControl={(action) => {
+            onBulkControl={async (action) => {
+              if (await controlActiveWorkflow(action)) return;
               const targetRuns = runs.filter((run) => {
                 if (action === "resume") return run.status === "paused";
                 if (action === "rerun") return run.status === "failed";
@@ -327,6 +399,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
                 return load();
               }).catch((caught) => setMessage(caught instanceof Error ? caught.message : `Bulk ${action} could not be saved.`));
             }}
+            onConfigureAgents={() => openAgentConfiguration(selectedAgentId, selectedRunId)}
             onViewApprovals={() => document.getElementById("approval-checkpoints")?.scrollIntoView({ behavior: "smooth" })}
           />
 
@@ -361,6 +434,8 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
                   setSelectedAgentId(agentId);
                   setSelectedRunId(runId ?? null);
                 }}
+                onConfigure={(agentId, runId) => openAgentConfiguration(agentId, runId)}
+                onViewTrace={(agentId, runId) => openTrace(agentId, runId)}
               />
 
               <ApprovalCheckpointSummary
@@ -370,12 +445,14 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
                 onDecision={decide}
               />
 
-              <AgentTraceTimeline events={visibleEvents} runs={runs} />
+              <div id="agent-trace-timeline">
+                <AgentTraceTimeline events={visibleEvents} runs={runs} />
+              </div>
 
               {experienceMode === "advanced" ? <AgentTemplates onApply={applyTemplate} /> : null}
             </div>
 
-            <div className="min-w-0 2xl:sticky 2xl:top-6 2xl:max-h-[calc(100vh-3rem)] 2xl:overflow-auto">
+            <div className="min-w-0 2xl:sticky 2xl:top-6 2xl:max-h-[calc(100vh-3rem)] 2xl:overflow-auto" id="agent-inspector">
               <AgentInspector
                 agent={selectedAgent}
                 config={selectedConfig}
@@ -393,7 +470,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   );
 }
 
-function TopCommandBar({ environmentMode, isLoading, onEnvironmentChange, onRefresh, onRunAnalysis, onBulkControl, onViewApprovals }: { environmentMode: AgentConfig["mode"]; isLoading: boolean; onEnvironmentChange: (mode: AgentConfig["mode"]) => void; onRefresh: () => void; onRunAnalysis: () => void; onBulkControl: (action: ControlAction) => void; onViewApprovals: () => void }) {
+function TopCommandBar({ environmentMode, isLoading, onEnvironmentChange, onRefresh, onRunAnalysis, onBulkControl, onConfigureAgents, onViewApprovals }: { environmentMode: AgentConfig["mode"]; isLoading: boolean; onEnvironmentChange: (mode: AgentConfig["mode"]) => void; onRefresh: () => void; onRunAnalysis: () => void; onBulkControl: (action: ControlAction) => void | Promise<void>; onConfigureAgents: () => void; onViewApprovals: () => void }) {
   return (
     <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-white/5">
       <div>
@@ -411,7 +488,7 @@ function TopCommandBar({ environmentMode, isLoading, onEnvironmentChange, onRefr
         <Button className="bg-emerald-700 hover:bg-emerald-600 dark:bg-emerald-200 dark:text-emerald-950" onClick={() => onBulkControl("resume")} type="button"><Play size={16} /> Resume all</Button>
         <Button className="bg-zinc-800 hover:bg-zinc-700 dark:bg-zinc-200 dark:text-zinc-950" onClick={() => onBulkControl("stop")} type="button"><Square size={16} /> Stop all</Button>
         <Button onClick={() => onBulkControl("rerun")} type="button"><RotateCcw size={16} /> Rerun failed</Button>
-        <Button onClick={onRefresh} disabled={isLoading} type="button">{isLoading ? <Loader2 className="animate-spin" size={16} /> : <Settings size={16} />} Configure agents</Button>
+        <Button onClick={onConfigureAgents} disabled={isLoading} type="button">{isLoading ? <Loader2 className="animate-spin" size={16} /> : <Settings size={16} />} Configure agents</Button>
         <Button className="bg-violet-700 hover:bg-violet-600 dark:bg-violet-200 dark:text-violet-950" onClick={onViewApprovals} type="button"><ClipboardCheck size={16} /> View approvals</Button>
       </div>
     </section>

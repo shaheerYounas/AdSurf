@@ -108,6 +108,24 @@ Account-level upload uses the same signed/local upload flow without a product pa
 
 Supported account report source types include `account_bulk_report`, `sponsored_products_search_term_report`, `sponsored_products_targeting_report`, `sponsored_products_campaign_report`, `bulk_sheet`, and `unknown_report`.
 
+Agent Control Center also supports a one-shot multipart account report endpoint:
+
+`POST /v1/workspaces/{workspace_id}/uploads/report`
+
+Request: `multipart/form-data` with a required `file` field containing a CSV, XLS, or XLSX Amazon Ads report or bulk sheet. The endpoint stores the file, queues and runs the local parser in local/test mode, creates the account import, creates a durable workflow, schedules the LangGraph workflow through the local queue adapter, and returns the same response shape as account import creation, including `workflow_id`.
+
+Response data:
+
+```json
+{
+  "import_record": {},
+  "detection": {},
+  "entities": [],
+  "product_mapping_suggestions": [],
+  "workflow_id": "uuid"
+}
+```
+
 Account import endpoints:
 
 | Method | Route | Purpose |
@@ -119,7 +137,21 @@ Account import endpoints:
 | GET | `/v1/workspaces/{workspace_id}/account-imports/{account_import_id}/entities` | List grouped account import entities. |
 | GET | `/v1/workspaces/{workspace_id}/account-imports/{account_import_id}/product-mapping-suggestions` | List pending product mapping suggestions. |
 
-Account import creation does not run live Amazon Ads actions, approve/reject recommendations, or generate exports.
+Account import creation creates a durable workflow and schedules recommendation-only graph analysis. It does not run live Amazon Ads actions, approve/reject recommendations, or generate exports.
+
+Workflow endpoints:
+
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/v1/workspaces/{workspace_id}/workflows/{workflow_id}` | Read workflow status, current node, progress, state summary, and latest events. |
+| GET | `/v1/workspaces/{workspace_id}/workflows/{workflow_id}/events` | Read the workflow trace timeline. |
+| POST | `/v1/workspaces/{workspace_id}/workflows/{workflow_id}/pause` | Pause a workflow record with an audited reason. |
+| POST | `/v1/workspaces/{workspace_id}/workflows/{workflow_id}/resume` | Resume an account-import workflow through the queue adapter. |
+| POST | `/v1/workspaces/{workspace_id}/workflows/{workflow_id}/stop` | Stop a workflow record with an audited reason. |
+| POST | `/v1/workspaces/{workspace_id}/workflows/{workflow_id}/rerun` | Rerun an account-import workflow through the queue adapter. |
+| GET | `/v1/workspaces/{workspace_id}/approval-gates` | List human approval gates, optionally filtered by status. |
+| POST | `/v1/workspaces/{workspace_id}/approval-gates/{gate_id}/approve` | Record a human gate approval. |
+| POST | `/v1/workspaces/{workspace_id}/approval-gates/{gate_id}/reject` | Record a human gate rejection. |
 
 Batch 4 parse read endpoints:
 
@@ -303,6 +335,7 @@ Local/test dev helper:
 | GET | `/v1/workspaces/{workspace_id}/products` | List workspace product profiles. |
 | PATCH | `/v1/workspaces/{workspace_id}/products/{product_id}` | Update product profile defaults. |
 | POST | `/v1/workspaces/{workspace_id}/products/{product_id}/uploads/init` | Create upload record and signed upload URL. |
+| POST | `/v1/workspaces/{workspace_id}/uploads/report` | Multipart account report upload that creates upload, import, workflow, and schedules graph analysis. |
 | PUT | `/v1/workspaces/{workspace_id}/uploads/{upload_id}/object` | Local/test browser upload object handoff before confirmation. |
 | POST | `/v1/workspaces/{workspace_id}/uploads/{upload_id}/confirm` | Confirm upload completion and enqueue processing. |
 | GET | `/v1/workspaces/{workspace_id}/uploads` | List workspace upload metadata. |
@@ -347,6 +380,7 @@ Local/test dev helper:
 | --- | --- | --- |
 | `POST /v1/workspaces/{workspace_id}/products` | asin, marketplace, currency, product_name, default_daily_budget, default_bid, notes | product profile |
 | `POST /v1/workspaces/{workspace_id}/products/{product_id}/uploads/init` | original_filename, mime_type, file_size_bytes, source_type | upload_id, upload_url, storage_path, upload_url_expires_at, status |
+| `POST /v1/workspaces/{workspace_id}/uploads/report` | multipart `file` | account import response with workflow_id |
 | `PUT /v1/workspaces/{workspace_id}/uploads/{upload_id}/object` | raw file bytes | upload metadata |
 | `POST /v1/workspaces/{workspace_id}/uploads/{upload_id}/confirm` | checksum optional | upload_id, status, job_id |
 | `GET /v1/workspaces/{workspace_id}/jobs/{job_id}` | none | job_type, status, payload_json, idempotency_key, created_at, updated_at |

@@ -23,14 +23,10 @@ afterEach(() => {
 });
 
 describe("frontend API clients", () => {
-  it("uploads an account report through init, object write, confirm, processing, and import creation", async () => {
+  it("uploads an account report through the multipart workflow endpoint", async () => {
     const fetchMock = vi
       .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(created({ upload_id: "upload-1", storage_path: "/workspaces/ws/account-imports/uploads/upload-1/raw/report.csv" }))
-      .mockResolvedValueOnce(ok({ status: "initialized" }))
-      .mockResolvedValueOnce(ok({ status: "queued_for_processing", job_id: "job-1" }))
-      .mockResolvedValueOnce(ok({ processed: 1 }))
-      .mockResolvedValueOnce(ok({ import_record: { id: "import-1", status: "ready_for_analysis", detected_report_type: "sponsored_products_search_term_report", detection_confidence: "high", total_rows: 2, processed_rows: 2, error_rows: 0 }, detection: { detected_report_type: "sponsored_products_search_term_report", confidence: "high", required_columns_present: true, missing_columns: [], available_entity_levels: ["account"], product_identifiers_available: [] }, entities: [], product_mapping_suggestions: [] }));
+      .mockResolvedValueOnce(created({ import_record: { id: "import-1", status: "ready_for_analysis", detected_report_type: "sponsored_products_search_term_report", detection_confidence: "high", total_rows: 2, processed_rows: 2, error_rows: 0 }, detection: { detected_report_type: "sponsored_products_search_term_report", confidence: "high", required_columns_present: true, missing_columns: [], available_entity_levels: ["account"], product_identifiers_available: [] }, entities: [], product_mapping_suggestions: [], workflow_id: "workflow-1" }));
     const progress: string[] = [];
 
     const result = await uploadAccountReport(new File(["Campaign Name\nCamp1\n"], "report.csv", { type: "text/csv" }), workspaceId, {
@@ -38,12 +34,10 @@ describe("frontend API clients", () => {
     });
 
     expect(result.import_record.id).toBe("import-1");
-    expect(progress).toEqual(["initializing_upload", "storing_file", "confirming_upload", "processing_file", "creating_account_import"]);
-    expect(fetchMock).toHaveBeenNthCalledWith(1, expect.stringContaining(`/v1/workspaces/${workspaceId}/uploads/init`), expect.objectContaining({ method: "POST" }));
-    expect(fetchMock).toHaveBeenNthCalledWith(2, expect.stringContaining(`/v1/workspaces/${workspaceId}/uploads/upload-1/object`), expect.objectContaining({ method: "PUT" }));
-    expect(fetchMock).toHaveBeenNthCalledWith(3, expect.stringContaining(`/v1/workspaces/${workspaceId}/uploads/upload-1/confirm`), expect.objectContaining({ method: "POST" }));
-    expect(fetchMock).toHaveBeenNthCalledWith(4, expect.stringContaining("/v1/dev/process-upload-jobs"), expect.objectContaining({ method: "POST" }));
-    expect(fetchMock).toHaveBeenNthCalledWith(5, expect.stringContaining(`/v1/workspaces/${workspaceId}/account-imports`), expect.objectContaining({ method: "POST" }));
+    expect(result.workflow_id).toBe("workflow-1");
+    expect(progress).toEqual(["initializing_upload", "storing_file", "creating_account_import"]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenNthCalledWith(1, expect.stringContaining(`/v1/workspaces/${workspaceId}/uploads/report`), expect.objectContaining({ method: "POST", body: expect.any(FormData) }));
   });
 
   it("surfaces account report upload failures", async () => {

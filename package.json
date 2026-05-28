@@ -11,7 +11,7 @@
     "dev:web": "npm --workspace apps/web run dev",
     "build:web": "npm --workspace apps/web run build",
     "test:web": "npm --workspace apps/web run test",
-    "dev:api": "python -m uvicorn apps.api.app.main:app --reload --host 0.0.0.0 --port 8000",
+    "dev:api": "python -m uvicorn apps.api.app.main:app --reload --host 127.0.0.1 --port 8080",
     "test:api": "python -m pytest tests/unit tests/integration",
     "test": "python -m pytest tests/unit tests/integration && npm --workspace apps/web run test",
     "lint": "npm --workspace apps/web run lint"

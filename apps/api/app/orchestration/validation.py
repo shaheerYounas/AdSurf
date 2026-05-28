@@ -37,6 +37,21 @@ def validate_recommendation_payload(*, recommendation: dict, grouped_entity_keys
     confidence = str(recommendation.get("confidence") or "medium").lower()
     if _confidence_rank(confidence) < _confidence_rank(str(config.get("confidence_threshold") or "low")):
         errors.append("confidence below configured threshold")
+    if recommendation_type == "pause_review" and config.get("require_high_confidence_for_pause") and confidence != "high":
+        errors.append("pause recommendations require high confidence")
+    if recommendation_type in {"add_negative_exact", "add_negative_phrase"} and config.get("require_high_confidence_for_negative_keywords") and confidence != "high":
+        errors.append("negative keyword recommendations require high confidence")
+
+    metrics = _metrics_from_evidence(recommendation.get("evidence") or {})
+    if recommendation_type in {"add_negative_exact", "add_negative_phrase", "pause_review", "increase_bid", "decrease_bid"}:
+        min_clicks = int(config.get("require_min_clicks_before_action") or 0)
+        min_spend = _decimal_or_none(config.get("require_min_spend_before_action")) or Decimal("0")
+        clicks = _decimal_or_none(metrics.get("clicks")) or Decimal("0")
+        spend = _decimal_or_none(metrics.get("spend")) or Decimal("0")
+        if clicks < min_clicks:
+            errors.append("recommendation does not meet minimum click threshold")
+        if spend < min_spend:
+            errors.append("recommendation does not meet minimum spend threshold")
 
     proposed_action = recommendation.get("proposed_action") or {}
     multiplier = _decimal_or_none(proposed_action.get("bid_multiplier"))
@@ -83,3 +98,15 @@ def _decimal_or_none(value) -> Decimal | None:
         return Decimal(str(value))
     except (InvalidOperation, ValueError):
         return None
+
+
+def _metrics_from_evidence(evidence: dict) -> dict:
+    if not isinstance(evidence, dict):
+        return {}
+    metrics = evidence.get("metrics_used")
+    if isinstance(metrics, dict):
+        return metrics
+    metrics = evidence.get("snapshot_metrics")
+    if isinstance(metrics, dict):
+        return metrics
+    return evidence
