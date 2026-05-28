@@ -5,12 +5,14 @@ from fastapi import APIRouter, Depends, Query
 
 from apps.api.app.core.auth import PRODUCT_PROFILE_READ_ROLES, WorkspacePrincipal, WorkspaceRole, require_workspace_member
 from apps.api.app.core.errors import ApiError
+from apps.api.app.repositories.account_imports import AccountImportRepository, get_account_import_repository
 from apps.api.app.repositories.agent_control import AgentControlRepository, get_agent_control_repository, new_agent_event
 from apps.api.app.repositories.audit_logs import AuditLogRepository, get_audit_log_repository
 from apps.api.app.repositories.monitoring import MonitoringRepository, get_monitoring_repository
 from apps.api.app.schemas.agent_control import AgentConfig, AgentConfigPatch, AgentControlRequest, AgentRunDetail, AgentWorkflowEdge, AgentWorkflowNode, AgentWorkflowResponse
 from apps.api.app.schemas.envelope import success_response
 from apps.api.app.schemas.monitoring import AiRun
+from apps.api.app.services.account_agent_workflow import build_account_agent_workflow_runs, build_account_workflow_events
 from apps.api.app.services.agent_registry import AGENT_DEFINITION_BY_ID, AGENT_WORKFLOW_ORDER, agent_id_for_run_name, list_agent_definitions
 
 router = APIRouter()
@@ -145,6 +147,77 @@ def get_agent_workflow(
     events = control_repository.list_events(workspace_id=workspace_id, monitoring_import_id=import_id)
     edges = _workflow_edges(nodes=nodes, events=events)
     return success_response(data=AgentWorkflowResponse(monitoring_import_id=import_id, nodes=nodes, edges=edges, events=events).model_dump(mode="json"))
+
+
+@router.post("/workspaces/{workspace_id}/account-imports/{account_import_id}/run-analysis")
+def run_account_import_analysis(
+    workspace_id: UUID,
+    account_import_id: UUID,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    account_repository: AccountImportRepository = Depends(get_account_import_repository),
+    monitoring_repository: MonitoringRepository = Depends(get_monitoring_repository),
+    control_repository: AgentControlRepository = Depends(get_agent_control_repository),
+    audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(AGENT_CONTROL_ROLES)
+    import_record = account_repository.get_import(workspace_id=workspace_id, account_import_id=account_import_id)
+    if import_record is None:
+        raise ApiError(code="ACCOUNT_IMPORT_NOT_FOUND", message="Account import was not found.", status_code=404)
+    entities = account_repository.list_entities(workspace_id=workspace_id, account_import_id=account_import_id)
+    if not entities:
+        raise ApiError(code="ACCOUNT_IMPORT_HAS_NO_ENTITIES", message="Account import has no grouped entities to analyze.", status_code=409)
+    configs = {config.agent_id: config for config in control_repository.list_configs(workspace_id=workspace_id)}
+    runs, recommendations = build_account_agent_workflow_runs(workspace_id=workspace_id, import_record=import_record, entities=entities, configs=configs)
+    for run in runs:
+        monitoring_repository.insert_ai_run(ai_run=run)
+    monitoring_repository.insert_recommendations(recommendations=recommendations)
+    for event in build_account_workflow_events(workspace_id=workspace_id, account_import_id=account_import_id, runs=runs):
+        if event["agent_run_id"]:
+            control_repository.insert_event(
+                event=new_agent_event(
+                    workspace_id=workspace_id,
+                    agent_id=event["agent_id"],
+                    agent_run_id=UUID(str(event["agent_run_id"])),
+                    monitoring_import_id=None,
+                    event_type=event["event_type"],
+                    message=event["message"],
+                    metadata_json=event["metadata_json"],
+                )
+            )
+    audit_repository.record(
+        workspace_id=workspace_id,
+        actor_user_id=principal.user_id,
+        action="account_import.agent_analysis_completed",
+        entity_type="account_import",
+        entity_id=account_import_id,
+        details={"run_count": len(runs), "recommendation_count": len(recommendations), "execution_boundary": "no_live_amazon_change"},
+    )
+    return success_response(data={"account_import_id": str(account_import_id), "status": "succeeded", "run_count": len(runs), "recommendation_count": len(recommendations), "execution_boundary": "no_live_amazon_change"})
+
+
+@router.get("/workspaces/{workspace_id}/account-imports/{account_import_id}/agent-workflow")
+def get_account_import_agent_workflow(
+    workspace_id: UUID,
+    account_import_id: UUID,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    account_repository: AccountImportRepository = Depends(get_account_import_repository),
+    monitoring_repository: MonitoringRepository = Depends(get_monitoring_repository),
+    control_repository: AgentControlRepository = Depends(get_agent_control_repository),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_READ_ROLES)
+    import_record = account_repository.get_import(workspace_id=workspace_id, account_import_id=account_import_id)
+    if import_record is None:
+        raise ApiError(code="ACCOUNT_IMPORT_NOT_FOUND", message="Account import was not found.", status_code=404)
+    runs = [_run_detail(run, control_repository=control_repository, monitoring_import_id_filter=account_import_id) for run in monitoring_repository.list_ai_runs(workspace_id=workspace_id)]
+    runs = [run for run in runs if run.monitoring_import_id == account_import_id]
+    configs = {config.agent_id: config for config in control_repository.list_configs(workspace_id=workspace_id)}
+    nodes = [_workflow_node(agent_id=agent_id, runs=runs, config=configs.get(agent_id) or control_repository.get_config(workspace_id=workspace_id, product_id=None, agent_id=agent_id)) for agent_id in AGENT_WORKFLOW_ORDER]
+    raw_runs = [run for run in monitoring_repository.list_ai_runs(workspace_id=workspace_id) if str(run.output_json.get("_agent_control", {}).get("account_import_id")) == str(account_import_id)]
+    events = build_account_workflow_events(workspace_id=workspace_id, account_import_id=account_import_id, runs=raw_runs) if raw_runs else control_repository.list_events(workspace_id=workspace_id)
+    edges = _workflow_edges(nodes=nodes, events=events)
+    return success_response(data=AgentWorkflowResponse(monitoring_import_id=account_import_id, nodes=nodes, edges=edges, events=events).model_dump(mode="json"))
 
 
 @router.get("/workspaces/{workspace_id}/agent-runs/{agent_run_id}/events")
@@ -299,8 +372,8 @@ def _workflow_edges(*, nodes: list[AgentWorkflowNode], events) -> list[AgentWork
         ("pause_review_agent", "stakeholder_reporting_agent"),
         ("stakeholder_reporting_agent", "human_approval_agent"),
     ]
-    created_at = events[0].created_at if events else None
-    completed_at = events[-1].created_at if events else None
+    created_at = _event_created_at(events[0]) if events else None
+    completed_at = _event_created_at(events[-1]) if events else None
     return [AgentWorkflowEdge(source_agent_id=source, target_agent_id=target, status=_edge_status(node_status.get(source, "pending"), node_status.get(target, "pending")), data_passed_summary=EDGE_SUMMARIES[(source, target)], created_at=created_at, completed_at=completed_at) for source, target in pairs]
 
 
@@ -321,6 +394,10 @@ def _find_run(*, workspace_id: UUID, agent_run_id: UUID, monitoring_repository: 
 def _ensure_agent(agent_id: str) -> None:
     if agent_id not in AGENT_DEFINITION_BY_ID:
         raise ApiError(code="AGENT_NOT_FOUND", message="Agent definition was not found.", status_code=404)
+
+
+def _event_created_at(event):
+    return event.get("created_at") if isinstance(event, dict) else event.created_at
 
 
 def _uuid_or_none(value) -> UUID | None:

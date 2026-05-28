@@ -40,7 +40,10 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
   }
 
   async function importReport() {
-    if (!selectedUploadId) return;
+    if (!selectedUploadId) {
+      setMessage("Choose a processed Sponsored Products Search Term upload before importing metrics.");
+      return;
+    }
     setMessage(null);
     setIsLoading(true);
     try {

@@ -49,6 +49,8 @@ class RecommendationConfidence(StrEnum):
 
 
 class RecommendationEntityType(StrEnum):
+    ACCOUNT = "account"
+    PRODUCT = "product"
     CAMPAIGN = "campaign"
     AD_GROUP = "ad_group"
     TARGET = "target"
@@ -120,9 +122,15 @@ class MonitoringSnapshot(BaseModel):
 class Recommendation(BaseModel):
     id: UUID
     workspace_id: UUID
-    product_id: UUID
-    monitoring_import_id: UUID
-    snapshot_id: UUID
+    product_id: UUID | None = None
+    monitoring_import_id: UUID | None = None
+    snapshot_id: UUID | None = None
+    account_import_id: UUID | None = None
+    entity_key: str | None = None
+    decision_source: str | None = None
+    agent_run_id: UUID | None = None
+    ai_run_id: UUID | None = None
+    approval_boundary: dict = Field(default_factory=lambda: {"requires_human_approval": True, "executes_live_amazon_change": False})
     recommendation_type: RecommendationType
     entity_type: RecommendationEntityType = RecommendationEntityType.SEARCH_TERM
     status: RecommendationStatus
@@ -130,10 +138,10 @@ class Recommendation(BaseModel):
     confidence: RecommendationConfidence = RecommendationConfidence.MEDIUM
     rule_version_id: str
     rule_name: str
-    campaign_name: str
-    ad_group_name: str
-    targeting: str
-    customer_search_term: str
+    campaign_name: str | None = None
+    ad_group_name: str | None = None
+    targeting: str | None = None
+    customer_search_term: str | None = None
     input_metrics_json: dict
     current_metric_snapshot_json: dict = Field(default_factory=dict)
     evidence_json: dict = Field(default_factory=dict)

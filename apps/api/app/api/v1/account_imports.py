@@ -10,10 +10,12 @@ from apps.api.app.repositories.audit_logs import AuditLogRepository, get_audit_l
 from apps.api.app.repositories.product_profiles import ProductProfileRepository, get_product_profile_repository
 from apps.api.app.repositories.upload_parsing import UploadParsingRepository, get_upload_parsing_repository
 from apps.api.app.repositories.uploads import UploadRepository, get_upload_repository
+from apps.api.app.repositories.workflows import WorkflowRepository, get_workflow_repository, new_workflow
 from apps.api.app.schemas.account_imports import AccountImportCreateRequest, AccountImportResponse, AccountImportStatus
 from apps.api.app.schemas.envelope import success_response
 from apps.api.app.schemas.upload_parsing import ParsedUploadRow, UploadParseStatus
 from apps.api.app.schemas.uploads import UploadStatus
+from apps.api.app.orchestration.ads_workflow_graph import AdsWorkflowRunner
 from apps.api.app.services.product_entity_resolver import ProductEntityResolver
 from apps.api.app.services.report_type_detector import ReportTypeDetector
 
@@ -29,20 +31,20 @@ def create_account_import(
     parsing_repository: UploadParsingRepository = Depends(get_upload_parsing_repository),
     product_repository: ProductProfileRepository = Depends(get_product_profile_repository),
     account_import_repository: AccountImportRepository = Depends(get_account_import_repository),
+    workflow_repository: WorkflowRepository = Depends(get_workflow_repository),
     audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
 ) -> dict:
     logging.info(f"Starting account import creation for workspace {workspace_id} using upload {payload.upload_id}")
     principal.ensure_workspace(workspace_id)
     principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
     
-    try:
-        upload = upload_repository.get(workspace_id=workspace_id, upload_id=payload.upload_id)
-        if upload is None:
-            logging.error(f"Upload {payload.upload_id} not found in workspace {workspace_id}")
-            raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
-        if upload.status != UploadStatus.PROCESSED:
-            logging.warning(f"Upload {payload.upload_id} has invalid status {upload.status}; requires PROCESSED")
-            raise ApiError(code="UPLOAD_NOT_PROCESSED", message="Account import requires a processed upload.", status_code=409)
+    upload = upload_repository.get(workspace_id=workspace_id, upload_id=payload.upload_id)
+    if upload is None:
+        logging.error(f"Upload {payload.upload_id} not found in workspace {workspace_id}")
+        raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
+    if upload.status != UploadStatus.PROCESSED:
+        logging.warning(f"Upload {payload.upload_id} has invalid status {upload.status}; requires PROCESSED")
+        raise ApiError(code="UPLOAD_NOT_PROCESSED", message="Account import requires a processed upload.", status_code=409)
     parse_run = _latest_succeeded_parse_run(workspace_id=workspace_id, upload_id=upload.id, parsing_repository=parsing_repository)
     rows = _load_rows(workspace_id=workspace_id, parse_run_id=parse_run.id, parsing_repository=parsing_repository)
     if not rows:
@@ -89,6 +91,33 @@ def create_account_import(
     import_record = account_import_repository.create_import(import_record=import_record)
     account_import_repository.insert_entities(entities=resolution.entities)
     account_import_repository.insert_mapping_suggestions(suggestions=resolution.product_mapping_suggestions)
+    workflow = workflow_repository.create_workflow(
+        workflow=new_workflow(
+            workspace_id=workspace_id,
+            account_import_id=import_record.id,
+            upload_id=upload.id,
+            created_by=principal.user_id,
+            state_json={
+                "account_import_id": str(import_record.id),
+                "upload_id": str(upload.id),
+                "status": "pending",
+                "safety_boundaries": {
+                    "recommendation_only": True,
+                    "requires_human_approval": True,
+                    "executes_live_amazon_change": False,
+                },
+            },
+        )
+    )
+    AdsWorkflowRunner(
+        workflow_repository=workflow_repository,
+        account_import_repository=account_import_repository,
+    ).run_account_import_workflow(
+        workflow_id=workflow.id,
+        workspace_id=workspace_id,
+        account_import_id=import_record.id,
+        upload_id=upload.id,
+    )
     audit_repository.record(
         workspace_id=workspace_id,
         actor_user_id=principal.user_id,
@@ -102,6 +131,7 @@ def create_account_import(
             "detection_confidence": detection.confidence.value,
             "entity_count": len(resolution.entities),
             "mapping_suggestion_count": len(resolution.product_mapping_suggestions),
+            "workflow_id": str(workflow.id),
             "execution_boundary": "analysis_only_no_live_amazon_change",
         },
     )
@@ -112,12 +142,9 @@ def create_account_import(
             detection=detection,
             entities=resolution.entities,
             product_mapping_suggestions=resolution.product_mapping_suggestions,
+            workflow_id=workflow.id,
         ).model_dump(mode="json")
     )
-    except Exception as e:
-        logging.error(f"Error during create_account_import: {e}", exc_info=True)
-        raise
-
 
 @router.get("/workspaces/{workspace_id}/uploads/{upload_id}/report-detection")
 def detect_upload_report_type(

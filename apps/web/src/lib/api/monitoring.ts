@@ -17,17 +17,21 @@ export type MonitoringImport = {
 
 export type Recommendation = {
   id: string;
-  product_id: string;
+  product_id: string | null;
+  monitoring_import_id?: string | null;
+  account_import_id?: string | null;
+  entity_key?: string | null;
+  decision_source?: string | null;
   recommendation_type: string;
   entity_type: string;
   status: string;
   priority: string;
   confidence: string;
   rule_name: string;
-  campaign_name: string;
-  ad_group_name: string;
-  targeting: string;
-  customer_search_term: string;
+  campaign_name: string | null;
+  ad_group_name: string | null;
+  targeting: string | null;
+  customer_search_term: string | null;
   input_metrics_json: Record<string, string | number | null>;
   current_metric_snapshot_json: Record<string, string | number | null>;
   evidence_json: Record<string, unknown>;
@@ -102,4 +106,22 @@ export async function decideRecommendation(recommendationId: string, decision: "
     body: JSON.stringify({ note }),
   });
   return readApiData<Recommendation>(response, "Recommendation decision could not be saved.");
+}
+
+export async function runMonitoringAnalysis(importId: string, workspaceId = defaultWorkspaceId) {
+  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/monitoring/imports/${importId}/run-analysis`, {
+    method: "POST",
+    headers: { ...localAuthHeaders(workspaceId, "analyst"), "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  return readApiData<{ import_record: MonitoringImport; job_id?: string; job_created: boolean }>(response, "Monitoring analysis could not be queued.");
+}
+
+export async function runAccountImportAnalysis(accountImportId: string, workspaceId = defaultWorkspaceId) {
+  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/account-imports/${accountImportId}/run-analysis`, {
+    method: "POST",
+    headers: { ...localAuthHeaders(workspaceId, "analyst"), "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  return readApiData<{ account_import_id: string; status: string; run_count: number; recommendation_count: number; execution_boundary: string }>(response, "Account import analysis could not be completed.");
 }

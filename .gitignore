@@ -29,6 +29,7 @@ exports/
 local-exports/
 generated-bulk-sheets/
 local-reports/
+logs/
 *.xls
 *.xlsx
 !tests/fixtures/

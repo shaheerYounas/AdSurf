@@ -1,1 +1,3 @@
-Campaign Name,Ad Group Name,Keyword,Match Type,Impressions,Clicks,Spend,Sales\nCamp1,AG1,test,exact,100,5,5.00,20.00
+Campaign Name,Ad Group Name,Targeting,Customer Search Term,Match Type,Impressions,Clicks,Spend,Sales,Orders,ASIN,SKU,Product
+Camp1,AG1,test,blue running shoes,exact,100,5,5.00,20.00,1,B0TESTASIN,SKU-1,Test Shoe
+Camp1,AG1,test,red running shoes,exact,80,7,9.50,0.00,0,B0TESTASIN,SKU-1,Test Shoe

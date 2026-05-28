@@ -37,6 +37,8 @@ export type ProductMappingSuggestion = {
 export type AccountImportResponse = {
   import_record: {
     id: string;
+    upload_id?: string;
+    parse_run_id?: string;
     status: string;
     detected_report_type: string;
     detection_confidence: string;
@@ -47,11 +49,24 @@ export type AccountImportResponse = {
   detection: ReportDetection;
   entities: AccountImportEntity[];
   product_mapping_suggestions: ProductMappingSuggestion[];
+  workflow_id?: string | null;
 };
 
-export async function uploadAccountReport(file: File, workspaceId = defaultWorkspaceId): Promise<AccountImportResponse> {
+export type UploadAccountReportProgress =
+  | "initializing_upload"
+  | "storing_file"
+  | "confirming_upload"
+  | "processing_file"
+  | "creating_account_import";
+
+export type UploadAccountReportOptions = {
+  onProgress?: (step: UploadAccountReportProgress, detail?: string) => void;
+};
+
+export async function uploadAccountReport(file: File, workspaceId = defaultWorkspaceId, options: UploadAccountReportOptions = {}): Promise<AccountImportResponse> {
   let upload;
   try {
+    options.onProgress?.("initializing_upload", "Creating upload record.");
     const initResponse = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/init`, {
       method: "POST",
       headers: { ...localAuthHeaders(workspaceId, "analyst"), "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
@@ -71,6 +86,7 @@ export async function uploadAccountReport(file: File, workspaceId = defaultWorks
   }
   
   try {
+    options.onProgress?.("storing_file", `Writing file bytes for upload ${upload.upload_id}.`);
     const objectResponse = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/${upload.upload_id}/object`, {
       method: "PUT",
       headers: localAuthHeaders(workspaceId, "analyst"),
@@ -78,6 +94,7 @@ export async function uploadAccountReport(file: File, workspaceId = defaultWorks
     });
     await readApiData(objectResponse, "Account report file could not be stored.");
     
+    options.onProgress?.("confirming_upload", `Queueing parser job for upload ${upload.upload_id}.`);
     const confirmResponse = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/${upload.upload_id}/confirm`, {
       method: "POST",
       headers: { ...localAuthHeaders(workspaceId, "analyst"), "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
@@ -85,11 +102,14 @@ export async function uploadAccountReport(file: File, workspaceId = defaultWorks
     });
     await readApiData(confirmResponse, "Account report upload could not be confirmed.");
     
-    await fetch(`${apiBaseUrl}/v1/dev/process-upload-jobs`, {
+    options.onProgress?.("processing_file", "Processing upload rows.");
+    const processResponse = await fetch(`${apiBaseUrl}/v1/dev/process-upload-jobs`, {
       method: "POST",
       headers: localAuthHeaders(workspaceId, "admin"),
-    }).catch((e) => console.warn("Dev upload processing failed:", e));
+    });
+    await readApiData(processResponse, "Upload was queued, but local upload processing did not complete. Start the upload worker or enable the local dev worker endpoint.");
     
+    options.onProgress?.("creating_account_import", `Creating account import from upload ${upload.upload_id}.`);
     const importResponse = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/account-imports`, {
       method: "POST",
       headers: { ...localAuthHeaders(workspaceId, "analyst"), "Content-Type": "application/json" },

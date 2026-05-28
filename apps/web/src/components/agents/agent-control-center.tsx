@@ -24,9 +24,10 @@ import {
 import { AgentInspector } from "@/components/agents/agent-inspector";
 import { AgentTraceTimeline } from "@/components/agents/agent-trace-timeline";
 import { Button } from "@/components/ui/button";
-import { defaultWorkspaceId } from "@/lib/api/client";
+import { apiBaseUrl, defaultWorkspaceId } from "@/lib/api/client";
 import {
   controlAgentRun,
+  getAccountImportAgentWorkflow,
   getAgentConfigs,
   getAgentRuns,
   getAgentWorkflow,
@@ -39,11 +40,12 @@ import {
   type AgentRun,
   type AgentWorkflow,
 } from "@/lib/api/agents";
-import { uploadAccountReport, type AccountImportResponse } from "@/lib/api/account-imports";
-import { decideRecommendation, getRecommendations, type Recommendation } from "@/lib/api/monitoring";
+import { uploadAccountReport, type AccountImportResponse, type UploadAccountReportProgress } from "@/lib/api/account-imports";
+import { decideRecommendation, getRecommendations, runAccountImportAnalysis, runMonitoringAnalysis, type Recommendation } from "@/lib/api/monitoring";
 
 type ControlAction = "pause" | "resume" | "stop" | "rerun";
 type ExperienceMode = "simple" | "advanced";
+type UploadStatusMessage = { kind: "idle" | "loading" | "success" | "error"; text: string; detail?: string };
 
 const workflowOrder = [
   "report_upload_node",
@@ -108,10 +110,14 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   const [message, setMessage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [accountImport, setAccountImport] = useState<AccountImportResponse | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<UploadStatusMessage>({ kind: "idle", text: "No report uploaded yet." });
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const [experienceMode, setExperienceMode] = useState<ExperienceMode>("simple");
   const [environmentMode, setEnvironmentMode] = useState<AgentConfig["mode"]>("hybrid");
+  const activeImportId = accountImport?.import_record.id ?? importId ?? null;
+  const activeImportKind: "account" | "monitoring" | null = accountImport ? "account" : importId ? "monitoring" : null;
 
   useEffect(() => {
     load();
@@ -138,21 +144,24 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   const failedCount = workflowNodes.filter((node) => node.status === "failed").length;
   const completedCount = workflowNodes.filter((node) => ["completed", "succeeded"].includes(node.status)).length;
 
-  async function load() {
+  async function load(importOverride?: { id: string; kind: "account" | "monitoring" }) {
+    const workflowImportId = importOverride?.id ?? activeImportId;
+    const workflowImportKind = importOverride?.kind ?? activeImportKind;
     setIsLoading(true);
     setMessage(null);
     try {
       const [loadedAgents, loadedConfigs, loadedRuns, loadedRecommendations] = await Promise.all([
         getAgents(workspaceId),
         getAgentConfigs(workspaceId, productId),
-        getAgentRuns(workspaceId, importId),
+        getAgentRuns(workspaceId, workflowImportId ?? undefined),
         getRecommendations(workspaceId).catch(() => []),
       ]);
       setAgents(loadedAgents);
       setConfigs(loadedConfigs);
       setRuns(loadedRuns);
       setRecommendations(loadedRecommendations);
-      if (importId) setWorkflow(await getAgentWorkflow(importId, workspaceId));
+      if (workflowImportId && workflowImportKind === "account") setWorkflow(await getAccountImportAgentWorkflow(workflowImportId, workspaceId));
+      if (workflowImportId && workflowImportKind === "monitoring") setWorkflow(await getAgentWorkflow(workflowImportId, workspaceId));
       setEnvironmentMode(loadedConfigs[0]?.mode ?? "hybrid");
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "Agent Control Center could not be loaded.");
@@ -162,36 +171,72 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   }
 
   async function uploadReport() {
-    if (!selectedFile) return;
+    if (!selectedFile) {
+      setUploadStatus({ kind: "error", text: "Choose a CSV, XLS, or XLSX Amazon Ads report before uploading." });
+      return;
+    }
     setIsUploading(true);
     setMessage(null);
+    setUploadStatus({ kind: "loading", text: "Starting upload.", detail: selectedFile.name });
     try {
-      const result = await uploadAccountReport(selectedFile, workspaceId);
+      const result = await uploadAccountReport(selectedFile, workspaceId, {
+        onProgress: (step: UploadAccountReportProgress, detail?: string) => {
+          setUploadStatus({ kind: "loading", text: uploadStepLabel(step), detail });
+        },
+      });
       setAccountImport(result);
       setSelectedAgentId("report_detection_agent");
+      setUploadStatus({
+        kind: "success",
+        text: "Report uploaded, parsed, detected, and grouped.",
+        detail: `Import ${result.import_record.id}${result.workflow_id ? ` · Workflow ${result.workflow_id}` : ""} · ${result.import_record.processed_rows} rows · ${result.entities.length} entities`,
+      });
       setMessage("Report detected, entities grouped, and product mapping suggestions prepared.");
+      setWorkflow(null);
+      await load({ id: result.import_record.id, kind: "account" });
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Account report upload could not be completed.");
+      if (process.env.NODE_ENV !== "production") console.error("Account report upload failed", caught);
+      const text = caught instanceof Error ? caught.message : "Account report upload could not be completed.";
+      setUploadStatus({ kind: "error", text, detail: "Check API health, migrations, storage, and worker processing." });
+      setMessage(text);
     } finally {
       setIsUploading(false);
     }
   }
 
   async function saveConfig(agentId: string, patch: Partial<AgentConfig>) {
-    await updateAgentConfig(agentId, { ...patch, product_id: productId ?? null, reason: "Updated from Agent Control Center" }, workspaceId);
-    await load();
+    setMessage(null);
+    try {
+      await updateAgentConfig(agentId, { ...patch, product_id: productId ?? null, reason: "Updated from Agent Control Center" }, workspaceId);
+      setMessage("Agent configuration saved.");
+      await load();
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "Agent configuration could not be saved.");
+    }
   }
 
   async function toggleAgent(agentId: string) {
     const current = configByAgent.get(agentId);
-    if (!current) return;
+    if (!current) {
+      setMessage("Agent configuration is still loading. Try again in a moment.");
+      return;
+    }
     await saveConfig(agentId, { enabled: !current.enabled });
   }
 
   async function control(run: AgentRun | undefined, action: ControlAction) {
-    if (!run) return;
-    await controlAgentRun(run.id, action, `${action} requested from Agent Control Center`, workspaceId);
-    await load();
+    if (!run) {
+      setMessage("No agent run is available for this action yet. Upload a report and run analysis first.");
+      return;
+    }
+    setMessage(null);
+    try {
+      await controlAgentRun(run.id, action, `${action} requested from Agent Control Center`, workspaceId);
+      setMessage(`Agent ${action} request saved.`);
+      await load();
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : `Agent ${action} request could not be saved.`);
+    }
   }
 
   async function rerunHere(agentId: string) {
@@ -199,19 +244,59 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
       setMessage("Select an import-level workflow before rerunning from a specific agent.");
       return;
     }
-    await rerunFromAgent(importId, agentId, "Rerun from this agent onward", workspaceId);
-    await load();
+    try {
+      await rerunFromAgent(importId, agentId, "Rerun from this agent onward", workspaceId);
+      setMessage("Agent rerun queued.");
+      await load();
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "Agent rerun could not be queued.");
+    }
   }
 
   async function applyTemplate(name: string) {
     const patch = templatePatch(name);
-    await Promise.all(agentCatalog.map((agent) => updateAgentConfig(agent.agent_id, { ...patch, product_id: productId ?? null, reason: `${name} template applied` }, workspaceId).catch(() => undefined)));
-    await load();
+    setMessage(null);
+    try {
+      await Promise.all(agentCatalog.map((agent) => updateAgentConfig(agent.agent_id, { ...patch, product_id: productId ?? null, reason: `${name} template applied` }, workspaceId)));
+      setMessage(`${name} applied to all agents.`);
+      await load();
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : `${name} could not be applied.`);
+    }
   }
 
   async function decide(recommendationId: string, decision: "approve" | "reject") {
-    await decideRecommendation(recommendationId, decision, `${decision} from Agent Control Center after human review.`, workspaceId);
-    await load();
+    setMessage(null);
+    try {
+      await decideRecommendation(recommendationId, decision, `${decision} from Agent Control Center after human review.`, workspaceId);
+      setMessage(`Recommendation ${decision} recorded. No live Amazon Ads change executed.`);
+      await load();
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : `Recommendation ${decision} could not be saved.`);
+    }
+  }
+
+  async function runAnalysis() {
+    if (!activeImportId || !activeImportKind) {
+      setMessage("Upload a report or open an import-level workflow before running analysis.");
+      return;
+    }
+    setIsRunningAnalysis(true);
+    setMessage("Running agents across the selected import. Recommendation only; human approval is required.");
+    try {
+      if (activeImportKind === "account") {
+        const result = await runAccountImportAnalysis(activeImportId, workspaceId);
+        setMessage(`Agent analysis completed: ${result.run_count} agents ran and ${result.recommendation_count} recommendations were created. No live Amazon Ads change executed.`);
+      } else {
+        await runMonitoringAnalysis(activeImportId, workspaceId);
+        setMessage("Monitoring analysis queued. No live Amazon Ads change executed.");
+      }
+      await load();
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "Analysis could not be started.");
+    } finally {
+      setIsRunningAnalysis(false);
+    }
   }
 
   return (
@@ -219,20 +304,28 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
       <main className="min-w-0 space-y-6">
           <TopCommandBar
             environmentMode={environmentMode}
-            isLoading={isLoading}
+            isLoading={isLoading || isRunningAnalysis}
             onEnvironmentChange={(mode) => {
               setEnvironmentMode(mode);
-              void Promise.all(configs.map((config) => updateAgentConfig(config.agent_id, { mode, product_id: productId ?? null, reason: "Environment mode updated from top bar" }, workspaceId))).then(load);
+              void Promise.all(configs.map((config) => updateAgentConfig(config.agent_id, { mode, product_id: productId ?? null, reason: "Environment mode updated from top bar" }, workspaceId))).then(() => load());
             }}
             onRefresh={load}
-            onRunAnalysis={() => setMessage("Run analysis is queued from import-level workflows; select an import to run the full pipeline.")}
+            onRunAnalysis={runAnalysis}
             onBulkControl={(action) => {
               const targetRuns = runs.filter((run) => {
                 if (action === "resume") return run.status === "paused";
                 if (action === "rerun") return run.status === "failed";
                 return ["running", "queued", "failed", "paused"].includes(run.status);
               });
-              void Promise.all(targetRuns.map((run) => controlAgentRun(run.id, action, `${action} all from Agent Control Center`, workspaceId).catch(() => undefined))).then(load);
+              if (!targetRuns.length) {
+                setMessage(`No eligible agent runs found for "${action}". Upload a report and run analysis first, or select an import with matching run status.`);
+                return;
+              }
+              setMessage(`${action} requested for ${targetRuns.length} agent runs.`);
+              void Promise.all(targetRuns.map((run) => controlAgentRun(run.id, action, `${action} all from Agent Control Center`, workspaceId))).then(() => {
+                setMessage(`${action} saved for ${targetRuns.length} agent runs. No live Amazon Ads change executed.`);
+                return load();
+              }).catch((caught) => setMessage(caught instanceof Error ? caught.message : `Bulk ${action} could not be saved.`));
             }}
             onViewApprovals={() => document.getElementById("approval-checkpoints")?.scrollIntoView({ behavior: "smooth" })}
           />
@@ -253,7 +346,8 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
                 onUpload={uploadReport}
                 experienceMode={experienceMode}
                 onExperienceModeChange={setExperienceMode}
-                uploadMessage={message}
+                uploadStatus={uploadStatus}
+                workspaceId={workspaceId}
               />
 
               <WorkflowCanvas nodes={workflowNodes} edges={workflowEdges} selectedAgentId={selectedAgentId} onSelect={setSelectedAgentId} />
@@ -324,7 +418,7 @@ function TopCommandBar({ environmentMode, isLoading, onEnvironmentChange, onRefr
   );
 }
 
-function HeroUpload({ accountImport, completedCount, failedCount, activeCount, pendingApprovals, selectedFile, isUploading, experienceMode, onExperienceModeChange, onFileChange, onUpload, uploadMessage }: { accountImport: AccountImportResponse | null; completedCount: number; failedCount: number; activeCount: number; pendingApprovals: number; selectedFile: File | null; isUploading: boolean; experienceMode: ExperienceMode; onExperienceModeChange: (mode: ExperienceMode) => void; onFileChange: (file: File | null) => void; onUpload: () => void; uploadMessage?: string | null }) {
+function HeroUpload({ accountImport, completedCount, failedCount, activeCount, pendingApprovals, selectedFile, isUploading, experienceMode, onExperienceModeChange, onFileChange, onUpload, uploadStatus, workspaceId }: { accountImport: AccountImportResponse | null; completedCount: number; failedCount: number; activeCount: number; pendingApprovals: number; selectedFile: File | null; isUploading: boolean; experienceMode: ExperienceMode; onExperienceModeChange: (mode: ExperienceMode) => void; onFileChange: (file: File | null) => void; onUpload: () => void; uploadStatus: UploadStatusMessage; workspaceId: string }) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70 sm:p-6" id="reports">
       <div className="grid gap-5">
@@ -336,11 +430,15 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
             Upload an account-level report or bulk sheet, then AdSurf will detect report type, group entities, prepare agent inputs, and keep every recommendation behind human approval.
           </p>
-          {uploadMessage && (
-            <div className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-900 dark:border-rose-900/50 dark:bg-rose-900/20 dark:text-rose-200">
-              {uploadMessage}
+          {uploadStatus.kind !== "idle" ? (
+            <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${uploadStatusClass(uploadStatus.kind)}`}>
+              <div className="flex items-center gap-2">
+                {uploadStatus.kind === "loading" ? <Loader2 className="animate-spin" size={16} /> : null}
+                <span>{uploadStatus.text}</span>
+              </div>
+              {uploadStatus.detail ? <p className="mt-1 text-xs font-medium opacity-80">{uploadStatus.detail}</p> : null}
             </div>
-          )}
+          ) : null}
           <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
             <StepMetric label="Completed" value={completedCount} />
             <StepMetric label="Running" value={activeCount} />
@@ -361,8 +459,13 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
           </label>
           <Button className="mt-3 w-full" disabled={!selectedFile || isUploading} onClick={onUpload} type="button">
             {isUploading ? <Loader2 className="animate-spin" size={16} /> : <UploadCloud size={16} />}
-            Upload report
+            {isUploading ? "Uploading report..." : "Upload report"}
           </Button>
+          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-600 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-300">
+            <p><span className="font-semibold text-slate-900 dark:text-white">API:</span> {apiBaseUrl}</p>
+            <p><span className="font-semibold text-slate-900 dark:text-white">Workspace:</span> {workspaceId}</p>
+            <p><span className="font-semibold text-slate-900 dark:text-white">Latest import:</span> {accountImport?.import_record.id ?? "None yet"}</p>
+          </div>
           <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-slate-950/70">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">View mode</p>
             <div className="mt-2 grid grid-cols-2 gap-2">
@@ -524,7 +627,6 @@ function ApprovalCard({ recommendation, onDecision }: { recommendation: Recommen
       <div className="mt-4 flex flex-wrap gap-2">
         <Button onClick={() => onDecision(recommendation.id, "approve")} type="button"><CheckCircle2 size={16} /> Approve</Button>
         <Button className="bg-red-700 hover:bg-red-600 dark:bg-red-200 dark:text-red-950" onClick={() => onDecision(recommendation.id, "reject")} type="button"><Square size={16} /> Reject</Button>
-        <Button className="bg-white text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/10 dark:text-white dark:ring-white/10" type="button"><Settings size={16} /> Edit</Button>
       </div>
     </article>
   );
@@ -613,6 +715,24 @@ function displayStatus(status?: string, agentId?: string, config?: AgentConfig, 
   if (status) return status;
   if (agentId === "report_upload_node") return "waiting";
   return "idle";
+}
+
+function uploadStepLabel(step: UploadAccountReportProgress) {
+  const labels: Record<UploadAccountReportProgress, string> = {
+    initializing_upload: "Creating upload record.",
+    storing_file: "Storing report file.",
+    confirming_upload: "Queueing parser job.",
+    processing_file: "Processing report rows.",
+    creating_account_import: "Creating account import and grouping entities.",
+  };
+  return labels[step];
+}
+
+function uploadStatusClass(kind: UploadStatusMessage["kind"]) {
+  if (kind === "success") return "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-300/25 dark:bg-emerald-300/10 dark:text-emerald-100";
+  if (kind === "error") return "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-300/25 dark:bg-rose-300/10 dark:text-rose-100";
+  if (kind === "loading") return "border-indigo-200 bg-indigo-50 text-indigo-900 dark:border-indigo-300/25 dark:bg-indigo-300/10 dark:text-indigo-100";
+  return "border-slate-200 bg-slate-50 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200";
 }
 
 function edgeSummary(source: string, target: string) {

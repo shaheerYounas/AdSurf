@@ -160,6 +160,11 @@ export async function getAgentWorkflow(importId: string, workspaceId = defaultWo
   return readApiData<AgentWorkflow>(response, "Agent workflow could not be loaded.");
 }
 
+export async function getAccountImportAgentWorkflow(accountImportId: string, workspaceId = defaultWorkspaceId): Promise<AgentWorkflow> {
+  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/account-imports/${accountImportId}/agent-workflow`, { headers: localAuthHeaders(workspaceId), cache: "no-store" });
+  return readApiData<AgentWorkflow>(response, "Account import agent workflow could not be loaded.");
+}
+
 export async function controlAgentRun(runId: string, action: "pause" | "resume" | "stop" | "rerun", reason: string, workspaceId = defaultWorkspaceId): Promise<AgentRun> {
   const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/agent-runs/${runId}/${action}`, {
     method: "POST",

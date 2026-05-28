@@ -131,3 +131,4 @@ class AccountImportResponse(BaseModel):
     detection: ReportDetectionResult
     entities: list[AccountImportEntity]
     product_mapping_suggestions: list[ProductMappingSuggestion]
+    workflow_id: UUID | None = None

@@ -1,7 +1,20 @@
 import logging
 import os
+import time
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
+
+
+class SafeTimedRotatingFileHandler(TimedRotatingFileHandler):
+    """Keep dev/test logging from crashing when Windows locks the log file."""
+
+    def doRollover(self):
+        try:
+            super().doRollover()
+        except PermissionError:
+            # Another dev server or test process can hold the file on Windows.
+            # Keep app logging alive and try rotation again at the next interval.
+            self.rolloverAt = self.computeRollover(int(time.time()))
 
 def setup_logging():
     # Define the separate folder for logs
@@ -18,7 +31,7 @@ def setup_logging():
     # TimedRotatingFileHandler rotates the log file.
     # when="M", interval=5 means every 5 minutes, it saves the current file and starts a new one 
     # with a timestamp suffix.
-    handler = TimedRotatingFileHandler(
+    handler = SafeTimedRotatingFileHandler(
         filename=log_file,
         when="M",
         interval=5,

@@ -38,7 +38,7 @@ The `/agents` page uses Simple Mode by default and Advanced Mode for operators w
 | Visual Workflow Canvas | Horizontal pipeline with colored nodes, data-passing edge labels, active/failed/approval states, and node selection. |
 | Right Agent Inspector | Sticky on wide desktop layouts and full-width below the main workflow on narrower screens. Tabs wrap across lines instead of forcing a horizontal scrollbar. |
 | Trace Timeline | Expandable execution events with provider/model, latency, cost metadata when available, validation errors, retries, and fallback details. |
-| Human Approval Checkpoints | Pending recommendation cards grouped around evidence, risk, confidence, and approve/reject/edit actions. |
+| Human Approval Checkpoints | Pending recommendation cards grouped around evidence, risk, confidence, and approve/reject actions. |
 | Agent Templates | MVP presets for Conservative Profitability, Growth Scaling, Wasted Spend Cleanup, Launch Campaign Review, and Agency Account Audit. |
 
 Simple Mode keeps the upload, workflow canvas, agent status, recommendations, trace timeline, and safety labels visible while hiding raw JSON complexity. Advanced Mode shows inspector details, prompt/configuration, raw input/output summaries, trace logs, risk controls, model/provider settings, and template presets.
@@ -57,6 +57,7 @@ Edges show status, timestamps when available, and summaries of data passed, such
 ## Controls
 | Control | Behavior |
 | --- | --- |
+| Run analysis | For account imports, calls `POST /v1/workspaces/{workspace_id}/account-imports/{account_import_id}/run-analysis`, creates deterministic account-level agent runs, creates approval-only recommendations, and refreshes the workflow graph. |
 | Enable/disable | Changes future workflow behavior for a workspace or product. |
 | Pause/resume | Records user intent and pauses/resumes displayed run state. |
 | Stop | Records user intent and prevents stopped agents from creating new outputs when checked before execution. |

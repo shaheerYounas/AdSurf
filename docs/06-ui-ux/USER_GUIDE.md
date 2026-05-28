@@ -248,9 +248,9 @@ The Agent Control Center shows:
 - A Visual Workflow Canvas showing Report Upload, Report Detection, Product Resolution, Metrics Analysis, AI Recommendation Brain, Bid Optimization, Negative Keyword, Budget Allocation, Pause Review, Stakeholder Reporting, and Human Approval.
 - A right Agent Inspector on wide desktop screens, or a full-width inspector below the workflow on narrower screens. Inspector tabs wrap cleanly and include Overview, Configuration, Prompt / Business Goal, Input Data, Output, Recommendations, Permissions, Trace, and Safety.
 - A Trace Timeline with events such as queued, started, input prepared, model called, output received, validation passed or failed, recommendations created, waiting for human approval, fallback used, stopped, paused, or failed.
-- Human Approval Checkpoints with recommendation cards, metric evidence, risk chips, proposed actions, and approve/reject/edit controls.
+- Human Approval Checkpoints with recommendation cards, metric evidence, risk chips, proposed actions, and approve/reject controls.
 - Agent Templates that prefill configuration for conservative profitability, growth scaling, wasted spend cleanup, launch review, or agency audit work.
-- Control buttons for run analysis, pause all, resume all, stop all, rerun failed, configure agents, view approvals, and rerun from a selected agent.
+- Control buttons for run analysis, pause all, resume all, stop all, rerun failed, configure agents, view approvals, and rerun from a selected agent. Account-level Run analysis creates deterministic agent runs and approval-only recommendations from grouped report entities.
 
 Owner/admin users can change agent configuration. Analysts can run, rerun, pause, resume, and stop agents. Approvers and viewers can inspect outputs. These controls never grant agents permission to approve, reject, or execute Amazon Ads changes.
 

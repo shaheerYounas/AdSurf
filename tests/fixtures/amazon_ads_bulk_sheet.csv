@@ -1,1 +1,4 @@
-Record Type,Campaign,Ad Group,Keyword\nCampaign,Camp1,,\nAd Group,Camp1,AG1,\nKeyword,Camp1,AG1,test kw
+Product,Entity,Operation,Campaign ID,Ad Group ID,Portfolio ID,SKU,ASIN,Bid,Budget,Campaign Name,Ad Group Name,Keyword,Match Type
+Test Shoe,Campaign,Update,1001,,,SKU-1,B0TESTASIN,,25.00,Camp1,,,
+Test Shoe,Ad Group,Update,1001,2001,,SKU-1,B0TESTASIN,,,Camp1,AG1,,
+Test Shoe,Keyword,Update,1001,2001,,SKU-1,B0TESTASIN,0.75,,Camp1,AG1,running shoes,exact

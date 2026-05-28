@@ -42,6 +42,10 @@ class Settings(BaseModel):
     deepseek_api_key: str | None = None
     deepseek_base_url: str = "https://api.deepseek.com"
     deepseek_model: str = "deepseek-chat"
+    agent_orchestrator: str = "langgraph"
+    queue_backend: str = "local"
+    redis_url: str | None = None
+    langgraph_checkpoint_backend: str = "postgres"
 
     @property
     def is_known_app_env(self) -> bool:
@@ -97,4 +101,8 @@ def get_settings() -> Settings:
         deepseek_api_key=os.getenv("DEEPSEEK_API_KEY"),
         deepseek_base_url=os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com"),
         deepseek_model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
+        agent_orchestrator=os.getenv("AGENT_ORCHESTRATOR", "langgraph"),
+        queue_backend=os.getenv("QUEUE_BACKEND", "local"),
+        redis_url=os.getenv("REDIS_URL") or None,
+        langgraph_checkpoint_backend=os.getenv("LANGGRAPH_CHECKPOINT_BACKEND", "postgres"),
     )

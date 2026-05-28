@@ -263,3 +263,66 @@ def test_dashboard_performance_indexes_migration_exists() -> None:
         "ai_runs_workspace_product_agent_created_idx",
     ]:
         assert f"create index if not exists {index}" in sql
+
+
+def test_account_bulk_import_migration_adds_upload_modes_and_recommendation_scope() -> None:
+    migration = Path("supabase/migrations/202605270002_account_bulk_imports.sql")
+
+    assert migration.exists()
+    sql = migration.read_text(encoding="utf-8")
+
+    for upload_source in [
+        "account_bulk_report",
+        "sponsored_products_search_term_report",
+        "sponsored_products_targeting_report",
+        "sponsored_products_campaign_report",
+        "bulk_sheet",
+        "unknown_report",
+    ]:
+        assert f"'{upload_source}'" in sql
+
+    for table in ["account_imports", "account_import_entities", "product_mapping_suggestions"]:
+        assert f"create table if not exists {table}" in sql
+        assert f"alter table {table} enable row level security" in sql
+
+    assert "alter table uploads alter column product_id drop not null" in sql
+    assert "add column if not exists account_import_id uuid references account_imports(id)" in sql
+    assert "add column if not exists entity_type text check" in sql
+    assert "recommendations_account_import_idx" in sql
+    assert "requires_human_approval" in sql
+    assert "executes_live_amazon_change" in sql
+
+
+def test_langgraph_orchestration_migration_adds_durable_workflow_tables() -> None:
+    migration = Path("supabase/migrations/202605280001_langgraph_orchestration_foundation.sql")
+
+    assert migration.exists()
+    sql = migration.read_text(encoding="utf-8")
+
+    for column in [
+        "add column if not exists account_import_id uuid references account_imports(id)",
+        "add column if not exists upload_id uuid references uploads(id)",
+        "add column if not exists workflow_type text not null default 'account_import_analysis'",
+        "add column if not exists current_node text",
+        "add column if not exists state_json jsonb not null default '{}'::jsonb",
+        "add column if not exists error_json jsonb not null default '{}'::jsonb",
+        "add column if not exists completed_at timestamptz",
+    ]:
+        assert column in sql
+
+    for table in [
+        "agent_workflow_checkpoints",
+        "agent_workflow_events",
+        "agent_tool_calls",
+        "agent_llm_calls",
+        "human_approval_gates",
+    ]:
+        assert f"create table if not exists {table}" in sql
+        assert f"alter table {table} enable row level security" in sql
+
+    assert "public.current_user_is_workspace_member(workspace_id)" in sql
+    assert "public.current_user_has_workspace_role(workspace_id, array['owner', 'admin', 'analyst'])" in sql
+    assert "public.current_user_has_workspace_role(workspace_id, array['owner', 'admin', 'approver'])" in sql
+    assert "No live Amazon Ads" in sql or "live Amazon Ads" in sql
+    assert "to public" not in sql
+    assert "disable row level security" not in sql

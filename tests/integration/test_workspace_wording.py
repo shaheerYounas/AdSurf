@@ -31,9 +31,9 @@ def test_no_legacy_workspace_or_role_wording_in_docs_and_batch_1_code() -> None:
 
 
 def test_batch_1_navigation_links_only_existing_batch_1_routes() -> None:
-    layout_source = Path("apps/web/src/app/layout.tsx").read_text(encoding="utf-8")
+    sidebar_source = Path("apps/web/src/components/app-sidebar.tsx").read_text(encoding="utf-8")
 
-    assert 'href: "/dashboard"' in layout_source
-    assert 'href: "/products"' in layout_source
-    assert 'href: "/products/new"' in layout_source
-    assert 'href: "/approvals"' not in layout_source
+    assert 'href: "/dashboard"' in sidebar_source
+    assert 'href: "/products"' in sidebar_source
+    assert 'href: "/products/new"' in sidebar_source
+    assert 'href: "/approvals"' not in sidebar_source

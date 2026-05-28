@@ -95,6 +95,7 @@ alter table recommendations
     alter column monitoring_import_id drop not null,
     alter column snapshot_id drop not null,
     add column if not exists account_import_id uuid references account_imports(id) on delete restrict,
+    add column if not exists entity_type text check (entity_type in ('account', 'product', 'campaign', 'ad_group', 'target', 'search_term')),
     add column if not exists entity_key text,
     add column if not exists decision_source text,
     add column if not exists agent_run_id uuid references ai_runs(id) on delete set null,

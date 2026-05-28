@@ -5,6 +5,7 @@ description = "FastAPI shell for the Amazon Ads AI Automation Control Center."
 requires-python = ">=3.12"
 dependencies = [
   "fastapi",
+  "langgraph",
   "psycopg[binary]",
   "python-dotenv",
   "pydantic",

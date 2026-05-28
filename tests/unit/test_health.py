@@ -13,4 +13,6 @@ def test_health_check_endpoint():
         pytest.skip("Health route not implemented yet")
     else:
         assert response.status_code == 200
-        assert response.json() == {"status": "ok"}
+        body = response.json()
+        assert body["success"] is True
+        assert body["data"]["status"] == "ok"

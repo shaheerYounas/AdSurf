@@ -314,13 +314,15 @@ class PostgresMonitoringRepository(MonitoringRepository):
         statement = text(
             """
             insert into recommendations (
-                id, workspace_id, product_id, monitoring_import_id, snapshot_id, recommendation_type,
+                id, workspace_id, product_id, monitoring_import_id, snapshot_id, account_import_id, entity_key,
+                decision_source, agent_run_id, ai_run_id, approval_boundary, recommendation_type,
                 entity_type, status, priority, confidence, rule_version_id, rule_name, campaign_name, ad_group_name, targeting,
                 customer_search_term, input_metrics_json, current_metric_snapshot_json, evidence_json, proposed_action_json, explanation_json,
                 decided_by, decision_note, decided_at, created_at, updated_at
             )
             values (
-                :id, :workspace_id, :product_id, :monitoring_import_id, :snapshot_id, :recommendation_type,
+                :id, :workspace_id, :product_id, :monitoring_import_id, :snapshot_id, :account_import_id, :entity_key,
+                :decision_source, :agent_run_id, :ai_run_id, cast(:approval_boundary as jsonb), :recommendation_type,
                 :entity_type, :status, :priority, :confidence, :rule_version_id, :rule_name, :campaign_name, :ad_group_name, :targeting,
                 :customer_search_term, cast(:input_metrics_json as jsonb), cast(:current_metric_snapshot_json as jsonb), cast(:evidence_json as jsonb), cast(:proposed_action_json as jsonb), cast(:explanation_json as jsonb),
                 :decided_by, :decision_note, :decided_at, :created_at, :updated_at
@@ -485,6 +487,7 @@ def _recommendation_params(recommendation: Recommendation) -> dict:
         "status": recommendation.status.value,
         "priority": recommendation.priority.value,
         "confidence": recommendation.confidence.value,
+        "approval_boundary": _json_dumps(recommendation.approval_boundary),
         "input_metrics_json": _json_dumps(recommendation.input_metrics_json),
         "current_metric_snapshot_json": _json_dumps(recommendation.current_metric_snapshot_json),
         "evidence_json": _json_dumps(recommendation.evidence_json),
