@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, Loader2, Pause, ShieldCheck, SkipForward, Square } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, Clock3, Loader2, Pause, SkipForward, Square } from "lucide-react";
 import type { AgentEvent, AgentRun } from "@/lib/api/agents";
 
 const eventTone: Record<string, string> = {
@@ -28,9 +28,6 @@ export function AgentTraceTimeline({ events, runs }: { events: AgentEvent[]; run
         <div>
           <h2 className="text-lg font-semibold text-slate-950 dark:text-white">Trace Timeline</h2>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Execution feed across model calls, validation, fallback, and approval checkpoints.</p>
-        </div>
-        <div className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:border-emerald-300/25 dark:bg-emerald-300/10 dark:text-emerald-100">
-          <ShieldCheck size={14} /> Recommendation only
         </div>
       </div>
       <div className="max-h-[520px] overflow-auto">

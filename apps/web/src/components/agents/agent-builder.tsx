@@ -21,7 +21,10 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { defaultWorkspaceId } from "@/lib/api/client";
+import { humanize } from "@/lib/utils";
 import {
   addAgentTool,
   cloneAgentTemplate,
@@ -60,8 +63,21 @@ const MODELS_BY_PROVIDER: Record<string, string[]> = {
   local: ["llama-3.1-8b", "llama-3.1-70b", "mixtral-8x7b"],
 };
 
+const PROVIDER_OPTIONS = Object.keys(MODELS_BY_PROVIDER).map((key) => ({
+  value: key,
+  label: key === "deepseek" ? "DeepSeek" : key === "openai" ? "OpenAI" : key === "anthropic" ? "Anthropic" : key === "google" ? "Google" : key === "local" ? "Local" : humanize(key),
+}));
+
 const OUTPUT_FORMATS = ["text", "json", "markdown", "table", "code", "email"] as const;
+const OUTPUT_FORMAT_OPTIONS = OUTPUT_FORMATS.map((f) => ({ value: f, label: humanize(f) }));
 const AGENT_ROLES = ["researcher", "writer", "reviewer", "coder", "analyst", "planner", "support", "sales", "general"] as const;
+const AGENT_ROLE_OPTIONS = AGENT_ROLES.map((r) => ({ value: r, label: humanize(r) }));
+const STATUS_OPTIONS = [
+  { value: "draft", label: "Draft" },
+  { value: "active", label: "Active" },
+  { value: "paused", label: "Paused" },
+  { value: "archived", label: "Archived" },
+];
 
 const toolCategoryIcons: Record<string, React.ReactNode> = {
   web: <Globe size={14} />,
@@ -373,6 +389,9 @@ export function AgentBuilder() {
   const templateCategories = useMemo(() => [...new Set(templates.map((t) => t.category))], [templates]);
   const filteredTemplates = templateCategory ? templates.filter((t) => t.category === templateCategory) : templates;
 
+  const providerModels = useMemo(() => MODELS_BY_PROVIDER[newProvider] ?? [], [newProvider]);
+  const editProviderModels = useMemo(() => MODELS_BY_PROVIDER[editProvider] ?? [], [editProvider]);
+
   if (isLoading && !selectedAgent && !agents.length) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
@@ -458,33 +477,35 @@ export function AgentBuilder() {
                     <label className="block text-sm font-semibold">Role / Instructions</label>
                     <textarea className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5" rows={3} value={newInstructions} onChange={(e) => setNewInstructions(e.target.value)} placeholder="You are an expert..." />
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold">Model Provider</label>
-                    <select className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5" value={newProvider} onChange={(e) => { setNewProvider(e.target.value); setNewModel(MODELS_BY_PROVIDER[e.target.value]?.[0] ?? ""); }}>
-                      {Object.keys(MODELS_BY_PROVIDER).map((p) => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-semibold">Model</label>
-                    <select className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5" value={newModel} onChange={(e) => setNewModel(e.target.value)}>
-                      {(MODELS_BY_PROVIDER[newProvider] ?? []).map((m) => <option key={m} value={m}>{m}</option>)}
-                    </select>
-                  </div>
+                  <Select
+                    label="Model Provider"
+                    value={newProvider}
+                    options={PROVIDER_OPTIONS}
+                    onChange={(v) => { setNewProvider(v); setNewModel(MODELS_BY_PROVIDER[v]?.[0] ?? ""); }}
+                  />
+                  <Select
+                    label="Model"
+                    value={newModel}
+                    options={providerModels.map((m) => ({ value: m, label: m }))}
+                    onChange={(v) => setNewModel(v)}
+                  />
                   <div>
                     <label className="block text-sm font-semibold">Temperature: {newTemperature}</label>
                     <input className="mt-1 w-full" type="range" min="0" max="2" step="0.1" value={newTemperature} onChange={(e) => setNewTemperature(parseFloat(e.target.value))} />
                   </div>
-                  <div>
-                    <label className="block text-sm font-semibold">Output Format</label>
-                    <select className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5" value={newOutputFormat} onChange={(e) => setNewOutputFormat(e.target.value)}>
-                      {OUTPUT_FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
-                    </select>
-                  </div>
-                  <div className="flex items-center gap-3 sm:col-span-2">
-                    <label className="flex items-center gap-2 text-sm font-semibold">
-                      <input type="checkbox" className="rounded" checked={newMemoryEnabled} onChange={(e) => setNewMemoryEnabled(e.target.checked)} />
-                      Enable Memory
-                    </label>
+                  <Select
+                    label="Output Format"
+                    value={newOutputFormat}
+                    options={OUTPUT_FORMAT_OPTIONS}
+                    onChange={(v) => setNewOutputFormat(v)}
+                  />
+                  <div className="sm:col-span-2">
+                    <Switch
+                      label="Enable Memory"
+                      checked={newMemoryEnabled}
+                      onChange={setNewMemoryEnabled}
+                      helperText="Persist context across conversations"
+                    />
                   </div>
                 </div>
                 <div className="mt-4 flex gap-3">
@@ -501,22 +522,28 @@ export function AgentBuilder() {
             {selectedAgent && (
               <>
                 {/* Tab Navigation */}
-                <div className="flex flex-wrap gap-2">
-                  {(["general", "tools", "knowledge", "sub-agents", "memory", "run"] as const).map((tab) => (
-                    <button
-                      key={tab}
-                      onClick={() => setActiveTab(tab)}
-                      className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold capitalize transition ${activeTab === tab ? "bg-indigo-600 text-white shadow-sm" : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"}`}
-                    >
-                      {tab === "general" && <Settings size={14} />}
-                      {tab === "tools" && <Globe size={14} />}
-                      {tab === "knowledge" && <Database size={14} />}
-                      {tab === "sub-agents" && <Users size={14} />}
-                      {tab === "memory" && <Brain size={14} />}
-                      {tab === "run" && <Play size={14} />}
-                      {tab}
-                    </button>
-                  ))}
+                <div className="-mx-1 overflow-x-auto px-1 pb-1 scrollbar-none">
+                  <div className="flex min-w-max gap-2">
+                    {(["general", "tools", "knowledge", "sub-agents", "memory", "run"] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setActiveTab(tab)}
+                        className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold capitalize transition ${
+                          activeTab === tab
+                            ? "bg-indigo-600 text-white shadow-sm"
+                            : "bg-white text-slate-600 hover:bg-slate-100 dark:bg-white/5 dark:text-slate-300 dark:hover:bg-white/10"
+                        }`}
+                      >
+                        {tab === "general" && <Settings size={14} />}
+                        {tab === "tools" && <Globe size={14} />}
+                        {tab === "knowledge" && <Database size={14} />}
+                        {tab === "sub-agents" && <Users size={14} />}
+                        {tab === "memory" && <Brain size={14} />}
+                        {tab === "run" && <Play size={14} />}
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* General Settings Tab */}
@@ -528,15 +555,12 @@ export function AgentBuilder() {
                         <label className="block text-sm font-semibold">Agent Name</label>
                         <input className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5" value={editName} onChange={(e) => setEditName(e.target.value)} />
                       </div>
-                      <div>
-                        <label className="block text-sm font-semibold">Status</label>
-                        <select className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5" value={editStatus} onChange={(e) => setEditStatus(e.target.value)}>
-                          <option value="draft">Draft</option>
-                          <option value="active">Active</option>
-                          <option value="paused">Paused</option>
-                          <option value="archived">Archived</option>
-                        </select>
-                      </div>
+                      <Select
+                        label="Status"
+                        value={editStatus}
+                        options={STATUS_OPTIONS}
+                        onChange={(v) => setEditStatus(v)}
+                      />
                       <div className="sm:col-span-2">
                         <label className="block text-sm font-semibold">Description</label>
                         <input className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
@@ -545,33 +569,35 @@ export function AgentBuilder() {
                         <label className="block text-sm font-semibold">Role / Instructions (System Prompt)</label>
                         <textarea className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5" rows={5} value={editInstructions} onChange={(e) => setEditInstructions(e.target.value)} placeholder="You are an expert..." />
                       </div>
-                      <div>
-                        <label className="block text-sm font-semibold">Model Provider</label>
-                        <select className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5" value={editProvider} onChange={(e) => { setEditProvider(e.target.value); setEditModel(MODELS_BY_PROVIDER[e.target.value]?.[0] ?? ""); }}>
-                          {Object.keys(MODELS_BY_PROVIDER).map((p) => <option key={p} value={p}>{p}</option>)}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold">Model</label>
-                        <select className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5" value={editModel} onChange={(e) => setEditModel(e.target.value)}>
-                          {(MODELS_BY_PROVIDER[editProvider] ?? []).map((m) => <option key={m} value={m}>{m}</option>)}
-                        </select>
-                      </div>
+                      <Select
+                        label="Model Provider"
+                        value={editProvider}
+                        options={PROVIDER_OPTIONS}
+                        onChange={(v) => { setEditProvider(v); setEditModel(MODELS_BY_PROVIDER[v]?.[0] ?? ""); }}
+                      />
+                      <Select
+                        label="Model"
+                        value={editModel}
+                        options={editProviderModels.map((m) => ({ value: m, label: m }))}
+                        onChange={(v) => setEditModel(v)}
+                      />
                       <div>
                         <label className="block text-sm font-semibold">Temperature: {editTemperature}</label>
                         <input className="mt-1 w-full" type="range" min="0" max="2" step="0.1" value={editTemperature} onChange={(e) => setEditTemperature(parseFloat(e.target.value))} />
                       </div>
-                      <div>
-                        <label className="block text-sm font-semibold">Output Format</label>
-                        <select className="mt-1 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm dark:border-white/10 dark:bg-white/5" value={editOutputFormat} onChange={(e) => setEditOutputFormat(e.target.value)}>
-                          {OUTPUT_FORMATS.map((f) => <option key={f} value={f}>{f}</option>)}
-                        </select>
-                      </div>
-                      <div className="flex items-center gap-3 sm:col-span-2">
-                        <label className="flex items-center gap-2 text-sm font-semibold">
-                          <input type="checkbox" className="rounded" checked={editMemoryEnabled} onChange={(e) => setEditMemoryEnabled(e.target.checked)} />
-                          Enable Memory (persist context across conversations)
-                        </label>
+                      <Select
+                        label="Output Format"
+                        value={editOutputFormat}
+                        options={OUTPUT_FORMAT_OPTIONS}
+                        onChange={(v) => setEditOutputFormat(v)}
+                      />
+                      <div className="sm:col-span-2">
+                        <Switch
+                          label="Enable Memory"
+                          checked={editMemoryEnabled}
+                          onChange={setEditMemoryEnabled}
+                          helperText="Persist context across conversations"
+                        />
                       </div>
                     </div>
                     <div className="mt-4 flex gap-3">
@@ -698,12 +724,12 @@ export function AgentBuilder() {
                             <label className="block text-sm font-semibold">Name</label>
                             <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-slate-950/70" value={subName} onChange={(e) => setSubName(e.target.value)} placeholder="e.g., Research Agent" />
                           </div>
-                          <div>
-                            <label className="block text-sm font-semibold">Role</label>
-                            <select className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-slate-950/70" value={subRole} onChange={(e) => setSubRole(e.target.value)}>
-                              {AGENT_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-                            </select>
-                          </div>
+                          <Select
+                            label="Role"
+                            value={subRole}
+                            options={AGENT_ROLE_OPTIONS}
+                            onChange={(v) => setSubRole(v)}
+                          />
                           <div className="flex items-end gap-2">
                             <Button onClick={handleCreateSubAgent} disabled={isSaving || !subName.trim()} type="button" variant="primary" className="flex-1">{isSaving ? <Loader2 className="animate-spin" size={14} /> : <Plus size={14} />} Add</Button>
                             <Button onClick={() => setShowSubForm(false)} type="button" variant="secondary"><X size={14} /></Button>
@@ -770,20 +796,27 @@ export function AgentBuilder() {
                         <p className="mt-1 text-sm text-slate-500">When enabled, the agent remembers user preferences, project context, and past decisions across conversations. Memories are stored with vector embeddings for semantic recall.</p>
                       </div>
                     </div>
-                    <div className="mt-4 flex items-center gap-4">
-                      <label className="flex items-center gap-2 text-sm font-semibold">
-                        <input type="checkbox" className="rounded" checked={editMemoryEnabled} onChange={(e) => { setEditMemoryEnabled(e.target.checked); }} />
-                        Enable Long-Term Memory
-                      </label>
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <Switch
+                        label="Enable Long-Term Memory"
+                        checked={editMemoryEnabled}
+                        onChange={(checked) => { setEditMemoryEnabled(checked); }}
+                      />
                       {editMemoryEnabled && (
-                        <select className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm dark:border-white/10 dark:bg-white/5" value={selectedAgent?.memory_ttl_days ?? 30} onChange={(e) => {
-                          if (selectedAgent) updateCustomAgent(selectedAgent.id, { memory_ttl_days: parseInt(e.target.value) }, workspaceId).then(() => selectAgent(selectedAgent!.id));
-                        }}>
-                          <option value="7">7 days</option>
-                          <option value="30">30 days</option>
-                          <option value="90">90 days</option>
-                          <option value="365">1 year</option>
-                        </select>
+                        <Select
+                          label="Memory TTL"
+                          value={String(selectedAgent?.memory_ttl_days ?? 30)}
+                          options={[
+                            { value: "7", label: "7 days" },
+                            { value: "30", label: "30 days" },
+                            { value: "90", label: "90 days" },
+                            { value: "365", label: "1 year" },
+                          ]}
+                          onChange={(v) => {
+                            if (selectedAgent) updateCustomAgent(selectedAgent.id, { memory_ttl_days: parseInt(v) }, workspaceId).then(() => selectAgent(selectedAgent!.id));
+                          }}
+                          className="w-40"
+                        />
                       )}
                     </div>
                     <div className="mt-4 rounded-2xl border border-dashed border-slate-300 p-6 text-center dark:border-white/15">

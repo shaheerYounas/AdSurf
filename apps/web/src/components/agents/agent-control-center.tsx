@@ -7,7 +7,7 @@ import {
   Bot,
   BrainCircuit,
   CheckCircle2,
-  ChevronRight,
+  ChevronDown,
   ClipboardCheck,
   Eye,
   FileSearch,
@@ -17,15 +17,15 @@ import {
   Play,
   RotateCcw,
   Settings,
-  ShieldCheck,
   Square,
   UploadCloud,
 } from "lucide-react";
 import { AgentInspector } from "@/components/agents/agent-inspector";
 import { AgentTraceTimeline } from "@/components/agents/agent-trace-timeline";
 import { Button } from "@/components/ui/button";
+import { Select } from "@/components/ui/select";
 import { apiBaseUrl, defaultWorkspaceId } from "@/lib/api/client";
-import { selectClasses } from "@/lib/utils";
+import { humanize as humanizeUtil } from "@/lib/utils";
 import {
   controlAgentRun,
   getAccountImportAgentWorkflow,
@@ -340,14 +340,12 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   async function decide(recommendationId: string, decision: "approve" | "reject") {
     setMessage(null);
     const previous = recommendations;
-    // Optimistically remove the card from the pending list so the user sees instant feedback.
     setRecommendations((current) => current.map((item) => item.id === recommendationId ? { ...item, status: decision === "approve" ? "approved" : "rejected" } : item));
     try {
       await decideRecommendation(recommendationId, decision, `${decision} from Agent Control Center after human review.`, workspaceId);
       setMessage(`Recommendation ${decision} recorded. No live Amazon Ads change executed.`);
       await load();
     } catch (caught) {
-      // Roll back the optimistic update if the API rejected the decision.
       setRecommendations(previous);
       setMessage(caught instanceof Error ? caught.message : `Recommendation ${decision} could not be saved.`);
       throw caught;
@@ -476,30 +474,70 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
 }
 
 function TopCommandBar({ environmentMode, isLoading, onEnvironmentChange, onRefresh, onRunAnalysis, onBulkControl, onConfigureAgents, onViewApprovals }: { environmentMode: AgentConfig["mode"]; isLoading: boolean; onEnvironmentChange: (mode: AgentConfig["mode"]) => void; onRefresh: () => void; onRunAnalysis: () => void; onBulkControl: (action: ControlAction) => void | Promise<void>; onConfigureAgents: () => void; onViewApprovals: () => void }) {
+  const [bulkOpen, setBulkOpen] = useState(false);
+
   return (
     <section className="rounded-3xl border border-white/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-white/5 sm:px-5 sm:py-4">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
-          <h1 className="heading-fluid-sm truncate font-semibold tracking-tight text-slate-950 dark:text-white">Agent Control Center</h1>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Multi-agent operations for Amazon Ads recommendations and approvals.</p>
+          <h1 className="text-lg font-semibold tracking-tight text-slate-950 dark:text-white">Agent Control Center</h1>
+          <p className="mt-0.5 text-sm text-slate-600 dark:text-slate-300">Multi-agent operations for Amazon Ads recommendations and approvals.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <select className={`min-h-10 rounded-full border border-slate-200 bg-white pl-4 text-sm font-semibold text-slate-950 outline-none focus:ring-2 focus:ring-indigo-300 dark:border-white/10 dark:bg-slate-950/70 dark:text-white ${selectClasses}`} onChange={(event) => onEnvironmentChange(event.target.value as AgentConfig["mode"])} value={environmentMode} aria-label="Environment mode selector">
-            <option value="deterministic">Deterministic</option>
-            <option value="ai">AI</option>
-            <option value="hybrid">Hybrid</option>
-          </select>
-          <Button onClick={onRunAnalysis} type="button" variant="primary"><Play size={16} /> Run analysis</Button>
-          <Button onClick={onConfigureAgents} disabled={isLoading} type="button" variant="secondary">{isLoading ? <Loader2 className="animate-spin" size={16} /> : <Settings size={16} />} Configure</Button>
-          <Button onClick={onViewApprovals} type="button" variant="accent"><ClipboardCheck size={16} /> Approvals</Button>
+          <Select
+            options={[
+              { value: "deterministic", label: "Deterministic" },
+              { value: "ai", label: "AI" },
+              { value: "hybrid", label: "Hybrid" },
+            ]}
+            value={environmentMode}
+            onChange={(v) => onEnvironmentChange(v as AgentConfig["mode"])}
+            className="w-[170px]"
+          />
+          <Button onClick={onRunAnalysis} type="button" variant="primary"><Play size={15} /> Run analysis</Button>
+
+          <div className="relative">
+            <Button onClick={() => setBulkOpen(!bulkOpen)} size="sm" type="button" variant="secondary">
+              <Pause size={14} />
+              <span>Bulk</span>
+              <ChevronDown size={12} className={`shrink-0 text-slate-400 transition-transform ${bulkOpen ? "rotate-180" : ""}`} />
+            </Button>
+            {bulkOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setBulkOpen(false)} />
+                <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-2xl border border-slate-200 bg-white py-2 shadow-xl shadow-slate-950/10 dark:border-white/10 dark:bg-slate-900">
+                  <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Bulk Actions
+                  </div>
+                  {([
+                    { action: "pause" as ControlAction, label: "Pause all", icon: <Pause size={15} />, desc: "Pause eligible agent runs" },
+                    { action: "resume" as ControlAction, label: "Resume all", icon: <Play size={15} />, desc: "Resume paused agent runs" },
+                    { action: "stop" as ControlAction, label: "Stop all", icon: <Square size={15} />, desc: "Stop active agent runs" },
+                    { action: "rerun" as ControlAction, label: "Rerun failed", icon: <RotateCcw size={15} />, desc: "Rerun failed agent runs" },
+                  ]).map(({ action, label, icon, desc }) => (
+                    <button
+                      key={action}
+                      className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-white/10"
+                      onClick={() => { onBulkControl(action); setBulkOpen(false); }}
+                      type="button"
+                    >
+                      <span className="mt-0.5 shrink-0 text-slate-400 dark:text-slate-500">{icon}</span>
+                      <div className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
+                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">{desc}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          <Button onClick={onConfigureAgents} disabled={isLoading} size="sm" type="button" variant="secondary">
+            {isLoading ? <Loader2 className="animate-spin" size={14} /> : <Settings size={14} />} Configure
+          </Button>
+          <Button onClick={onViewApprovals} size="sm" type="button" variant="accent"><ClipboardCheck size={14} /> Approvals</Button>
         </div>
-      </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200/70 pt-3 dark:border-white/10">
-        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Bulk actions</span>
-        <Button onClick={() => onBulkControl("pause")} type="button" variant="warning"><Pause size={16} /> Pause all</Button>
-        <Button onClick={() => onBulkControl("resume")} type="button" variant="success"><Play size={16} /> Resume all</Button>
-        <Button onClick={() => onBulkControl("stop")} type="button" variant="neutral"><Square size={16} /> Stop all</Button>
-        <Button onClick={() => onBulkControl("rerun")} type="button" variant="secondary"><RotateCcw size={16} /> Rerun failed</Button>
       </div>
     </section>
   );
@@ -548,11 +586,6 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
             {isUploading ? <Loader2 className="animate-spin" size={16} /> : <UploadCloud size={16} />}
             {isUploading ? "Uploading report..." : "Upload report"}
           </Button>
-          <div className="mt-4 space-y-1 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-600 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-300">
-            <p className="break-all"><span className="font-semibold text-slate-900 dark:text-white">API:</span> {apiBaseUrl}</p>
-            <p className="break-all"><span className="font-semibold text-slate-900 dark:text-white">Workspace:</span> {workspaceId}</p>
-            <p className="break-all"><span className="font-semibold text-slate-900 dark:text-white">Latest import:</span> {accountImport?.import_record.id ?? "None yet"}</p>
-          </div>
           <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-slate-950/70">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">View mode</p>
             <div className="mt-2 flex flex-col rounded-full border border-slate-200 bg-slate-100 p-1 dark:border-white/10 dark:bg-white/5 sm:flex-row" role="tablist" aria-label="View mode">
@@ -569,11 +602,6 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
                 </button>
               ))}
             </div>
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <SafetyPill light text="Recommendation only" />
-            <SafetyPill light text="Requires human approval" />
-            <SafetyPill light text="No live Amazon Ads change executed" />
           </div>
         </div>
       </div>
@@ -732,11 +760,6 @@ function ApprovalCard({ recommendation, onDecision }: { recommendation: Recommen
           <MetricTable metrics={recommendation.current_metric_snapshot_json || recommendation.input_metrics_json} />
         </div>
       </details>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <SafetyPill light text="Recommendation only" />
-        <SafetyPill light text="Requires human approval" />
-        <SafetyPill light text="No live Amazon Ads change executed" />
-      </div>
       <div className="mt-auto flex flex-wrap gap-2 pt-4">
         <Button className="flex-1 min-w-[7.5rem]" disabled={pending !== null} onClick={() => handle("approve")} type="button" variant="success">
           {pending === "approve" ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
@@ -991,14 +1014,15 @@ function MetricTable({ metrics }: { metrics: Record<string, unknown> }) {
   return <table className="w-full text-left text-xs"><tbody>{entries.map(([key, value]) => <tr className="border-b border-slate-100 last:border-0 dark:border-white/10" key={key}><th className="py-2 pr-3 font-semibold text-slate-600 dark:text-slate-300">{humanize(key)}</th><td className="py-2 text-slate-950 dark:text-white">{String(value)}</td></tr>)}</tbody></table>;
 }
 
-function SafetyPill({ text, light = false }: { text: string; light?: boolean }) {
-  return <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${light ? "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-300/25 dark:bg-emerald-300/10 dark:text-emerald-100" : "border-white/15 bg-white/10 text-emerald-50"}`}><ShieldCheck size={14} /> {text}</span>;
-}
-
 function Badge({ children }: { children: React.ReactNode }) {
   return <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 dark:border-white/10 dark:bg-white/10 dark:text-slate-200">{children}</span>;
 }
 
 function humanize(value: string) {
+  const display: Record<string, string> = {
+    ai: "AI", deepseek: "DeepSeek", openai: "OpenAI", roas: "ROAS", acos: "ACOS", asin: "ASIN", sku: "SKU",
+  };
+  const lower = value.toLowerCase();
+  if (display[lower]) return display[lower];
   return value.replace(/_/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }

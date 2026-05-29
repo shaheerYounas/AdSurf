@@ -99,7 +99,7 @@ def _score_batch(rows: list[CompetitorCleanedRow]) -> ScoredBatch:
             continue
 
         relevance_score = 0
-        for rv in rank_values:
+        for rv in rank_values[:10]:
             numeric = _parse_float(rv.get("numeric_value"))
             if numeric is not None and numeric > 0 and numeric < 15:
                 relevance_score += 1

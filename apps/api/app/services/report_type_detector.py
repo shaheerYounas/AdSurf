@@ -160,6 +160,9 @@ def _has_required(headers: set[str], required: set[str]) -> bool:
 
 def _expand_known_aliases(headers: set[str]) -> set[str]:
     expanded = set(headers)
+
+    _strip_info_suffixes(expanded)
+
     if "7 day total sales" in expanded:
         expanded.add("sales")
     if "14 day total sales" in expanded:
@@ -172,7 +175,35 @@ def _expand_known_aliases(headers: set[str]) -> set[str]:
         expanded.add("campaign name")
     if "ad group" in expanded:
         expanded.add("ad group name")
+
+    if "daily budget" in expanded:
+        expanded.add("budget")
+    if "campaign daily budget" in expanded:
+        expanded.add("budget")
+    if "ad group default bid" in expanded:
+        expanded.add("bid")
+    if "asin" in expanded or "advertised asin" in expanded:
+        expanded.add("asin")
+    if "sku" in expanded or "advertised sku" in expanded:
+        expanded.add("sku")
     return expanded
+
+
+def _strip_info_suffixes(headers: set[str]) -> None:
+    """Remove 'informational only' suffixes and add stripped versions.
+
+    Amazon bulk workbooks often have columns like:
+    'Campaign Name (Informational only)' alongside 'Campaign Name'.
+    After normalization, these become 'campaign name informational only'.
+    This ensures both forms map to the same canonical names.
+    """
+    info_suffix = " informational only"
+    additions: set[str] = set()
+    for header in headers:
+        if header.endswith(info_suffix):
+            stripped = header[:-len(info_suffix)]
+            additions.add(stripped)
+    headers.update(additions)
 
 
 def _normalize_header(value: str) -> str:

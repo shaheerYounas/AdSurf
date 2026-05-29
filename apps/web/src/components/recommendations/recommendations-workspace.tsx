@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Modal } from "@/components/ui/modal";
+import { Select } from "@/components/ui/select";
 import { defaultWorkspaceId } from "@/lib/api/client";
 import { decideRecommendation, getRecommendations, type Recommendation } from "@/lib/api/monitoring";
-import { selectClasses } from "@/lib/utils";
 
 export function RecommendationsWorkspace() {
   const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId);
@@ -64,21 +65,17 @@ export function RecommendationsWorkspace() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-md border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-            Workspace ID
-            <input className="block w-72 rounded-md border border-slate-300 px-3 py-2 font-mono text-sm dark:border-white/10 dark:bg-slate-950/70 dark:text-white" onChange={(event) => setWorkspaceId(event.target.value)} value={workspaceId} />
-          </label>
-          <Filter label="Status" onChange={setStatusFilter} options={["pending_approval", "approved", "rejected"]} value={statusFilter} />
-          <Filter label="Source" onChange={setSourceFilter} options={["deepseek_ai", "fallback_rules", "deterministic_rules"]} value={sourceFilter} />
-          <Filter label="Priority" onChange={setPriorityFilter} options={["critical", "high", "medium", "low"]} value={priorityFilter} />
-          <Filter label="Type" onChange={setTypeFilter} options={["keep_running", "increase_bid", "decrease_bid", "pause_review", "add_negative_exact", "add_negative_phrase", "move_to_exact", "watch_lock", "data_quality_review", "budget_review"]} value={typeFilter} />
-          <Button disabled={isLoading} onClick={load} type="button" variant="secondary">
+          <Select label="Status" onChange={setStatusFilter} options={["pending_approval", "approved", "rejected"]} value={statusFilter} placeholder="All" />
+          <Select label="Source" onChange={setSourceFilter} options={["deepseek_ai", "fallback_rules", "deterministic_rules"]} value={sourceFilter} placeholder="All" />
+          <Select label="Priority" onChange={setPriorityFilter} options={["critical", "high", "medium", "low"]} value={priorityFilter} placeholder="All" />
+          <Select label="Type" onChange={setTypeFilter} options={["keep_running", "increase_bid", "decrease_bid", "pause_review", "add_negative_exact", "add_negative_phrase", "move_to_exact", "watch_lock", "data_quality_review", "budget_review"]} value={typeFilter} placeholder="All" />
+          <Button disabled={isLoading} onClick={load} size="sm" type="button" variant="secondary">
             Refresh
           </Button>
         </div>
-        {message ? <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-400/10 dark:text-red-300">{message}</p> : null}
+        {message ? <p className="mt-3 rounded-2xl bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-400/10 dark:text-red-300">{message}</p> : null}
       </div>
 
       <div className="overflow-x-auto rounded-md border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950/70">
@@ -124,17 +121,9 @@ export function RecommendationsWorkspace() {
                 </td>
                 <td className="min-w-72 px-3 py-2 text-slate-700 dark:text-slate-300">
                   {recommendation.explanation_json.summary}
-                  <div className="mt-2 flex flex-wrap gap-1 text-xs">
-                    <span className="rounded bg-amber-50 px-2 py-1 text-amber-800 dark:bg-amber-300/15 dark:text-amber-100">Requires human approval</span>
-                    <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-800 dark:bg-emerald-300/15 dark:text-emerald-100">No live Amazon Ads change executed</span>
-                  </div>
                 </td>
                 <td className="min-w-64 px-3 py-2 text-slate-700 dark:text-slate-300">
                   {proposedActionLabel(recommendation)}
-                  <div className="mt-2 flex flex-wrap gap-1 text-xs">
-                    <span className="rounded bg-slate-100 px-2 py-1 text-slate-700 dark:bg-white/10 dark:text-slate-300">Requires human approval</span>
-                    <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-800 dark:bg-emerald-300/15 dark:text-emerald-100">Does not change Amazon Ads account</span>
-                  </div>
                 </td>
                 <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{recommendation.status}</td>
                 <td className="px-3 py-2">
@@ -154,20 +143,26 @@ export function RecommendationsWorkspace() {
           {!isLoading && !filtered.length ? <p className="p-8 text-sm text-slate-600 dark:text-slate-400">No recommendations match the selected filters.</p> : null}
       </div>
 
-      {decisionTarget ? (
-        <div className="rounded-md border border-slate-300 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
-          <p className="font-medium text-slate-900 dark:text-white">{decisionTarget.decision === "approve" ? "Approve recommendation" : "Reject recommendation"}</p>
-          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{decisionTarget.recommendation.recommendation_type} for {decisionTarget.recommendation.customer_search_term}. This records a human decision only; no Amazon Ads change is executed.</p>
-          <textarea className="mt-3 block h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-white/10 dark:bg-slate-950/70 dark:text-white" onChange={(event) => setNote(event.target.value)} value={note} />
-          <div className="mt-3 flex gap-2">
-            <Button disabled={!note.trim() || isLoading} onClick={saveDecision} type="button" variant="primary">
-              {isLoading ? <LoadingSpinner iconOnly size="sm" /> : null}
-              {isLoading ? "Saving..." : "Save decision"}
-            </Button>
-            <Button onClick={() => setDecisionTarget(null)} type="button" variant="secondary">Cancel</Button>
-          </div>
+      <Modal
+        open={decisionTarget !== null}
+        onClose={() => setDecisionTarget(null)}
+        title={decisionTarget?.decision === "approve" ? "Approve recommendation" : "Reject recommendation"}
+        description={`${decisionTarget?.recommendation.recommendation_type ?? ""} for ${decisionTarget?.recommendation.customer_search_term ?? ""}. This records a human decision only; no Amazon Ads change is executed.`}
+      >
+        <textarea
+          className="block h-28 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition hover:border-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:border-white/20 dark:focus:border-indigo-400 dark:focus:ring-indigo-400/20"
+          onChange={(event) => setNote(event.target.value)}
+          placeholder="Add a note explaining your decision..."
+          value={note}
+        />
+        <div className="mt-4 flex gap-2">
+          <Button disabled={!note.trim() || isLoading} onClick={saveDecision} type="button" variant={decisionTarget?.decision === "approve" ? "success" : "danger"}>
+            {isLoading ? <LoadingSpinner iconOnly size="sm" /> : null}
+            {isLoading ? "Saving..." : `Confirm ${decisionTarget?.decision ?? ""}`}
+          </Button>
+          <Button onClick={() => setDecisionTarget(null)} type="button" variant="secondary">Cancel</Button>
         </div>
-      ) : null}
+      </Modal>
     </div>
   );
 }
@@ -199,16 +194,3 @@ function proposedActionLabel(recommendation: Recommendation) {
   return [action, `level ${level}`, multiplier ? `bid x${multiplier}` : null, negativeMatch ? `negative ${negativeMatch}` : null].filter(Boolean).join(" / ");
 }
 
-function Filter({ label, onChange, options, value }: { label: string; onChange: (value: string) => void; options: string[]; value: string }) {
-  return (
-    <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-300">
-      {label}
-      <select className={`block rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-white/10 dark:bg-slate-950/70 dark:text-white ${selectClasses}`} onChange={(event) => onChange(event.target.value)} value={value}>
-        <option value="">All</option>
-        {options.map((option) => (
-          <option key={option} value={option}>{option}</option>
-        ))}
-      </select>
-    </label>
-  );
-}

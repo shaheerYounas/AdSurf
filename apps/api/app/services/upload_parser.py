@@ -98,6 +98,7 @@ class UploadParser:
                 shared_strings = _read_shared_strings(archive)
                 sheets = _workbook_sheets(workbook_xml, rels_xml)
                 detected_sheet_names = [sheet_name for sheet_name, _ in sheets]
+                candidates: list[tuple[str, str, int]] = []
                 for sheet_name, sheet_path in sheets:
                     parsed = _parse_sheet_stream(
                         archive=archive,
@@ -109,7 +110,19 @@ class UploadParser:
                         limits=self._limits,
                     )
                     if parsed.total_columns > 0:
-                        return parsed
+                        candidates.append((sheet_name, sheet_path, parsed.total_columns))
+                if not candidates:
+                    raise ApiError(code="UPLOAD_PARSE_EMPTY_FILE", message="Uploaded workbook has no non-empty sheets.", status_code=400)
+                selected = _select_best_candidate(candidates)
+                return _parse_sheet_stream(
+                    archive=archive,
+                    sheet_path=selected[1],
+                    shared_strings=shared_strings,
+                    detected_file_type="xlsx",
+                    detected_sheet_names=detected_sheet_names,
+                    selected_sheet_name=selected[0],
+                    limits=self._limits,
+                )
         except KeyError as exc:
             raise ApiError(code="UPLOAD_PARSE_INVALID_XLSX", message="XLSX workbook is missing required parts.", status_code=400) from exc
         except zipfile.BadZipFile as exc:
@@ -345,6 +358,45 @@ def _xlsx_cell_value(cell: ElementTree.Element, shared_strings: list[str]) -> An
         return int(number) if number.is_integer() else number
     except ValueError:
         return raw_value
+
+
+_BULK_SHEET_PRIORITY_NAMES = [
+    "sponsored products campaigns",
+    "sp search term report",
+    "sponsored products search term report",
+]
+
+_SINGLE_SHEET_PRIORITY_NAMES = [
+    "sponsored products search term",
+    "sponsored products targeting",
+    "sponsored products campaigns",
+]
+
+
+def _select_best_candidate(candidates: list[tuple[str, str, int]]) -> tuple[str, str, int]:
+    """Select the most relevant sheet from multi-sheet workbooks.
+
+    Prioritizes Sponsored Products Campaigns and SP Search Term Report sheets
+    for bulk workbooks, and search term report sheets for single-sheet reports.
+    Falls back to the sheet with the most columns.
+    """
+    names = {candidate[0].strip().lower() for candidate in candidates}
+
+    for priority_name in _BULK_SHEET_PRIORITY_NAMES:
+        for candidate in candidates:
+            if candidate[0].strip().lower() == priority_name:
+                return candidate
+
+    if len(candidates) == 1:
+        return candidates[0]
+
+    for priority_name in _SINGLE_SHEET_PRIORITY_NAMES:
+        for candidate in candidates:
+            if priority_name in candidate[0].strip().lower():
+                return candidate
+
+    # Fallback: sheet with most columns
+    return max(candidates, key=lambda c: c[2])
 
 
 def _column_index(cell_reference: str) -> int:

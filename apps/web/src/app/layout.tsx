@@ -3,6 +3,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
 import { ThemeProvider, themeBootstrapScript } from "@/components/theme/theme-provider";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { SafetyNotice } from "@/components/ui/safety-notice";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -29,7 +30,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 </div>
                 <ThemeToggle compact />
               </div>
-              <div className="mx-auto max-w-[1800px] px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</div>
+              <div className="mx-auto max-w-[1800px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+                {children}
+                <footer className="mt-10 flex justify-center border-t border-slate-200 pt-5 dark:border-white/10">
+                  <SafetyNotice variant="compact" />
+                </footer>
+              </div>
             </main>
           </div>
           <OnboardingTour />

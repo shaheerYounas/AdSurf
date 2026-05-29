@@ -66,6 +66,16 @@ html.dark body {
   background: hsl(var(--brand) / 0.18);
 }
 
+@layer utilities {
+  .scrollbar-none {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}
+
 @layer components {
   .glass-panel {
     border: 1px solid hsl(0 0% 100% / 0.7);
