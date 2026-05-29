@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, Bot, ClipboardCheck, FileText, GitBranch, LayoutDashboard, ListChecks, PackageSearch, PlusCircle, Settings, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { defaultWorkspaceId } from "@/lib/api/client";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 const mainNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, helper: "Workspace overview" },
@@ -73,9 +74,12 @@ function AgentPanel({ onBack }: { onBack: () => void }) {
   return (
     <>
       <div className="mb-5 rounded-[1.75rem] border border-slate-200/70 bg-white/80 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-        <button className="mb-5 inline-flex min-h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition hover:border-indigo-200 hover:text-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-200" onClick={onBack} type="button">
-          <ArrowLeft size={16} /> Main menu
-        </button>
+        <div className="mb-5 flex items-center justify-between gap-3">
+          <button className="inline-flex min-h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition hover:border-indigo-200 hover:text-indigo-700 focus-visible:ring-2 focus-visible:ring-indigo-300 dark:border-white/10 dark:bg-white/5 dark:text-slate-200" onClick={onBack} type="button">
+            <ArrowLeft size={16} /> Main menu
+          </button>
+          <ThemeToggle compact />
+        </div>
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-950/20 dark:bg-white dark:text-slate-950">
             <Sparkles aria-hidden="true" size={20} />
@@ -114,14 +118,17 @@ function AgentPanel({ onBack }: { onBack: () => void }) {
 function BrandCard({ eyebrow, title }: { eyebrow: string; title: string }) {
   return (
     <div className="mb-8 rounded-[1.75rem] border border-slate-200/70 bg-white/80 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-      <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-950/20 dark:bg-white dark:text-slate-950">
-          <Sparkles aria-hidden="true" size={20} />
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-slate-950/20 dark:bg-white dark:text-slate-950">
+            <Sparkles aria-hidden="true" size={20} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">{eyebrow}</p>
+            <h1 className="mt-1 truncate text-lg font-semibold tracking-tight text-slate-950 dark:text-white">{title}</h1>
+          </div>
         </div>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-slate-500 dark:text-slate-400">{eyebrow}</p>
-          <h1 className="mt-1 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">{title}</h1>
-        </div>
+        <ThemeToggle compact />
       </div>
       <div className="mt-5 rounded-2xl border border-emerald-200/80 bg-emerald-50/80 px-3 py-2 text-xs leading-5 text-emerald-900 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-100">
         <span className="inline-flex items-center gap-1 font-semibold"><ShieldCheck size={14} /> Safe mode</span>

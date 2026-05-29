@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { defaultWorkspaceId } from "@/lib/api/client";
 import { decideRecommendation, getRecommendations, type Recommendation } from "@/lib/api/monitoring";
+import { selectClasses } from "@/lib/utils";
 
 export function RecommendationsWorkspace() {
   const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId);
@@ -72,7 +74,7 @@ export function RecommendationsWorkspace() {
           <Filter label="Source" onChange={setSourceFilter} options={["deepseek_ai", "fallback_rules", "deterministic_rules"]} value={sourceFilter} />
           <Filter label="Priority" onChange={setPriorityFilter} options={["critical", "high", "medium", "low"]} value={priorityFilter} />
           <Filter label="Type" onChange={setTypeFilter} options={["keep_running", "increase_bid", "decrease_bid", "pause_review", "add_negative_exact", "add_negative_phrase", "move_to_exact", "watch_lock", "data_quality_review", "budget_review"]} value={typeFilter} />
-          <Button className="bg-slate-700" disabled={isLoading} onClick={load} type="button">
+          <Button disabled={isLoading} onClick={load} type="button" variant="secondary">
             Refresh
           </Button>
         </div>
@@ -138,8 +140,8 @@ export function RecommendationsWorkspace() {
                 <td className="px-3 py-2">
                   {recommendation.status === "pending_approval" ? (
                     <div className="flex gap-2">
-                      <Button onClick={() => setDecisionTarget({ recommendation, decision: "approve" })} type="button">Approve</Button>
-                      <Button className="bg-slate-700" onClick={() => setDecisionTarget({ recommendation, decision: "reject" })} type="button">Reject</Button>
+                      <Button onClick={() => setDecisionTarget({ recommendation, decision: "approve" })} type="button" variant="success">Approve</Button>
+                      <Button onClick={() => setDecisionTarget({ recommendation, decision: "reject" })} type="button" variant="danger">Reject</Button>
                     </div>
                   ) : (
                     <span className="text-slate-500">Decided</span>
@@ -149,7 +151,7 @@ export function RecommendationsWorkspace() {
             ))}
           </tbody>
         </table>
-        {!filtered.length ? <p className="p-8 text-sm text-slate-600">No recommendations match the selected filters.</p> : null}
+          {!isLoading && !filtered.length ? <p className="p-8 text-sm text-slate-600">No recommendations match the selected filters.</p> : null}
       </div>
 
       {decisionTarget ? (
@@ -158,8 +160,11 @@ export function RecommendationsWorkspace() {
           <p className="mt-1 text-sm text-slate-600">{decisionTarget.recommendation.recommendation_type} for {decisionTarget.recommendation.customer_search_term}. This records a human decision only; no Amazon Ads change is executed.</p>
           <textarea className="mt-3 block h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" onChange={(event) => setNote(event.target.value)} value={note} />
           <div className="mt-3 flex gap-2">
-            <Button disabled={!note.trim() || isLoading} onClick={saveDecision} type="button">Save decision</Button>
-            <Button className="bg-slate-700" onClick={() => setDecisionTarget(null)} type="button">Cancel</Button>
+            <Button disabled={!note.trim() || isLoading} onClick={saveDecision} type="button" variant="primary">
+              {isLoading ? <LoadingSpinner iconOnly size="sm" /> : null}
+              {isLoading ? "Saving..." : "Save decision"}
+            </Button>
+            <Button onClick={() => setDecisionTarget(null)} type="button" variant="secondary">Cancel</Button>
           </div>
         </div>
       ) : null}
@@ -198,7 +203,7 @@ function Filter({ label, onChange, options, value }: { label: string; onChange: 
   return (
     <label className="space-y-2 text-sm font-medium text-slate-700">
       {label}
-      <select className="block rounded-md border border-slate-300 px-3 py-2 text-sm" onChange={(event) => onChange(event.target.value)} value={value}>
+      <select className={`block rounded-md border border-slate-300 px-3 py-2 text-sm ${selectClasses}`} onChange={(event) => onChange(event.target.value)} value={value}>
         <option value="">All</option>
         {options.map((option) => (
           <option key={option} value={option}>{option}</option>

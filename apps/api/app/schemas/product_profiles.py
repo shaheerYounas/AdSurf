@@ -27,6 +27,12 @@ class ProductProfileBase(BaseModel):
     default_budget: PositiveMoney = Decimal("10.0000")
     default_bid: PositiveMoney = Decimal("1.0000")
     status: ProductProfileStatus = ProductProfileStatus.ACTIVE
+    product_cost: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=12, decimal_places=4)
+    product_price: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=12, decimal_places=4)
+    margin_pct: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("1"), max_digits=8, decimal_places=4)
+    break_even_acos: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("1"), max_digits=8, decimal_places=4)
+    category: str | None = Field(default=None, max_length=100)
+    brand_name: str | None = Field(default=None, max_length=200)
 
     @field_validator("product_name")
     @classmethod
@@ -41,9 +47,18 @@ class ProductProfileBase(BaseModel):
     def normalize_percentage(cls, value: Decimal) -> Decimal:
         return value.quantize(Decimal("0.0001"))
 
-    @field_validator("default_budget", "default_bid")
+    @field_validator("default_budget", "default_bid", "product_cost", "product_price")
     @classmethod
-    def normalize_money(cls, value: Decimal) -> Decimal:
+    def normalize_money(cls, value: Decimal | None) -> Decimal | None:
+        if value is None:
+            return value
+        return value.quantize(Decimal("0.0001"))
+
+    @field_validator("margin_pct", "break_even_acos")
+    @classmethod
+    def normalize_margin(cls, value: Decimal | None) -> Decimal | None:
+        if value is None:
+            return value
         return value.quantize(Decimal("0.0001"))
 
 
@@ -61,6 +76,12 @@ class ProductProfileUpdate(BaseModel):
     default_budget: PositiveMoney | None = None
     default_bid: PositiveMoney | None = None
     status: ProductProfileStatus | None = None
+    product_cost: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=12, decimal_places=4)
+    product_price: Decimal | None = Field(default=None, ge=Decimal("0"), max_digits=12, decimal_places=4)
+    margin_pct: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("1"), max_digits=8, decimal_places=4)
+    break_even_acos: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("1"), max_digits=8, decimal_places=4)
+    category: str | None = Field(default=None, max_length=100)
+    brand_name: str | None = Field(default=None, max_length=200)
 
     @field_validator("product_name")
     @classmethod
@@ -77,9 +98,14 @@ class ProductProfileUpdate(BaseModel):
     def normalize_percentage(cls, value: Decimal | None) -> Decimal | None:
         return value.quantize(Decimal("0.0001")) if value is not None else value
 
-    @field_validator("default_budget", "default_bid")
+    @field_validator("default_budget", "default_bid", "product_cost", "product_price")
     @classmethod
     def normalize_money(cls, value: Decimal | None) -> Decimal | None:
+        return value.quantize(Decimal("0.0001")) if value is not None else value
+
+    @field_validator("margin_pct", "break_even_acos")
+    @classmethod
+    def normalize_margin(cls, value: Decimal | None) -> Decimal | None:
         return value.quantize(Decimal("0.0001")) if value is not None else value
 
 

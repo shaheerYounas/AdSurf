@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { createProductProfile } from "@/lib/api/products";
 
 export function ProductSetupForm() {
@@ -70,8 +71,9 @@ export function ProductSetupForm() {
       </label>
       <div className="md:col-span-2">
         {error ? <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p> : null}
-        <button className="rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white disabled:bg-slate-300" disabled={isSubmitting} type="submit">
-          {isSubmitting ? "Saving" : "Save product"}
+        <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white disabled:bg-slate-300" disabled={isSubmitting} type="submit">
+          {isSubmitting ? <Loader2 aria-hidden="true" className="animate-spin" size={16} /> : null}
+          {isSubmitting ? "Saving..." : "Save product"}
         </button>
       </div>
     </form>

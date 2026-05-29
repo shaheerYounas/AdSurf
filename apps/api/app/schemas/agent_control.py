@@ -76,6 +76,7 @@ class AgentDefinition(BaseModel):
     display_name: str
     description: str
     task_type: str
+    category: str = "legacy"
     enabled_by_default: bool = True
     allowed_actions: list[str]
     input_dependencies: list[str] = Field(default_factory=list)
@@ -83,6 +84,7 @@ class AgentDefinition(BaseModel):
     can_be_disabled: bool = True
     can_be_rerun: bool = True
     can_be_stopped: bool = True
+    can_use_ai: bool = True
     requires_human_approval: bool = True
     can_mutate_live_amazon_ads: bool = False
 

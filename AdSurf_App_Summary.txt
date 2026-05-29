@@ -1,0 +1,496 @@
+================================================================================
+                        AdSurf - COMPREHENSIVE APP SUMMARY
+================================================================================
+
+Version: 1.0
+Date: May 29, 2026
+Repository: https://github.com/shaheerYonas/AdSurf
+
+================================================================================
+1. WHAT IS AdSurf?
+================================================================================
+
+AdSurf is the **Amazon Ads AI Automation Control Center** — a production-minded,
+MVP-friendly SaaS platform built for Amazon sellers and agencies. The product
+helps customers move from raw competitor keyword research files all the way to
+reviewed keyword lists, campaign plans, bulk sheet exports, monitoring insights,
+and approval-controlled AI recommendations.
+
+The platform is architected as a full-stack application:
+  - Next.js 14+ frontend (TypeScript, Tailwind CSS, shadcn/ui)
+  - FastAPI backend (Python)
+  - Supabase PostgreSQL database
+  - Python worker processes for file processing, campaign generation, and monitoring
+  - Provider-agnostic AI layer (DeepSeek, OpenAI, Anthropic, Google, local models)
+
+================================================================================
+2. CORE PRIME DIRECTIVE
+================================================================================
+
+  "AI agents do not directly execute dangerous changes.
+   Rules calculate. AI explains. Humans approve.
+   The system logs every decision."
+
+This is the canonical product rule. Every feature, every API endpoint, and every
+workflow is designed around this principle. The product never performs live
+Amazon Ads mutations without explicit human approval, and every customer-impacting
+transition writes an audit log.
+
+================================================================================
+3. TARGET USERS & PERSONAS
+================================================================================
+
+Primary Users:
+  - Amazon Sellers: Individual or small-team sellers managing Sponsored Products,
+    Sponsored Brands, and Sponsored Display campaigns.
+  - Agency Operators: Marketing agencies managing multiple seller accounts,
+    needing bulk campaign reviews, approval workflows, and client reporting.
+  - E-commerce Analysts: Data-focused users who want structured AI recommendations
+    backed by metric evidence, not black-box AI suggestions.
+
+Canonical Roles:
+  - owner     → Full workspace control
+  - admin     → Manage users, configurations, billing
+  - analyst   → Upload reports, run AI analysis, view recommendations
+  - approver  → Review and approve/reject AI recommendations
+  - viewer    → Read-only access to dashboards and reports
+
+================================================================================
+4. KEY WORKFLOWS (END-TO-END)
+================================================================================
+
+4.1 Upload to Keywords Workflow
+--------------------------------
+  1. User uploads an Amazon Ads report (CSV/XLS/XLSX) — search term report,
+     campaign performance report, bulk sheet, or targeting report.
+  2. File Processing Worker parses the file, detects column mappings, cleans data.
+  3. System normalizes keywords, ASINs, SKUs, campaign names, and metrics.
+  4. Deterministic rules score keywords for relevance.
+  5. User reviews keyword list in the dashboard, accepting or rejecting mappings.
+  6. Approved keywords feed into campaign generation.
+
+4.2 Campaign Generation Workflow
+--------------------------------
+  1. Approved keyword list enters the Campaign Generation Worker.
+  2. Worker groups keywords into campaigns, ad groups, and targets.
+  3. Negative keyword structure is calculated (exact and phrase negatives).
+  4. Amazon bulk sheet rows are generated for export.
+  5. User reviews the campaign plan and exports the bulk sheet.
+  6. User manually uploads the bulk sheet to Amazon Ads Console.
+
+4.3 Monitoring & Recommendations Workflow (14-Day Agent Pipeline)
+------------------------------------------------------------------
+  1. User imports performance data from Amazon Ads reports into monitoring.
+  2. Multi-agent pipeline runs across 11 specialized AI agents:
+     - Report Upload Node        → Receives and validates the report
+     - Report Detection Agent    → Classifies report type, columns, confidence
+     - Product Resolution Agent  → Maps ASINs, SKUs, product names
+     - Metrics Analysis Agent    → Calculates winners, wasters, risks
+     - AI Recommendation Brain   → Generates strict JSON recommendation decisions
+     - Bid Optimization Agent    → Reviews bid increase/decrease recommendations
+     - Negative Keyword Agent    → Reviews wasted search terms for negatives
+     - Budget Allocation Agent   → Reviews budget pressure and reallocation
+     - Pause Review Agent        → Identifies campaigns that may need pausing
+     - Stakeholder Reporting Agent → Creates dashboards and executive summaries
+     - Human Approval Agent      → Routes recommendations to approval queue
+  3. Every recommendation includes metric evidence, confidence score, and risk notes.
+  4. Recommendations appear as business-friendly cards in the approval queue.
+  5. Users approve or reject each recommendation individually.
+  6. Approved recommendations generate bulk sheet export rows.
+  7. Nothing executes on Amazon Ads automatically — human approval is mandatory.
+
+4.4 Custom Agent Builder Workflow (NEW)
+----------------------------------------
+  1. User navigates to the Agent Builder dashboard.
+  2. Creates a new custom AI agent from scratch or clones a template:
+     - Names the agent (e.g., "Sales Research Agent")
+     - Writes role instructions (system prompt)
+     - Selects model provider and model (GPT-4o, Claude, DeepSeek, Gemini, local)
+     - Sets temperature and output format (text, JSON, markdown, table, code, email)
+  3. Configures tools with permission levels:
+     - Safe tools: Web Search, Browser Preview, GitHub Repo Reader, Database Query,
+       File Reader, Knowledge Base Search, Image Analyzer
+     - Dangerous tools (require approval): Gmail Send, GitHub Repo Writer,
+       Database Write, CRM Update, Payment API, Calendar Write
+  4. Creates or links knowledge bases from uploaded documents.
+  5. Adds sub-agents to form a multi-agent team:
+     - Research Agent → Analyzes data and gathers information
+     - Writer Agent → Creates polished content
+     - Reviewer Agent → Checks quality and accuracy
+     - Coder Agent → Modifies code
+     - Analyst Agent → Performs data analysis
+  6. Enables long-term memory with vector embeddings for semantic recall.
+  7. Tests the agent by sending messages and viewing run traces.
+  8. The runtime follows: Supervisor → Sub-agents → Tools → Reviewer →
+     Output Format → Approval Check.
+
+================================================================================
+5. TECHNICAL ARCHITECTURE
+================================================================================
+
+5.1 Frontend (apps/web/)
+------------------------
+  - Framework: Next.js 14 (App Router)
+  - Language: TypeScript
+  - Styling: Tailwind CSS
+  - Components: shadcn/ui (customized Button, inputs, etc.)
+  - State: React hooks (useState, useEffect, useMemo)
+  - API Communication: Fetch API with workspace-scoped auth headers
+
+  Key Pages:
+    - /              → Landing / Dashboard homepage
+    - /dashboard     → Performance overview, products, checklist
+    - /agents        → Agent Control Center (monitoring agents pipeline)
+    - /agent-builder → Custom AI Agent Builder (NEW)
+    - /products      → Product profiles management
+    - /recommendations → Recommendation approval queue
+
+  Key Components:
+    - Agent Control Center: Full multi-agent monitoring dashboard with workflow
+      canvas, agent team cards, inspector panel, trace timeline, approval
+      checkpoint cards, and bulk control actions.
+    - Agent Builder: Complete custom agent creation dashboard with 6 tabs
+      (General, Tools, Knowledge, Sub-agents, Memory, Run), template sidebar,
+      19 available tools across 5 categories, sub-agent workflow visualization.
+    - Agent Inspector: Configuration panel for individual monitoring agents.
+    - Approval Cards: Business-friendly recommendation cards with metric tables
+      and approve/reject actions.
+    - Upload Components: File upload with progress tracking, report type detection.
+
+5.2 Backend API (apps/api/)
+---------------------------
+  - Framework: FastAPI (Python)
+  - Auth: Workspace-based role system with principal dependency injection
+  - Database: SQLAlchemy with raw SQL via text() for PostgreSQL JSONB support
+  - Error Handling: Structured ApiError with codes and HTTP status codes
+  - Response Format: Envelope pattern { success, data, meta, error }
+
+  API v1 Modules:
+    - /agents        → Monitoring agent definitions, configs, runs, workflow
+    - /custom-agents → Custom agent builder CRUD (NEW)
+    - /uploads       → File upload and parsing
+    - /products      → Product profiles
+    - /campaigns     → Campaign plans and bulk sheet exports
+    - /monitoring    → Imports, metrics, recommendations
+    - /competitor    → Competitor keyword cleaning and scoring
+    - /account-imports → Bulk account report imports
+    - /workflows     → Durable workflow orchestration (LangGraph-inspired)
+    - /dev           → Development utilities
+
+  Service Layer:
+    - AI Provider Factory → Provider-agnostic LLM access (OpenAI-compatible API pattern)
+    - DeepSeek Client → Specialized client for DeepSeek models
+    - AI Recommendation Brain → Deterministic + AI hybrid recommendation engine
+    - Monitoring Workers → 14-day rule evaluation, metric analysis
+    - Competitor Pipeline → Keyword cleaning, verification, relevance scoring
+    - Agent Registry → Agent definition catalog with workflow ordering
+    - Account Agent Workflow → Builds agent runs from account imports
+
+5.3 Database (Supabase PostgreSQL)
+-----------------------------------
+  Core Tables (30+ total):
+    - workspaces, users, workspace_members  → Multi-tenancy foundation
+    - uploads, upload_parsing               → File handling
+    - column_mapping                        → CSV/XLSX column discovery
+    - keyword_scoring, keyword_review       → Keyword pipeline
+    - product_profiles                      → ASIN/SKU/campaign entity tracking
+    - competitor_cleaned                    → Cleaned competitor keyword data
+    - campaigns, campaign_ad_groups         → Campaign planning
+    - monitoring_imports, monitoring_metrics → Performance monitoring
+    - ai_runs, recommendations              → AI pipeline tracking
+    - agent_definitions, agent_configs       → Monitoring agent system
+    - agent_workflows, agent_workflow_events → Durable workflow traces
+    - agent_workflow_checkpoints            → Workflow state snapshots
+    - agent_tool_calls, agent_llm_calls     → Tool/LLM audit trail
+    - human_approval_gates                  → Approval checkpoints
+    - custom_agents                         → Custom agent configurations (NEW)
+    - agent_tools                           → Tool permissions per agent (NEW)
+    - knowledge_bases                       → Document collections (NEW)
+    - knowledge_base_files, chunks          → RAG pipeline (NEW)
+    - agent_knowledge_bases                 → Agent-KB links (NEW)
+    - sub_agents                            → Specialist agents (NEW)
+    - agent_threads, agent_messages         → Conversations (NEW)
+    - agent_memories                        → Long-term memory (NEW)
+    - custom_agent_runs, run_steps          → Execution traces (NEW)
+    - agent_secrets                         → Encrypted credentials (NEW)
+    - agent_templates                       → Pre-built configs (NEW)
+
+  Security: Row-Level Security (RLS) on every table, scoped by workspace
+  membership and role.
+
+5.4 Workers
+-----------
+  - File Processing Worker: Parses CSV/XLSX, detects column mappings, cleans data,
+    resolves entities.
+  - Campaign Generation Worker: Groups keywords, builds negative structures,
+    generates bulk sheet rows.
+  - Monitoring Worker: Ingests performance data, evaluates 14-day rules,
+    generates recommendations.
+
+5.5 Infrastructure
+-------------------
+  - Database: Supabase PostgreSQL with pgvector extension (for embeddings)
+  - Storage: Supabase Storage for uploads and bulk sheet exports
+  - Auth: Workspace-based role system (mock/local auth in development)
+  - Environment: Docker-ready with docker-compose (referenced in AGENTS.md)
+  - Testing: Vitest (frontend), pytest (backend), Playwright (E2E)
+
+================================================================================
+6. THE CUSTOM AGENT BUILDER SYSTEM (Detailed)
+================================================================================
+
+This is the most recently added feature, transforming AdSurf from an Amazon Ads
+monitoring tool into a full AI agent platform.
+
+6.1 What the Frontend Shows the User
+-------------------------------------
+  The Agent Builder dashboard is a complete agent creation control panel:
+
+  UI Setting           | What the user sees
+  ---------------------|--------------------------------------------------
+  Agent name           | Text input: "Sales Research Agent"
+  Description          | Text input: "Researches competitors and writes briefs"
+  Role / Instructions  | Textarea: "You are an expert sales researcher..."
+  Model provider       | Dropdown: OpenAI, Anthropic, DeepSeek, Google, Local
+  Model name           | Dropdown: gpt-4o, claude-3-5-sonnet, deepseek-chat...
+  Temperature          | Slider: 0.0 to 2.0
+  Output format        | Dropdown: text, JSON, markdown, table, code, email
+  Memory toggle        | Checkbox: Enable long-term memory
+  Tools selection      | Grid of 19 tools across 5 categories with badges
+                         (⚠ Dangerous, Needs approval) - click to toggle
+  Knowledge bases      | List of created KBs - click to link/unlink
+  Sub-agents           | Create specialist agents with roles and instructions
+                         Visual execution flow: Supervisor → Agent1 → Agent2 → Output
+  Agent status         | Dropdown: Draft, Active, Paused, Archived
+  Test/Run             | Chat-like input to test the agent
+
+  Templates sidebar shows 5 pre-built agents filterable by category:
+  - Marketing Research Agent
+  - Sales Outreach Agent
+  - Code Review Agent
+  - Customer Support Agent
+  - General Research Assistant
+
+6.2 What Gets Saved in the Backend
+-----------------------------------
+  When the user clicks "Save Agent" (or "Create Agent"), the backend stores a
+  configuration like:
+
+  {
+    "id": "uuid",
+    "name": "Website Upgrade Agent",
+    "description": "Improves client websites to premium level.",
+    "role_instructions": "Act as a senior web designer and developer.",
+    "model_provider": "openai",
+    "model_name": "gpt-4o",
+    "temperature": 0.7,
+    "memory_enabled": true,
+    "memory_ttl_days": 30,
+    "output_format": "text",
+    "status": "active",
+    "tools": [
+      { "tool_name": "web_search", "permission_level": "read" },
+      { "tool_name": "github_repo_reader", "permission_level": "read" },
+      { "tool_name": "github_repo_writer", "permission_level": "write", "requires_approval": true },
+      { "tool_name": "browser", "permission_level": "read" },
+      { "tool_name": "image_analyzer", "permission_level": "read" }
+    ],
+    "knowledge_base_ids": ["kb_client_brief_pdf"],
+    "sub_agents": [
+      { "name": "Research Agent", "role": "researcher", "instructions": "Analyze competitor websites", "execution_order": 1 },
+      { "name": "UI/UX Agent", "role": "designer", "instructions": "Create premium UI improvement plan", "execution_order": 2 },
+      { "name": "Developer Agent", "role": "coder", "instructions": "Modify frontend code", "execution_order": 3 },
+      { "name": "Reviewer Agent", "role": "reviewer", "instructions": "Check final result", "execution_order": 4 }
+    ]
+  }
+
+6.3 How the Backend Uses This Configuration
+--------------------------------------------
+  Agent Configuration (PostgreSQL)
+      ↓
+  Agent Runtime (FastAPI endpoint)
+      ↓
+  LLM Model (selected provider/model)
+      ↓
+  Tools (with permission/approval checks)
+      ↓
+  Knowledge Base (RAG retrieval)
+      ↓
+  Memory (vector search for relevant context)
+      ↓
+  Logs / Traces / Steps (audit trail)
+
+  The full runtime pipeline:
+  User Request → Supervisor Agent → Sub-Agent 1 → Sub-Agent 2 → ... →
+  Tool Calls (with approval gates for dangerous actions) → Reviewer Agent →
+  Output Format → Response
+
+6.4 How UI Changes Become Backend Behavior
+-------------------------------------------
+  User changes in UI          | Backend effect
+  ----------------------------|------------------------------------------------
+  Changes agent instruction   | Updates system prompt
+  Selects GPT/Claude/Gemini   | Updates model provider/model_name setting
+  Enables web search          | Adds web_search to agent_tools table
+  Enables GitHub write        | Adds github_repo_writer with requires_approval=true
+  Uploads PDF to KB           | Creates knowledge base → extracts text → chunks → embeddings → pgvector
+  Enables memory              | Sets memory_enabled=true; runtime queries agent_memories via vector search
+  Adds sub-agent              | Inserts row in sub_agents table; runtime creates agent node
+  Sets output as JSON         | Updates output_format; runtime adds JSON schema constraint
+  Clones template             | Copies config_json, creates tools and sub-agents from template
+
+6.5 Tool Permission Model
+--------------------------
+  Every tool has a permission level and safety classification:
+
+  Tool                   | Level    | Dangerous | Default Approval
+  -----------------------|----------|-----------|------------------
+  Web Search             | read     | No        | Not required
+  Browser Preview        | read     | No        | Not required
+  Image Analyzer         | read     | No        | Not required
+  GitHub Repo Reader     | read     | No        | Not required
+  File Reader            | read     | No        | Not required
+  Knowledge Base Search  | read     | No        | Not required
+  Database Query         | read     | No        | Not required
+  CRM Lookup             | read     | No        | Not required
+  Calendar Reader        | read     | No        | Not required
+  Ticket Lookup          | read     | No        | Not required
+  Email Draft            | read     | No        | Required
+  Custom API             | read     | No        | Required
+  GitHub Repo Writer     | write    | Yes       | Required
+  Gmail Send             | write    | Yes       | Required
+  Database Write         | write    | Yes       | Required
+  CRM Update             | write    | Yes       | Required
+  Calendar Write         | write    | Yes       | Required
+  Payment API            | execute  | Yes       | Required
+  Gmail Read             | read     | No        | Required (privacy)
+
+================================================================================
+7. NON-NEGOTIABLE MVP CONSTRAINTS
+================================================================================
+
+  1. First execution mode is Amazon bulk sheet export.
+     → Users download CSV/XLSX files and upload them to Amazon manually.
+  2. Amazon Ads API execution is later-version work only.
+     → No live API calls to Amazon Ads in MVP.
+  3. Product must be usable by non-technical sellers and agency operators.
+     → Simple language, business-friendly recommendation cards, guided workflows.
+  4. AI may recommend, summarize, map, and explain.
+     → AI may NOT silently act on live Amazon Ads.
+  5. Canonical roles are: owner, admin, analyst, approver, viewer.
+     → Every workspace is isolated.
+
+================================================================================
+8. DOCUMENTATION STRUCTURE
+================================================================================
+
+  docs/
+  ├── 00-index.md               → Documentation reading order and index
+  ├── 01-product/PRD.md         → Product requirements, MVP, personas, journeys
+  ├── 02-domain/                → Amazon Ads domain model, keywords, campaigns
+  ├── 03-architecture/          → System architecture, frontend, backend, workers
+  ├── 04-ai-agents/             → Agent system overview, safety, schemas
+  ├── 05-workflows/             → End-to-end operational workflows
+  ├── 06-ui-ux/USER_GUIDE.md    → User guide, navigation, components
+  ├── 07-engineering/           → Tech stack, standards, testing, deployment
+  ├── 08-planning/ROADMAP.md    → Release sequence, implementation tasks
+  └── adr/                      → Architecture Decision Records
+
+================================================================================
+9. TESTING STRATEGY
+================================================================================
+
+  - Unit Tests: Vitest for frontend (lib/utils, upload-constraints, etc.)
+  - Integration Tests: pytest for backend API endpoints
+  - E2E Tests: Playwright for user workflows (upload, analysis, recommendations)
+  - Manual Test Scripts: Node.js scripts for API verification (test-*.mjs)
+  - Visual Testing: Screenshots captured at each workflow step (screenshots/)
+  - Safety Testing: AI agents verified to never execute live Amazon Ads changes
+
+================================================================================
+10. DEPLOYMENT & ENVIRONMENT
+================================================================================
+
+  Development:
+  - Frontend: next dev (localhost:3000)
+  - Backend: uvicorn (localhost:8000)
+  - Database: Supabase local or cloud
+  - Workers: Python scripts triggered by API or queue
+
+  Production (planned):
+  - Docker containerization
+  - Supabase cloud for database, auth, storage
+  - Worker processes as separate services
+  - CI/CD via GitHub Actions
+
+================================================================================
+11. REPOSITORY STRUCTURE
+================================================================================
+
+  AdSurf/
+  ├── apps/
+  │   ├── web/          → Next.js frontend dashboard
+  │   └── api/          → FastAPI backend API
+  ├── workers/
+  │   ├── file-processing-worker/
+  │   ├── campaign-generation-worker/
+  │   └── monitoring-worker/
+  ├── packages/
+  │   ├── config/       → Shared configuration (planned)
+  │   ├── shared/       → Shared rules and fixtures (planned)
+  │   └── types/        → Shared TypeScript/Python types (planned)
+  ├── supabase/
+  │   └── migrations/   → 20+ database migration files
+  ├── tests/
+  │   ├── unit/
+  │   ├── integration/
+  │   └── e2e/
+  ├── scripts/          → Dev utilities, seed data, import scripts
+  ├── screenshots/      → Automated test screenshots
+  └── docs/             → Complete product and technical documentation
+
+================================================================================
+12. CURRENT STATE & ROADMAP SUMMARY
+================================================================================
+
+  COMPLETED:
+  ✓ Multi-tenant workspace system with role-based access
+  ✓ File upload and parsing (CSV, XLS, XLSX)
+  ✓ Column mapping and report type detection
+  ✓ Keyword scoring and review pipeline
+  ✓ Competitor keyword cleaning and verification
+  ✓ Campaign generation and bulk sheet export
+  ✓ Product profile and ASIN/SKU entity resolution
+  ✓ 14-day monitoring with metrics import
+  ✓ 11-agent monitoring pipeline (Report Detection through Human Approval)
+  ✓ Agent control center with pause/resume/stop/rerun controls
+  ✓ Recommendation approval queue with metric evidence cards
+  ✓ Workflow canvas with visual agent pipeline
+  ✓ Agent trace timeline with event logs
+  ✓ Account import workflow with entity grouping
+  ✓ Durable workflow orchestration (checkpoints, gate events)
+  ✓ Human approval gates with audit trail
+  ✓ Custom Agent Builder system (13 tables, 40+ API endpoints, full UI)
+  ✓ 5 pre-built agent templates
+  ✓ 19 available tools catalog with permission levels
+  ✓ Knowledge base system with vector embedding support
+  ✓ Sub-agent multi-agent team configuration
+  ✓ Long-term memory with vector search
+  ✓ Agent run execution with step tracing
+  ✓ Tool permission model with approval gates for dangerous actions
+
+  PLANNED / FUTURE:
+  ○ Bulk sheet export UX polish (preview before download)
+  ○ Amazon Ads API integration (post-MVP)
+  ○ Real-time streaming for custom agent runs
+  ○ Advanced RAG with actual PDF parsing and embedding generation
+  ○ More sophisticated agent orchestration (parallel sub-agents, conditional routing)
+  ○ Custom API key management UI for tools
+  ○ Agent marketplace / sharing
+  ○ Analytics dashboard for agent usage and costs
+  ○ Scheduled agent runs (cron-based)
+  ○ Chat-based agent conversation interface with streaming responses
+
+================================================================================
+                        END OF DOCUMENT
+================================================================================

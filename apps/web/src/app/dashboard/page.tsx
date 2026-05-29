@@ -24,7 +24,7 @@ export default async function DashboardPage() {
         <p className="inline-flex rounded-full border border-indigo-300/25 bg-indigo-300/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.22em] text-indigo-100">
           Workspace command center
         </p>
-        <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">Dashboard</h1>
+        <h1 className="heading-fluid-lg mt-4 font-semibold tracking-tight text-white">Dashboard</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-300">
           Track products, uploaded research files, parsing progress, and the launch checklist for approval-controlled bulk export.
         </p>

@@ -25,6 +25,7 @@ import { AgentInspector } from "@/components/agents/agent-inspector";
 import { AgentTraceTimeline } from "@/components/agents/agent-trace-timeline";
 import { Button } from "@/components/ui/button";
 import { apiBaseUrl, defaultWorkspaceId } from "@/lib/api/client";
+import { selectClasses } from "@/lib/utils";
 import {
   controlAgentRun,
   getAccountImportAgentWorkflow,
@@ -136,7 +137,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
     for (const run of runs) if (!map.has(run.agent_id)) map.set(run.agent_id, run);
     return map;
   }, [runs]);
-  const workflowNodes = useMemo(() => buildWorkflowNodes({ agentCatalog, configByAgent, latestRunByAgent, workflow, durableWorkflow, recommendations }), [agentCatalog, configByAgent, latestRunByAgent, workflow, durableWorkflow, recommendations]);
+  const workflowNodes = useMemo(() => buildWorkflowNodes({ agentCatalog, configByAgent, latestRunByAgent, workflow, recommendations }), [agentCatalog, configByAgent, latestRunByAgent, workflow, recommendations]);
   const workflowEdges = useMemo(() => buildWorkflowEdges(workflow), [workflow]);
   const selectedAgent = agentCatalog.find((agent) => agent.agent_id === selectedAgentId) ?? agentCatalog[0];
   const selectedRun = runs.find((run) => run.id === selectedRunId) ?? latestRunByAgent.get(selectedAgent?.agent_id ?? "");
@@ -338,12 +339,18 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
 
   async function decide(recommendationId: string, decision: "approve" | "reject") {
     setMessage(null);
+    const previous = recommendations;
+    // Optimistically remove the card from the pending list so the user sees instant feedback.
+    setRecommendations((current) => current.map((item) => item.id === recommendationId ? { ...item, status: decision === "approve" ? "approved" : "rejected" } : item));
     try {
       await decideRecommendation(recommendationId, decision, `${decision} from Agent Control Center after human review.`, workspaceId);
       setMessage(`Recommendation ${decision} recorded. No live Amazon Ads change executed.`);
       await load();
     } catch (caught) {
+      // Roll back the optimistic update if the API rejected the decision.
+      setRecommendations(previous);
       setMessage(caught instanceof Error ? caught.message : `Recommendation ${decision} could not be saved.`);
+      throw caught;
     }
   }
 
@@ -375,7 +382,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
 
   return (
     <div className="min-h-screen rounded-[1.75rem] bg-slate-100 p-3 text-slate-950 dark:bg-slate-950 dark:text-white sm:p-4 lg:p-5">
-      <main className="min-w-0 space-y-6">
+      <main className="mx-auto min-w-0 max-w-[1600px] space-y-6">
           <TopCommandBar
             environmentMode={environmentMode}
             isLoading={isLoading || isRunningAnalysis || isSavingConfig}
@@ -405,7 +412,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
 
           {message ? <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-900 dark:border-indigo-300/25 dark:bg-indigo-300/10 dark:text-indigo-100">{message}</div> : null}
 
-          <section className="grid min-w-0 items-start gap-6 2xl:grid-cols-[minmax(0,1fr)_400px]">
+          <section className="grid min-w-0 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,400px)]">
             <div className="min-w-0 space-y-6">
               <HeroUpload
                 accountImport={accountImport}
@@ -452,7 +459,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
               {experienceMode === "advanced" ? <AgentTemplates onApply={applyTemplate} /> : null}
             </div>
 
-            <div className="min-w-0 2xl:sticky 2xl:top-6 2xl:max-h-[calc(100vh-3rem)] 2xl:overflow-auto" id="agent-inspector">
+            <div className="min-w-0 xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-auto" id="agent-inspector">
               <AgentInspector
                 agent={selectedAgent}
                 config={selectedConfig}
@@ -472,24 +479,29 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
 
 function TopCommandBar({ environmentMode, isLoading, onEnvironmentChange, onRefresh, onRunAnalysis, onBulkControl, onConfigureAgents, onViewApprovals }: { environmentMode: AgentConfig["mode"]; isLoading: boolean; onEnvironmentChange: (mode: AgentConfig["mode"]) => void; onRefresh: () => void; onRunAnalysis: () => void; onBulkControl: (action: ControlAction) => void | Promise<void>; onConfigureAgents: () => void; onViewApprovals: () => void }) {
   return (
-    <section className="flex flex-wrap items-center justify-between gap-3 rounded-3xl border border-white/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-white/5">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-slate-950 dark:text-white">Agent Control Center</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-300">Multi-agent operations for Amazon Ads recommendations and approvals.</p>
+    <section className="rounded-3xl border border-white/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-white/5 sm:px-5 sm:py-4">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <h1 className="heading-fluid-sm truncate font-semibold tracking-tight text-slate-950 dark:text-white">Agent Control Center</h1>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Multi-agent operations for Amazon Ads recommendations and approvals.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <select className={`min-h-10 rounded-full border border-slate-200 bg-white pl-4 text-sm font-semibold text-slate-950 outline-none focus:ring-2 focus:ring-indigo-300 dark:border-white/10 dark:bg-slate-950/70 dark:text-white ${selectClasses}`} onChange={(event) => onEnvironmentChange(event.target.value as AgentConfig["mode"])} value={environmentMode} aria-label="Environment mode selector">
+            <option value="deterministic">Deterministic</option>
+            <option value="ai">AI</option>
+            <option value="hybrid">Hybrid</option>
+          </select>
+          <Button onClick={onRunAnalysis} type="button" variant="primary"><Play size={16} /> Run analysis</Button>
+          <Button onClick={onConfigureAgents} disabled={isLoading} type="button" variant="secondary">{isLoading ? <Loader2 className="animate-spin" size={16} /> : <Settings size={16} />} Configure</Button>
+          <Button onClick={onViewApprovals} type="button" variant="accent"><ClipboardCheck size={16} /> Approvals</Button>
+        </div>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <select className="min-h-10 rounded-full border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none focus:ring-2 focus:ring-indigo-300 dark:border-white/10 dark:bg-slate-950/70 dark:text-white" onChange={(event) => onEnvironmentChange(event.target.value as AgentConfig["mode"])} value={environmentMode} aria-label="Environment mode selector">
-          <option value="deterministic">Deterministic</option>
-          <option value="ai">AI</option>
-          <option value="hybrid">Hybrid</option>
-        </select>
-        <Button onClick={onRunAnalysis} type="button"><Play size={16} /> Run analysis</Button>
-        <Button className="bg-amber-600 hover:bg-amber-500 dark:bg-amber-200 dark:text-amber-950" onClick={() => onBulkControl("pause")} type="button"><Pause size={16} /> Pause all</Button>
-        <Button className="bg-emerald-700 hover:bg-emerald-600 dark:bg-emerald-200 dark:text-emerald-950" onClick={() => onBulkControl("resume")} type="button"><Play size={16} /> Resume all</Button>
-        <Button className="bg-zinc-800 hover:bg-zinc-700 dark:bg-zinc-200 dark:text-zinc-950" onClick={() => onBulkControl("stop")} type="button"><Square size={16} /> Stop all</Button>
-        <Button onClick={() => onBulkControl("rerun")} type="button"><RotateCcw size={16} /> Rerun failed</Button>
-        <Button onClick={onConfigureAgents} disabled={isLoading} type="button">{isLoading ? <Loader2 className="animate-spin" size={16} /> : <Settings size={16} />} Configure agents</Button>
-        <Button className="bg-violet-700 hover:bg-violet-600 dark:bg-violet-200 dark:text-violet-950" onClick={onViewApprovals} type="button"><ClipboardCheck size={16} /> View approvals</Button>
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-200/70 pt-3 dark:border-white/10">
+        <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Bulk actions</span>
+        <Button onClick={() => onBulkControl("pause")} type="button" variant="warning"><Pause size={16} /> Pause all</Button>
+        <Button onClick={() => onBulkControl("resume")} type="button" variant="success"><Play size={16} /> Resume all</Button>
+        <Button onClick={() => onBulkControl("stop")} type="button" variant="neutral"><Square size={16} /> Stop all</Button>
+        <Button onClick={() => onBulkControl("rerun")} type="button" variant="secondary"><RotateCcw size={16} /> Rerun failed</Button>
       </div>
     </section>
   );
@@ -498,25 +510,25 @@ function TopCommandBar({ environmentMode, isLoading, onEnvironmentChange, onRefr
 function HeroUpload({ accountImport, completedCount, failedCount, activeCount, pendingApprovals, selectedFile, isUploading, experienceMode, onExperienceModeChange, onFileChange, onUpload, uploadStatus, workspaceId }: { accountImport: AccountImportResponse | null; completedCount: number; failedCount: number; activeCount: number; pendingApprovals: number; selectedFile: File | null; isUploading: boolean; experienceMode: ExperienceMode; onExperienceModeChange: (mode: ExperienceMode) => void; onFileChange: (file: File | null) => void; onUpload: () => void; uploadStatus: UploadStatusMessage; workspaceId: string }) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70 sm:p-6" id="reports">
-      <div className="grid gap-5">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-6">
         <div className="min-w-0">
           <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-800 dark:border-indigo-300/25 dark:bg-indigo-300/10 dark:text-indigo-100">
             <UploadCloud size={14} /> Start analysis
           </div>
-          <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Upload Amazon Ads Report</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+          <h2 className="heading-fluid mt-4 font-semibold tracking-tight text-slate-950 dark:text-white">Upload Amazon Ads Report</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
             Upload an account-level report or bulk sheet, then AdSurf will detect report type, group entities, prepare agent inputs, and keep every recommendation behind human approval.
           </p>
           {uploadStatus.kind !== "idle" ? (
             <div className={`mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold ${uploadStatusClass(uploadStatus.kind)}`}>
               <div className="flex items-center gap-2">
                 {uploadStatus.kind === "loading" ? <Loader2 className="animate-spin" size={16} /> : null}
-                <span>{uploadStatus.text}</span>
+                <span className="break-words">{uploadStatus.text}</span>
               </div>
-              {uploadStatus.detail ? <p className="mt-1 text-xs font-medium opacity-80">{uploadStatus.detail}</p> : null}
+              {uploadStatus.detail ? <p className="mt-1 break-words text-xs font-medium opacity-80">{uploadStatus.detail}</p> : null}
             </div>
           ) : null}
-          <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(130px,1fr))] gap-3">
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:gap-3 sm:grid-cols-4">
             <StepMetric label="Completed" value={completedCount} />
             <StepMetric label="Running" value={activeCount} />
             <StepMetric label="Failed" value={failedCount} />
@@ -524,12 +536,12 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
           </div>
           {accountImport ? (
             <div className="mt-5 rounded-2xl border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-950 dark:border-indigo-300/25 dark:bg-indigo-300/10 dark:text-indigo-100">
-              <p className="font-semibold">{humanize(accountImport.detection.detected_report_type)} · {accountImport.import_record.status}</p>
-              <p className="mt-1 leading-6">{accountImport.import_record.processed_rows} rows grouped across {accountImport.entities.length} entities. {accountImport.product_mapping_suggestions.length} product mappings need review.</p>
+              <p className="break-words font-semibold">{humanize(accountImport.detection.detected_report_type)} · {accountImport.import_record.status}</p>
+              <p className="mt-1 break-words leading-6">{accountImport.import_record.processed_rows} rows grouped across {accountImport.entities.length} entities. {accountImport.product_mapping_suggestions.length} product mappings need review.</p>
             </div>
           ) : null}
         </div>
-        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+        <div className="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
           <label className="block text-sm font-semibold text-slate-900 dark:text-white">
             Report file
             <input className="mt-2 block min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-3 file:py-1 file:text-white focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-white/10 dark:bg-slate-950/70 dark:text-white dark:file:bg-white dark:file:text-slate-950" onChange={(event) => onFileChange(event.target.files?.[0] ?? null)} type="file" accept=".csv,.xls,.xlsx" />
@@ -538,16 +550,25 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
             {isUploading ? <Loader2 className="animate-spin" size={16} /> : <UploadCloud size={16} />}
             {isUploading ? "Uploading report..." : "Upload report"}
           </Button>
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-600 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-300">
-            <p><span className="font-semibold text-slate-900 dark:text-white">API:</span> {apiBaseUrl}</p>
-            <p><span className="font-semibold text-slate-900 dark:text-white">Workspace:</span> {workspaceId}</p>
-            <p><span className="font-semibold text-slate-900 dark:text-white">Latest import:</span> {accountImport?.import_record.id ?? "None yet"}</p>
+          <div className="mt-4 space-y-1 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 text-xs leading-5 text-slate-600 dark:border-white/10 dark:bg-slate-950/70 dark:text-slate-300">
+            <p className="break-all"><span className="font-semibold text-slate-900 dark:text-white">API:</span> {apiBaseUrl}</p>
+            <p className="break-all"><span className="font-semibold text-slate-900 dark:text-white">Workspace:</span> {workspaceId}</p>
+            <p className="break-all"><span className="font-semibold text-slate-900 dark:text-white">Latest import:</span> {accountImport?.import_record.id ?? "None yet"}</p>
           </div>
           <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-slate-950/70">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">View mode</p>
-            <div className="mt-2 grid grid-cols-2 gap-2">
+            <div className="mt-2 flex flex-col rounded-full border border-slate-200 bg-slate-100 p-1 dark:border-white/10 dark:bg-white/5 sm:flex-row" role="tablist" aria-label="View mode">
               {(["simple", "advanced"] as ExperienceMode[]).map((mode) => (
-                <button className={`min-h-10 rounded-full border px-3 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 ${experienceMode === mode ? "border-indigo-300 bg-indigo-600 text-white shadow-sm dark:bg-indigo-300 dark:text-indigo-950" : "border-slate-200 bg-white text-slate-700 hover:border-indigo-200 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"}`} key={mode} onClick={() => onExperienceModeChange(mode)} type="button">{experienceLabels[mode]}</button>
+                <button
+                  className={`flex-1 inline-flex min-h-9 items-center justify-center rounded-full px-3 py-1.5 text-center text-xs font-semibold leading-snug outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 sm:text-sm ${experienceMode === mode ? "bg-indigo-600 text-white shadow-sm dark:bg-indigo-300 dark:text-indigo-950" : "bg-transparent text-slate-700 hover:bg-white dark:text-slate-200 dark:hover:bg-white/10"}`}
+                  key={mode}
+                  onClick={() => onExperienceModeChange(mode)}
+                  role="tab"
+                  aria-selected={experienceMode === mode}
+                  type="button"
+                >
+                  {experienceLabels[mode]}
+                </button>
               ))}
             </div>
           </div>
@@ -562,37 +583,37 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
   );
 }
 
-function AgentTeamDashboard({ agents, configByAgent, latestRunByAgent, selectedAgentId, onSelect }: { agents: AgentDefinition[]; configByAgent: Map<string, AgentConfig>; latestRunByAgent: Map<string, AgentRun>; selectedAgentId: string; onSelect: (agentId: string, runId?: string) => void }) {
+function AgentTeamDashboard({ agents, configByAgent, latestRunByAgent, selectedAgentId, onSelect, onConfigure, onViewTrace }: { agents: AgentDefinition[]; configByAgent: Map<string, AgentConfig>; latestRunByAgent: Map<string, AgentRun>; selectedAgentId: string; onSelect: (agentId: string, runId?: string) => void; onConfigure: (agentId: string, runId?: string) => void; onViewTrace: (agentId: string, runId?: string) => void }) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Agent Team Dashboard</p>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Operational agent cards</h2>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400 sm:text-sm">Agent Team Dashboard</p>
+          <h2 className="heading-fluid mt-1 break-words font-semibold tracking-tight text-slate-950 dark:text-white">Operational agent cards</h2>
         </div>
         <Badge>Approval-controlled workflow</Badge>
       </div>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
+      <div className="grid grid-cols-1 items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {workflowOrder.map((agentId) => {
           const agent = agents.find((item) => item.agent_id === agentId) ?? fallbackAgents.find((item) => item.agent_id === agentId)!;
           const config = configByAgent.get(agentId);
           const run = latestRunByAgent.get(agentId);
-          return <AgentCard agent={agent} config={config} run={run} selected={selectedAgentId === agentId} onSelect={() => onSelect(agentId, run?.id)} key={agentId} />;
+          return <AgentCard agent={agent} config={config} run={run} selected={selectedAgentId === agentId} onSelect={() => onSelect(agentId, run?.id)} onConfigure={onConfigure} onViewTrace={onViewTrace} key={agentId} />;
         })}
       </div>
     </section>
   );
 }
 
-function AgentCard({ agent, config, run, selected, onSelect }: { agent: AgentDefinition; config?: AgentConfig; run?: AgentRun; selected: boolean; onSelect: () => void }) {
+function AgentCard({ agent, config, run, selected, onSelect, onConfigure, onViewTrace }: { agent: AgentDefinition; config?: AgentConfig; run?: AgentRun; selected: boolean; onSelect: () => void; onConfigure?: (agentId: string, runId?: string) => void; onViewTrace?: (agentId: string, runId?: string) => void }) {
   const status = displayStatus(run?.status, agent.agent_id, config);
   return (
-    <article className={`min-w-[280px] rounded-3xl border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${selected ? "border-indigo-300 bg-indigo-50 shadow-indigo-950/10 dark:border-indigo-300/40 dark:bg-indigo-300/10" : "border-slate-200 bg-white hover:border-indigo-200 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"}`}>
+    <article className={`flex h-full min-w-0 flex-col rounded-3xl border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${selected ? "border-indigo-300 bg-indigo-50 shadow-indigo-950/10 dark:border-indigo-300/40 dark:bg-indigo-300/10" : "border-slate-200 bg-white hover:border-indigo-200 dark:border-white/10 dark:bg-white/5 dark:hover:bg-white/10"}`}>
       <div className="flex items-start justify-between gap-3">
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-950 text-white dark:bg-white dark:text-slate-950">{agentIcon(agent.agent_id)}</span>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white dark:bg-white dark:text-slate-950">{agentIcon(agent.agent_id)}</span>
         <StatusBadge status={status} />
       </div>
-      <h3 className="mt-4 text-base font-semibold leading-6 text-slate-950 dark:text-white">{agent.display_name}</h3>
+      <h3 className="mt-4 break-words text-base font-semibold leading-6 text-slate-950 dark:text-white">{agent.display_name}</h3>
       <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Role: {humanize(agent.task_type)}</p>
       <p className="mt-2 line-clamp-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{agent.description}</p>
       <div className="mt-4 grid gap-2 text-xs">
@@ -607,9 +628,9 @@ function AgentCard({ agent, config, run, selected, onSelect }: { agent: AgentDef
         <Badge>{run?.created_at ? new Date(run.created_at).toLocaleDateString() : "no run"}</Badge>
       </div>
       {run?.error_json && Object.keys(run.error_json).length ? <p className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 dark:border-red-300/25 dark:bg-red-300/10 dark:text-red-100">Error state: validation or provider issue</p> : null}
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button className="px-3" onClick={onSelect} type="button"><Settings size={16} /> Configure</Button>
-        <Button className="bg-white px-3 text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/10 dark:text-white dark:ring-white/10" onClick={onSelect} type="button"><Eye size={16} /> View trace</Button>
+      <div className="mt-auto flex flex-wrap gap-2 pt-4">
+        <Button className="flex-1 min-w-[7.5rem] px-3" onClick={() => onConfigure ? onConfigure(agent.agent_id, run?.id) : onSelect()} type="button" variant="primary"><Settings size={16} /> Configure</Button>
+        <Button className="flex-1 min-w-[7.5rem] px-3" onClick={() => onViewTrace ? onViewTrace(agent.agent_id, run?.id) : onSelect()} type="button" variant="secondary"><Eye size={16} /> View trace</Button>
       </div>
     </article>
   );
@@ -618,10 +639,10 @@ function AgentCard({ agent, config, run, selected, onSelect }: { agent: AgentDef
 function WorkflowCanvas({ nodes, edges, selectedAgentId, onSelect }: { nodes: CanvasNode[]; edges: CanvasEdge[]; selectedAgentId: string; onSelect: (agentId: string) => void }) {
   return (
     <section className="min-w-0 overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top_right,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#020617,#111827_45%,#1e1b4b)] p-5 shadow-xl shadow-slate-950/20 sm:p-6" id="workflow-canvas">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-200">Visual Workflow Canvas</p>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-white">How agents pass data to approval</h2>
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-200 sm:text-sm">Visual Workflow Canvas</p>
+          <h2 className="heading-fluid mt-1 truncate font-semibold tracking-tight text-white">How agents pass data to approval</h2>
         </div>
         <div className="flex flex-wrap gap-2">
           <CanvasLegend status="running" label="Running" />
@@ -630,35 +651,36 @@ function WorkflowCanvas({ nodes, edges, selectedAgentId, onSelect }: { nodes: Ca
           <CanvasLegend status="approval_needed" label="Approval needed" />
         </div>
       </div>
-      <div className="overflow-x-auto pb-3">
-        <div className="flex min-w-max items-center gap-4">
+      <div className="-mx-1 overflow-x-auto pb-3" role="region" aria-label="Workflow canvas, scrollable horizontally">
+        <div className="flex min-w-max items-stretch gap-4 px-1">
           {nodes.map((node, index) => (
             <div className="flex items-center gap-4" key={node.agent_id}>
-              <button className={`group min-w-[220px] max-w-[240px] rounded-3xl border p-4 text-left outline-none transition hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white ${node.agent_id === selectedAgentId ? "border-white bg-white/18 shadow-2xl shadow-indigo-500/30" : nodeClass(node.status)}`} onClick={() => onSelect(node.agent_id)} type="button">
+              <button className={`group flex h-full w-[220px] flex-col rounded-3xl border p-4 text-left outline-none transition hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white ${node.agent_id === selectedAgentId ? "border-white bg-white/18 shadow-2xl shadow-indigo-500/30" : nodeClass(node.status)}`} onClick={() => onSelect(node.agent_id)} type="button">
                 <div className="flex items-center justify-between gap-3">
-                  <span className={`flex h-11 w-11 items-center justify-center rounded-2xl ${nodeIconClass(node.status)}`}>{agentIcon(node.agent_id)}</span>
+                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${nodeIconClass(node.status)}`}>{agentIcon(node.agent_id)}</span>
                   <StatusBadge status={node.status} />
                 </div>
-                <p className="mt-4 text-sm font-semibold leading-5 text-white">{node.display_name}</p>
+                <p className="mt-4 break-words text-sm font-semibold leading-5 text-white">{node.display_name}</p>
                 <p className="mt-2 line-clamp-2 text-xs leading-5 text-indigo-100">{node.current_task}</p>
-                <p className="mt-3 text-xs font-semibold text-indigo-200">{node.recommendations_created} recommendations</p>
+                <p className="mt-auto pt-3 text-xs font-semibold text-indigo-200">{node.recommendations_created} recommendations</p>
               </button>
               {index < nodes.length - 1 ? <WorkflowEdge edge={edges[index]} active={["running", "completed", "succeeded"].includes(node.status)} /> : null}
             </div>
           ))}
         </div>
       </div>
+      <p className="mt-2 text-[11px] text-indigo-200/80 sm:hidden">Swipe horizontally to see the full pipeline.</p>
     </section>
   );
 }
 
-function ApprovalCheckpointSummary({ pendingApprovals, highPriorityCount, dangerousCount, onDecision }: { pendingApprovals: Recommendation[]; highPriorityCount: number; dangerousCount: number; onDecision: (recommendationId: string, decision: "approve" | "reject") => void }) {
+function ApprovalCheckpointSummary({ pendingApprovals, highPriorityCount, dangerousCount, onDecision }: { pendingApprovals: Recommendation[]; highPriorityCount: number; dangerousCount: number; onDecision: (recommendationId: string, decision: "approve" | "reject") => Promise<void> | void }) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70" id="approval-checkpoints">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-violet-600 dark:text-violet-200">Human Approval Checkpoints</p>
-          <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">{pendingApprovals.length} recommendations waiting approval</h2>
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-600 dark:text-violet-200 sm:text-sm">Human Approval Checkpoints</p>
+          <h2 className="heading-fluid mt-1 break-words font-semibold tracking-tight text-slate-950 dark:text-white">{pendingApprovals.length} recommendations waiting approval</h2>
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge>{highPriorityCount} high priority</Badge>
@@ -666,7 +688,7 @@ function ApprovalCheckpointSummary({ pendingApprovals, highPriorityCount, danger
           <Badge>AI confidence visible</Badge>
         </div>
       </div>
-      <div className="mt-5 grid gap-4 lg:grid-cols-2">
+      <div className="mt-5 grid items-stretch gap-4 lg:grid-cols-2">
         {pendingApprovals.slice(0, 4).map((item) => <ApprovalCard recommendation={item} key={item.id} onDecision={onDecision} />)}
         {!pendingApprovals.length ? <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-600 dark:border-white/15 dark:text-slate-300">No pending approvals yet. Recommendations created by agents will appear here as business-friendly cards with metric evidence and risk notes.</div> : null}
       </div>
@@ -674,17 +696,33 @@ function ApprovalCheckpointSummary({ pendingApprovals, highPriorityCount, danger
   );
 }
 
-function ApprovalCard({ recommendation, onDecision }: { recommendation: Recommendation; onDecision: (recommendationId: string, decision: "approve" | "reject") => void }) {
+function ApprovalCard({ recommendation, onDecision }: { recommendation: Recommendation; onDecision: (recommendationId: string, decision: "approve" | "reject") => Promise<void> | void }) {
+  const [pending, setPending] = useState<"approve" | "reject" | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handle(decision: "approve" | "reject") {
+    if (pending) return;
+    setPending(decision);
+    setError(null);
+    try {
+      await Promise.resolve(onDecision(recommendation.id, decision));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : `Recommendation ${decision} could not be saved.`);
+    } finally {
+      setPending(null);
+    }
+  }
+
   return (
-    <article className="rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+    <article className="flex h-full min-w-0 flex-col rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
       <div className="flex flex-wrap gap-2">
         <Badge>{humanize(recommendation.recommendation_type)}</Badge>
         <Badge>{recommendation.priority}</Badge>
         <Badge>{recommendation.confidence}</Badge>
       </div>
-      <h3 className="mt-3 text-base font-semibold text-slate-950 dark:text-white">{recommendation.campaign_name || "Account-level recommendation"}</h3>
-      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{recommendation.explanation_json?.summary ?? "Review metric evidence before deciding."}</p>
-      <div className="mt-3 grid gap-2 text-xs md:grid-cols-2">
+      <h3 className="mt-3 break-words text-base font-semibold text-slate-950 dark:text-white">{recommendation.campaign_name || "Account-level recommendation"}</h3>
+      <p className="mt-1 break-words text-sm text-slate-600 dark:text-slate-300">{recommendation.explanation_json?.summary ?? "Review metric evidence before deciding."}</p>
+      <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
         <AgentFact label="Product/ASIN" value={String(recommendation.evidence_json?.asin ?? recommendation.product_id ?? "Not linked")} />
         <AgentFact label="Ad group" value={recommendation.ad_group_name || "Not specified"} />
         <AgentFact label="Target/search term" value={recommendation.customer_search_term || recommendation.targeting || "Not specified"} />
@@ -701,10 +739,17 @@ function ApprovalCard({ recommendation, onDecision }: { recommendation: Recommen
         <SafetyPill light text="Requires human approval" />
         <SafetyPill light text="No live Amazon Ads change executed" />
       </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Button onClick={() => onDecision(recommendation.id, "approve")} type="button"><CheckCircle2 size={16} /> Approve</Button>
-        <Button className="bg-red-700 hover:bg-red-600 dark:bg-red-200 dark:text-red-950" onClick={() => onDecision(recommendation.id, "reject")} type="button"><Square size={16} /> Reject</Button>
+      <div className="mt-auto flex flex-wrap gap-2 pt-4">
+        <Button className="flex-1 min-w-[7.5rem]" disabled={pending !== null} onClick={() => handle("approve")} type="button" variant="success">
+          {pending === "approve" ? <Loader2 className="animate-spin" size={16} /> : <CheckCircle2 size={16} />}
+          {pending === "approve" ? "Approving..." : "Approve"}
+        </Button>
+        <Button className="flex-1 min-w-[7.5rem]" disabled={pending !== null} onClick={() => handle("reject")} type="button" variant="danger">
+          {pending === "reject" ? <Loader2 className="animate-spin" size={16} /> : <Square size={16} />}
+          {pending === "reject" ? "Rejecting..." : "Reject"}
+        </Button>
       </div>
+      {error ? <p className="mt-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-800 dark:border-red-300/25 dark:bg-red-300/10 dark:text-red-100">{error}</p> : null}
     </article>
   );
 }
@@ -714,14 +759,14 @@ function AgentTemplates({ onApply }: { onApply: (name: string) => void }) {
     <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70" id="agent-settings">
       <div className="mb-4">
         <p className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Agent Templates</p>
-        <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Future-ready team presets</h2>
+        <h2 className="heading-fluid mt-1 font-semibold tracking-tight text-slate-950 dark:text-white">Future-ready team presets</h2>
       </div>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-3">
+      <div className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {templates.map(([name, description]) => (
-          <article className="rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5" key={name}>
-            <p className="font-semibold text-slate-950 dark:text-white">{name}</p>
+          <article className="flex h-full min-w-0 flex-col rounded-3xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5" key={name}>
+            <p className="break-words font-semibold text-slate-950 dark:text-white">{name}</p>
             <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</p>
-            <Button className="mt-4 bg-white text-slate-950 ring-1 ring-slate-200 hover:bg-slate-50 dark:bg-white/10 dark:text-white dark:ring-white/10" onClick={() => onApply(name)} type="button">Apply template</Button>
+            <Button className="mt-auto self-start" onClick={() => onApply(name)} type="button" variant="secondary">Apply template</Button>
           </article>
         ))}
       </div>
@@ -779,6 +824,24 @@ function mergeAgents(loaded: AgentDefinition[]) {
 
 function definition(agent_id: string, display_name: string, description: string, task_type: string, output_type: string): AgentDefinition {
   return { agent_id, display_name, description, task_type, output_type, enabled_by_default: true, allowed_actions: ["run", "pause", "stop", "rerun", "view_input", "view_output", "view_logs"], input_dependencies: [], can_mutate_live_amazon_ads: false };
+}
+
+function workflowEventToAgentEvent(event: WorkflowEvent): AgentEvent {
+  return {
+    id: event.id,
+    agent_id: event.agent_id ?? "unknown",
+    agent_run_id: event.workflow_id,
+    monitoring_import_id: null,
+    event_type: event.event_type,
+    message: event.message,
+    metadata_json: {
+      ...event.metadata_json,
+      provider: event.provider,
+      model: event.model,
+      latency_ms: event.latency_ms,
+    },
+    created_at: event.created_at,
+  };
 }
 
 function runToEvent(run: AgentRun): AgentEvent {
@@ -913,11 +976,16 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 function AgentFact({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-slate-950/50"><p className="font-semibold text-slate-500 dark:text-slate-400">{label}</p><p className="mt-1 text-slate-900 dark:text-white">{value}</p></div>;
+  return <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-white/10 dark:bg-slate-950/50"><p className="font-semibold text-slate-500 dark:text-slate-400">{label}</p><p className="mt-1 break-words text-slate-900 dark:text-white">{value}</p></div>;
 }
 
 function StepMetric({ label, value }: { label: string; value: number }) {
-  return <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-white/5"><p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p><p className="mt-1 text-2xl font-semibold text-slate-950 dark:text-white">{value}</p></div>;
+  return (
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-slate-50 p-2 sm:p-3 dark:border-white/10 dark:bg-white/5">
+      <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 sm:text-xs">{label}</p>
+      <p className="mt-1 font-semibold tabular-nums leading-tight text-slate-950 dark:text-white" style={{ fontSize: "clamp(1.125rem, 2.5vw, 1.5rem)" }}>{value}</p>
+    </div>
+  );
 }
 
 function MetricTable({ metrics }: { metrics: Record<string, unknown> }) {

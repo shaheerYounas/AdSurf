@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { defaultWorkspaceId } from "@/lib/api/client";
 import { createMonitoringImport, getProductMonitoring, processMonitoringJobs, type MonitoringSummary } from "@/lib/api/monitoring";
 import { getUploads, type UploadRecord } from "@/lib/api/uploads";
+import { selectClasses } from "@/lib/utils";
 
 export function MonitoringWorkspace({ productId }: { productId: string }) {
   const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId);
@@ -60,6 +62,10 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
 
   return (
     <div className="space-y-6">
+      {isLoading && !summary ? (
+        <LoadingSpinner message="Loading monitoring workspace" subtext="Fetching uploads and monitoring summary" />
+      ) : (
+        <>
       <div className="rounded-md border border-slate-200 bg-white p-5">
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
           <label className="space-y-2 text-sm font-medium text-slate-700">
@@ -68,7 +74,7 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
           </label>
           <label className="space-y-2 text-sm font-medium text-slate-700">
             Processed SP Search Term upload
-            <select className="block w-full rounded-md border border-slate-300 px-3 py-2 text-sm" onChange={(event) => setSelectedUploadId(event.target.value)} value={selectedUploadId}>
+            <select className={`block w-full rounded-md border border-slate-300 px-3 py-2 text-sm ${selectClasses}`} onChange={(event) => setSelectedUploadId(event.target.value)} value={selectedUploadId}>
               <option value="">Choose processed upload</option>
               {processedUploads.map((upload) => (
                 <option key={upload.id} value={upload.id}>
@@ -78,10 +84,11 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
             </select>
           </label>
           <div className="flex items-end gap-2">
-            <Button disabled={!selectedUploadId || isLoading} onClick={importReport} type="button">
+            <Button disabled={!selectedUploadId || isLoading} onClick={importReport} type="button" variant="primary">
+              {isLoading ? <LoadingSpinner iconOnly size="sm" /> : null}
               Import metrics
             </Button>
-            <Button className="bg-slate-700" disabled={isLoading} onClick={load} type="button">
+            <Button disabled={isLoading} onClick={load} type="button" variant="secondary">
               Refresh
             </Button>
           </div>
@@ -138,6 +145,8 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
       </div>
 
       <RecommendationPreview recommendations={summary?.top_recommendations ?? []} />
+        </>
+      )}
     </div>
   );
 }

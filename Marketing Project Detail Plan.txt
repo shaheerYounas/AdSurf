@@ -1,0 +1,118 @@
+﻿Phase 1: Automated Market Research & Data Processing  
+
+This phase replaces the manual spreadsheet work. The software will take raw competitor data  
+and filter it down to only the most valuable search terms.  
+
+1. Data Collection & Cleaning  
+
+    ●    The Input: The system will prompt the user to upload the raw data file (the CSV export  
+         from the competitor research tool) containing the top  10 competitors who have similar  
+         designs and prices.  
+    ●    The Clean-Up: The software automatically deletes all irrelevant information from the file.  
+         It will only keep two pieces of data:  
+             1.  Search Volume: How many people search for this term.  
+             2.  Organic Rank: Where the competitors naturally show up in the search results.  
+
+2. The Relevance Scoring Engine  
+
+The software will automatically create a new "Relevance Score" column and apply your specific  
+grading rule.  
+
+    ●    The Rule: The system looks at the top  10 competitors for a specific search term.  It  
+         counts how many of those competitors rank in the top  14 spots (rank <  15).  
+    ●    The Score:  It assigns a score from 0 to  10. A score of  10 means all competitors rank  
+         highly for that term (highly relevant). A score of 0 means none do (irrelevant).  
+    ●    The Filter: The software automatically deletes any search term that scores a 0,  1, or 2.  
+
+3. Automated Verification (The "Manual" Check)  
+
+To narrow the list down further, the software will perform an automated cross-check on Amazon  
+to simulate human research.  
+
+    ●    The Action: The system automatically searches Amazon for the remaining terms.  
+    ●    The Validation:  It looks at the top  10 to  15 search results.  If 3 to 5 of your original  
+         chosen competitors are present in those top results, the search term is marked as  
+         "Approved."  If not, it is discarded.  
+
+                                                                                                                 
+
+Phase 2: Automated Campaign Creation  
+
+Once the software has the final list of "Approved" search terms (usually the top 20 to 50), it will  
+automatically build the advertising campaigns.  
+
+1. The Naming Convention System  
+
+The software will automatically name every campaign using a standardized template so  
+everything remains perfectly organized.  
+﻿ Format Component            Description                                  Example  
+
+ Product Name                What you are selling                         CoffeeMaker  
+
+ Ad Type                     Sponsored Product/Brand/Display              SP  
+
+ Targeting                   Auto/Manual/Video                            Manual  
+
+ Match Type                  Exact/Phrase/Broad                           Exact  
+
+ Keyword/Group               The specific word or group number            Coffee Beans or Relevant1  
+
+ Date                        When it was created                          May 11  
+
+2. Building the "Hero" Campaign  
+
+The software isolates the absolute most important search term and creates a dedicated,  
+aggressive campaign j ust for it.  
+
+    ●   Structure:  1 Campaign >  1 Ad Group >  1 Keyword.  
+    ●   Budget: Set automatically to $10.  
+    ●   Bidding: The software sets the bid at $1.00 (or pulls Amazon’s suggested estimated  
+        bid).  
+
+3. Building the Grouped Campaigns (Top 20-50 Terms)  
+
+The software divides the remaining approved terms into small batches of 5 to 7 words.  It then  
+creates three distinct types of campaigns for each batch.  
+
+    ●   Exact Match Campaigns:  
+             ○   Rule: The ad only shows if the customer types these exact words.  
+             ○   Budget: $10 per campaign.  
+    ●   Phrase Match Campaigns:  
+             ○   Rule: The ad shows if the customer types the phrase, even with other words  
+                 before or after it.  
+             ○   Budget: $10 per campaign.  
+﻿     ●   CRITICAL AUTOMATION: The software will automatically take the words from the  
+         Exact Match campaign and block them here (Negative Exact). This ensures the Phrase  
+         campaigns don't steal traffic from the Exact campaigns.  
+     ●   Broad Match Campaigns:  
+             ○    Rule: The ad shows if the customer types words related to your terms, in any  
+                  order.  
+             ○    Budget: $10 per campaign.  
+     ●   CRITICAL AUTOMATION: The software will automatically take the words from the  
+         Phrase Match campaign and block them here (Negative Phrase). This forces the Broad  
+         campaign to only hunt for completely new, undiscovered search terms.  
+
+                                                                                                                    
+
+Phase 3: The 14-Day Automated Monitoring System  
+
+The software will now watch the campaigns and make mathematical adj ustments without  
+emotional bias.  
+
+1. The First 7 Days (Budget Consumption Check)  
+
+     ●   The software monitors the $10 daily budget for every campaign.  
+     ●   The Adj ustment:  If a campaign is not spending its full $10, it means the bid isn't high  
+         enough to win ad space. The software will automatically increase the bid for those  
+         specific search terms by 10%.  It will repeat this daily until the budget is being consumed.  
+
+2. Day 7 Evaluation (The Profitability Check)  
+
+     ●   After exactly 7 days, the software calculates the ACOS (Advertising Cost of Sales—how  
+         much was spent on ads compared to the sales generated).  
+     ●   The Decision:  If the ACOS is less than 50%, the software locks the campaign and  
+         makes zero changes.  It allows the campaign to run untouched for another 7 days (Days  
+         8 through  14) to gather reliable, long-term shopping data before attempting any complex  
+         optimization.  
+
+  

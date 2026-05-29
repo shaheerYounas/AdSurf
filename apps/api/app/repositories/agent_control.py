@@ -338,7 +338,12 @@ def _default_config(*, workspace_id: UUID, product_id: UUID | None, agent_id: st
 
 
 def _config_from_row(row: RowMapping) -> AgentConfig:
-    return AgentConfig(**dict(row))
+    d = dict(row)
+    if d.get("created_by") is not None:
+        d["created_by"] = str(d["created_by"])
+    if d.get("updated_by") is not None:
+        d["updated_by"] = str(d["updated_by"])
+    return AgentConfig(**d)
 
 
 def _event_from_row(row: RowMapping) -> AgentRunEvent:

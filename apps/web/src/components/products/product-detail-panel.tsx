@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import type { ProductProfile } from "@adsurf/types";
 import { Button } from "@/components/ui/button";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { defaultWorkspaceId } from "@/lib/api/client";
 import { getProductProfile } from "@/lib/api/products";
 import { getUploads, type UploadRecord } from "@/lib/api/uploads";
@@ -48,7 +49,7 @@ export function ProductDetailPanel({ productId }: { productId: string }) {
   }
 
   if (isLoading) {
-    return <div className="rounded-md border border-slate-200 bg-white p-6 text-sm text-slate-600">Loading product workflow...</div>;
+    return <LoadingSpinner message="Loading product workflow" subtext="Fetching product profile and upload records" />;
   }
 
   if (error || !product) {
@@ -61,7 +62,7 @@ export function ProductDetailPanel({ productId }: { productId: string }) {
         <p>{error ?? "Product profile was not found."}</p>
         <div className="flex flex-wrap items-end gap-3">
           <WorkspaceInput onChange={setWorkspaceId} value={workspaceId} />
-          <Button className="inline-flex items-center gap-2" onClick={loadProduct} type="button">
+          <Button className="inline-flex items-center gap-2" onClick={loadProduct} type="button" variant="primary">
             <RefreshCw aria-hidden="true" size={16} />
             Retry
           </Button>
@@ -76,12 +77,12 @@ export function ProductDetailPanel({ productId }: { productId: string }) {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm font-medium uppercase tracking-wide text-slate-500">Product profile</p>
-            <h3 className="mt-1 text-2xl font-semibold tracking-normal text-slate-950">{product.product_name}</h3>
+            <h3 className="heading-fluid mt-1 font-semibold tracking-normal text-slate-950">{product.product_name}</h3>
             <p className="mt-2 font-mono text-xs text-slate-500">{product.id}</p>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <WorkspaceInput onChange={setWorkspaceId} value={workspaceId} />
-            <Button className="inline-flex items-center gap-2 bg-slate-700" onClick={loadProduct} type="button">
+            <Button className="inline-flex items-center gap-2" onClick={loadProduct} type="button" variant="secondary">
               <RefreshCw aria-hidden="true" size={16} />
               Refresh
             </Button>

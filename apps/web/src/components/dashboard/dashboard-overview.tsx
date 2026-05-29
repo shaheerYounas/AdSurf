@@ -52,7 +52,7 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
               value={workspaceId}
             />
           </label>
-          <Button className="bg-indigo-300 text-indigo-950 hover:bg-indigo-200" disabled={isRefreshing} onClick={loadDashboard} type="button">
+          <Button disabled={isRefreshing} onClick={loadDashboard} type="button" variant="primary">
             {isRefreshing ? <Loader2 aria-hidden="true" className="animate-spin" size={16} /> : <RefreshCw aria-hidden="true" size={16} />}
             Refresh
           </Button>

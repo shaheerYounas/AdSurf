@@ -1,0 +1,1 @@
+Upload appears stuck in "Uploading report..." state

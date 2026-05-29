@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Bot, BrainCircuit, CheckCircle2, FileInput, FileText, LockKeyhole, Settings, ShieldCheck, SlidersHorizontal, Sparkles, TerminalSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { selectClasses } from "@/lib/utils";
 import type { AgentConfig, AgentDefinition, AgentEvent, AgentRun } from "@/lib/api/agents";
 import type { Recommendation } from "@/lib/api/monitoring";
 
@@ -40,18 +41,18 @@ export function AgentInspector({
   }
 
   return (
-    <aside className="w-full rounded-3xl border border-white/60 bg-white p-5 shadow-xl shadow-slate-950/10 dark:border-white/10 dark:bg-slate-950/85 sm:p-6">
+    <aside className="w-full min-w-0 rounded-3xl border border-white/60 bg-white p-5 shadow-xl shadow-slate-950/10 dark:border-white/10 dark:bg-slate-950/85 sm:p-6">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 gap-3">
+        <div className="flex min-w-0 flex-1 gap-3">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white shadow-lg shadow-indigo-950/20 dark:bg-white dark:text-slate-950">
             {agent.task_type === "decision" ? <BrainCircuit size={22} /> : <Bot size={21} />}
           </span>
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-slate-950 dark:text-white">{agent.display_name}</h2>
+          <div className="min-w-0 flex-1">
+            <h2 className="break-words text-lg font-semibold text-slate-950 dark:text-white">{agent.display_name}</h2>
             <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{agent.description}</p>
           </div>
         </div>
-        <Button className="shrink-0 px-3" onClick={onToggleAgent} type="button">
+        <Button className="shrink-0 px-3" onClick={onToggleAgent} type="button" variant={config?.enabled === false ? "success" : "neutral"}>
           {config?.enabled === false ? "Enable" : "Disable"}
         </Button>
       </div>
@@ -63,12 +64,14 @@ export function AgentInspector({
         <Pill>{config?.strictness_level ?? "balanced"}</Pill>
       </div>
 
-      <div className="mt-5 flex flex-wrap gap-2">
+      <div className="-mx-1 mt-5 flex gap-2 overflow-x-auto px-1 pb-1" role="tablist" aria-label="Inspector tabs">
         {tabs.map((tab) => (
           <button
-            className={`rounded-full border px-3 py-2 text-xs font-semibold leading-none outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 ${activeTab === tab ? "border-indigo-300 bg-indigo-600 text-white shadow-lg shadow-indigo-950/20 dark:border-indigo-300 dark:bg-indigo-300 dark:text-indigo-950" : "border-slate-200 bg-white text-slate-700 hover:border-indigo-200 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"}`}
+            className={`shrink-0 rounded-full border px-3 py-2 text-xs font-semibold leading-none outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 ${activeTab === tab ? "border-indigo-300 bg-indigo-600 text-white shadow-lg shadow-indigo-950/20 dark:border-indigo-300 dark:bg-indigo-300 dark:text-indigo-950" : "border-slate-200 bg-white text-slate-700 hover:border-indigo-200 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"}`}
             key={tab}
             onClick={() => setActiveTab(tab)}
+            role="tab"
+            aria-selected={activeTab === tab}
             type="button"
           >
             {tab}
@@ -115,7 +118,7 @@ function Configuration({ config, onConfigChange }: { config?: AgentConfig; onCon
   if (!config) return <p className="text-sm text-slate-600 dark:text-slate-300">Configuration will appear after this agent is registered.</p>;
   return (
     <div className="space-y-5">
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Toggle label="Enabled" checked={config.enabled} onChange={(enabled) => onConfigChange({ enabled })} />
         <Select label="Mode" value={config.mode} options={["deterministic", "ai", "hybrid"]} onChange={(mode) => onConfigChange({ mode: mode as AgentConfig["mode"] })} />
         <Select label="Provider" value={config.provider} options={["primary", "deepseek", "fallback", "deterministic"]} onChange={(provider) => onConfigChange({ provider: provider as AgentConfig["provider"] })} />
@@ -134,7 +137,7 @@ function Configuration({ config, onConfigChange }: { config?: AgentConfig; onCon
         <ToggleGrid config={config} onConfigChange={onConfigChange} fields={["allow_keep_running", "allow_increase_bid", "allow_decrease_bid", "allow_pause_review", "allow_negative_exact", "allow_negative_phrase", "allow_move_to_exact", "allow_budget_review", "allow_data_quality_review"]} />
       </Fieldset>
       <Fieldset title="Risk Controls">
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <TextInput label="Max bid increase multiplier" value={String(config.max_bid_increase_multiplier ?? "")} onChange={(value) => onConfigChange({ max_bid_increase_multiplier: value } as Partial<AgentConfig>)} />
           <TextInput label="Max bid decrease multiplier" value={String(config.max_bid_decrease_multiplier ?? "")} onChange={(value) => onConfigChange({ max_bid_decrease_multiplier: value } as Partial<AgentConfig>)} />
           <NumberInput label="Min clicks before action" value={config.require_min_clicks_before_action} onChange={(require_min_clicks_before_action) => onConfigChange({ require_min_clicks_before_action })} />
@@ -159,7 +162,7 @@ function PromptBusinessGoal({ config, onConfigChange }: { config?: AgentConfig; 
       <TextArea label="Brand safety notes" value={String(config.brand_safety_notes ?? "")} onChange={(brand_safety_notes) => onConfigChange({ brand_safety_notes } as Partial<AgentConfig>)} />
       <TextArea label="Competitor notes" value={String(config.competitor_notes ?? "")} onChange={(competitor_notes) => onConfigChange({ competitor_notes } as Partial<AgentConfig>)} />
       <TextArea label="Product margin notes" value={String(config.product_margin_notes ?? "")} onChange={(product_margin_notes) => onConfigChange({ product_margin_notes } as Partial<AgentConfig>)} />
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Select label="Explanation detail" value={config.explanation_detail} options={["simple", "normal", "expert"]} onChange={(explanation_detail) => onConfigChange({ explanation_detail: explanation_detail as AgentConfig["explanation_detail"] })} />
         <TextInput label="Recommendation language" value={String(config.recommendation_language ?? "en")} onChange={(recommendation_language) => onConfigChange({ recommendation_language } as Partial<AgentConfig>)} />
       </div>
@@ -244,10 +247,10 @@ function Safety() {
 
 function JsonPanel({ icon, label, value, advancedMode }: { icon: React.ReactNode; label: string; value: unknown; advancedMode: boolean }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+    <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
       <p className="flex items-center gap-2 font-semibold text-slate-950 dark:text-white">{icon}{label}</p>
       {advancedMode ? (
-        <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap rounded-2xl bg-slate-50 p-3 text-xs text-slate-700 dark:bg-slate-950/70 dark:text-slate-200">{JSON.stringify(value, null, 2)}</pre>
+        <pre className="mt-3 max-h-80 overflow-auto whitespace-pre-wrap break-words rounded-2xl bg-slate-50 p-3 text-xs text-slate-700 dark:bg-slate-950/70 dark:text-slate-200">{JSON.stringify(value, null, 2)}</pre>
       ) : (
         <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">Switch to Advanced Mode to inspect raw JSON input and output.</p>
       )}
@@ -257,7 +260,7 @@ function JsonPanel({ icon, label, value, advancedMode }: { icon: React.ReactNode
 
 function ToggleGrid({ config, fields, onConfigChange }: { config: AgentConfig; fields: string[]; onConfigChange: (patch: Partial<AgentConfig>) => void }) {
   return (
-    <div className="grid gap-2 md:grid-cols-2">
+    <div className="grid gap-2 sm:grid-cols-2">
       {fields.map((field) => (
         <Toggle
           key={field}
@@ -281,11 +284,11 @@ function Fieldset({ title, children }: { title: string; children: React.ReactNod
 
 function InfoGrid({ items }: { items: Array<[string, string]> }) {
   return (
-    <div className="grid gap-3 md:grid-cols-2">
+    <div className="grid gap-3 sm:grid-cols-2">
       {items.map(([label, value]) => (
-        <div className="rounded-2xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-white/5" key={label}>
+        <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-white/5" key={label}>
           <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">{label}</p>
-          <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">{value}</p>
+          <p className="mt-1 break-words text-sm font-semibold text-slate-900 dark:text-white">{value}</p>
         </div>
       ))}
     </div>
@@ -305,7 +308,7 @@ function Select({ label, value, options, onChange }: { label: string; value: str
   return (
     <label className="space-y-1">
       <span className="block text-xs font-semibold text-slate-600 dark:text-slate-300">{label}</span>
-      <select className="min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-slate-950/40 dark:text-white" onChange={(event) => onChange(event.target.value)} value={value}>
+      <select className={`min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-slate-950 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-slate-950/40 dark:text-white ${selectClasses}`} onChange={(event) => onChange(event.target.value)} value={value}>
         {options.map((option) => <option key={option} value={option}>{humanize(option)}</option>)}
       </select>
     </label>

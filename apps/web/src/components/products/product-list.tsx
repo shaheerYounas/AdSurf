@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { ProductProfile } from "@adsurf/types";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { getProductProfiles } from "@/lib/api/products";
 
 export function ProductList() {
@@ -28,7 +29,7 @@ export function ProductList() {
   }, []);
 
   if (isLoading) {
-    return <div className="p-8 text-sm text-slate-600">Loading product profiles...</div>;
+    return <LoadingSpinner message="Loading product profiles" subtext="Fetching your workspace products" />;
   }
 
   if (error) {

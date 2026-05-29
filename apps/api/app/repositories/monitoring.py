@@ -460,6 +460,14 @@ def _recommendation_from_row(row: RowMapping) -> Recommendation:
     data = dict(row)
     if data.get("decided_by") is not None:
         data["decided_by"] = str(data["decided_by"])
+    # Ensure `entity_type` is a valid string for the Recommendation enum.
+    # If the DB value is NULL, default to 'search_term' which matches the
+    # RecommendationEntityType default in the schema.
+    if data.get("entity_type") is None:
+        data["entity_type"] = "search_term"
+    else:
+        data["entity_type"] = str(data["entity_type"])
+
     return Recommendation(**data)
 
 

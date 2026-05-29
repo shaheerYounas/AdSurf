@@ -15,19 +15,19 @@
   --warning: 38 92% 50%;
   --danger: 0 84% 60%;
   --ring: 252 86% 58%;
+  color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: 236 44% 7%;
-    --foreground: 230 45% 98%;
-    --muted: 230 18% 72%;
-    --surface: 238 34% 12%;
-    --surface-strong: 230 45% 98%;
-    --border: 238 24% 22%;
-    --brand: 262 92% 74%;
-    --brand-foreground: 236 44% 7%;
-  }
+html.dark {
+  --background: 236 44% 7%;
+  --foreground: 230 45% 98%;
+  --muted: 230 18% 72%;
+  --surface: 238 34% 12%;
+  --surface-strong: 230 45% 98%;
+  --border: 238 24% 22%;
+  --brand: 262 92% 74%;
+  --brand-foreground: 236 44% 7%;
+  color-scheme: dark;
 }
 
 * {
@@ -49,14 +49,12 @@ body {
   text-rendering: geometricPrecision;
 }
 
-@media (prefers-color-scheme: dark) {
-  body {
-    background:
-      radial-gradient(circle at 8% 0%, hsl(268 95% 70% / 0.18), transparent 34rem),
-      radial-gradient(circle at 92% 10%, hsl(194 95% 56% / 0.14), transparent 34rem),
-      radial-gradient(circle at 50% 108%, hsl(252 86% 58% / 0.18), transparent 38rem),
-      linear-gradient(135deg, hsl(var(--background)), hsl(218 48% 10%) 48%, hsl(256 45% 11%));
-  }
+html.dark body {
+  background:
+    radial-gradient(circle at 8% 0%, hsl(268 95% 70% / 0.18), transparent 34rem),
+    radial-gradient(circle at 92% 10%, hsl(194 95% 56% / 0.14), transparent 34rem),
+    radial-gradient(circle at 50% 108%, hsl(252 86% 58% / 0.18), transparent 38rem),
+    linear-gradient(135deg, hsl(var(--background)), hsl(218 48% 10%) 48%, hsl(256 45% 11%));
 }
 
 :focus-visible {
@@ -99,22 +97,36 @@ body {
   }
 }
 
-@media (prefers-color-scheme: dark) {
-  .glass-panel {
-    border-color: hsl(0 0% 100% / 0.12);
-    background: linear-gradient(145deg, hsl(238 34% 12% / 0.82), hsl(252 42% 18% / 0.52));
-    box-shadow: 0 24px 80px hsl(0 0% 0% / 0.22);
-  }
+html.dark .glass-panel {
+  border-color: hsl(0 0% 100% / 0.12);
+  background: linear-gradient(145deg, hsl(238 34% 12% / 0.82), hsl(252 42% 18% / 0.52));
+  box-shadow: 0 24px 80px hsl(0 0% 0% / 0.22);
+}
 
-  .premium-card {
-    border-color: hsl(0 0% 100% / 0.12);
-    background: linear-gradient(145deg, hsl(238 34% 12% / 0.84), hsl(252 42% 18% / 0.48));
-    box-shadow: 0 18px 55px hsl(0 0% 0% / 0.22);
-  }
+html.dark .premium-card {
+  border-color: hsl(0 0% 100% / 0.12);
+  background: linear-gradient(145deg, hsl(238 34% 12% / 0.84), hsl(252 42% 18% / 0.48));
+  box-shadow: 0 18px 55px hsl(0 0% 0% / 0.22);
+}
 
-  .soft-grid-bg {
-    background-image:
-      linear-gradient(hsl(262 92% 74% / 0.08) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(194 95% 56% / 0.07) 1px, transparent 1px);
-  }
+html.dark .soft-grid-bg {
+  background-image:
+    linear-gradient(hsl(262 92% 74% / 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, hsl(194 95% 56% / 0.07) 1px, transparent 1px);
+}
+
+/* Fluid heading utility — scales the same heading from mobile to desktop */
+.heading-fluid {
+  font-size: clamp(1.25rem, 1rem + 1.4vw, 1.875rem);
+  line-height: 1.15;
+}
+
+.heading-fluid-sm {
+  font-size: clamp(1.05rem, 0.9rem + 0.8vw, 1.5rem);
+  line-height: 1.2;
+}
+
+.heading-fluid-lg {
+  font-size: clamp(1.5rem, 1.1rem + 1.8vw, 2.25rem);
+  line-height: 1.1;
 }

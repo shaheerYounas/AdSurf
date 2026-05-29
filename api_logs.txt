@@ -1,0 +1,10 @@
+
+> amazon-ads-ai-control-center@0.1.0 dev:api
+> python -m uvicorn apps.api.app.main:app --reload --host 127.0.0.1 --port 8080
+
+INFO:     Will watch for changes in these directories: ['C:\\Users\\Shaheer\\Desktop\\AdSurf']
+INFO:     Uvicorn running on http://127.0.0.1:8080 (Press CTRL+C to quit)
+INFO:     Started reloader process [18188] using StatReload
+INFO:     Started server process [16360]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
