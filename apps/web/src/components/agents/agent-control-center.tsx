@@ -381,8 +381,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   }
 
   return (
-    <div className="min-h-screen rounded-[1.75rem] bg-slate-100 p-3 text-slate-950 dark:bg-slate-950 dark:text-white sm:p-4 lg:p-5">
-      <main className="mx-auto min-w-0 max-w-[1600px] space-y-6">
+    <main className="mx-auto min-w-0 max-w-[1600px] space-y-6">
           <TopCommandBar
             environmentMode={environmentMode}
             isLoading={isLoading || isRunningAnalysis || isSavingConfig}
@@ -472,8 +471,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
               />
             </div>
           </section>
-        </main>
-    </div>
+    </main>
   );
 }
 
@@ -638,11 +636,11 @@ function AgentCard({ agent, config, run, selected, onSelect, onConfigure, onView
 
 function WorkflowCanvas({ nodes, edges, selectedAgentId, onSelect }: { nodes: CanvasNode[]; edges: CanvasEdge[]; selectedAgentId: string; onSelect: (agentId: string) => void }) {
   return (
-    <section className="min-w-0 overflow-hidden rounded-3xl border border-white/10 bg-[radial-gradient(circle_at_top_right,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#020617,#111827_45%,#1e1b4b)] p-5 shadow-xl shadow-slate-950/20 sm:p-6" id="workflow-canvas">
+    <section className="min-w-0 overflow-hidden rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-[radial-gradient(circle_at_top_right,_rgba(34,211,238,0.18),_transparent_35%),linear-gradient(135deg,#020617,#111827_45%,#1e1b4b)] dark:shadow-xl dark:shadow-slate-950/20 sm:p-6" id="workflow-canvas">
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-200 sm:text-sm">Visual Workflow Canvas</p>
-          <h2 className="heading-fluid mt-1 truncate font-semibold tracking-tight text-white">How agents pass data to approval</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-indigo-600 sm:text-sm dark:text-indigo-200">Visual Workflow Canvas</p>
+          <h2 className="heading-fluid mt-1 truncate font-semibold tracking-tight text-slate-950 dark:text-white">How agents pass data to approval</h2>
         </div>
         <div className="flex flex-wrap gap-2">
           <CanvasLegend status="running" label="Running" />
@@ -655,21 +653,21 @@ function WorkflowCanvas({ nodes, edges, selectedAgentId, onSelect }: { nodes: Ca
         <div className="flex min-w-max items-stretch gap-4 px-1">
           {nodes.map((node, index) => (
             <div className="flex items-center gap-4" key={node.agent_id}>
-              <button className={`group flex h-full w-[220px] flex-col rounded-3xl border p-4 text-left outline-none transition hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white ${node.agent_id === selectedAgentId ? "border-white bg-white/18 shadow-2xl shadow-indigo-500/30" : nodeClass(node.status)}`} onClick={() => onSelect(node.agent_id)} type="button">
+              <button className={`group flex h-full w-[220px] flex-col rounded-3xl border p-4 text-left outline-none transition hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-indigo-300 dark:focus-visible:ring-white ${node.agent_id === selectedAgentId ? "border-indigo-300 bg-indigo-50 shadow-lg dark:border-white dark:bg-white/18 dark:shadow-2xl dark:shadow-indigo-500/30" : nodeClass(node.status)}`} onClick={() => onSelect(node.agent_id)} type="button">
                 <div className="flex items-center justify-between gap-3">
                   <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${nodeIconClass(node.status)}`}>{agentIcon(node.agent_id)}</span>
                   <StatusBadge status={node.status} />
                 </div>
-                <p className="mt-4 break-words text-sm font-semibold leading-5 text-white">{node.display_name}</p>
-                <p className="mt-2 line-clamp-2 text-xs leading-5 text-indigo-100">{node.current_task}</p>
-                <p className="mt-auto pt-3 text-xs font-semibold text-indigo-200">{node.recommendations_created} recommendations</p>
+                <p className={`mt-4 break-words text-sm font-semibold leading-5 text-slate-950 dark:text-white`}>{node.display_name}</p>
+                <p className="mt-2 line-clamp-2 text-xs leading-5 text-slate-600 dark:text-indigo-100">{node.current_task}</p>
+                <p className="mt-auto pt-3 text-xs font-semibold text-indigo-600 dark:text-indigo-200">{node.recommendations_created} recommendations</p>
               </button>
               {index < nodes.length - 1 ? <WorkflowEdge edge={edges[index]} active={["running", "completed", "succeeded"].includes(node.status)} /> : null}
             </div>
           ))}
         </div>
       </div>
-      <p className="mt-2 text-[11px] text-indigo-200/80 sm:hidden">Swipe horizontally to see the full pipeline.</p>
+      <p className="mt-2 text-[11px] text-slate-500 sm:hidden dark:text-indigo-200/80">Swipe horizontally to see the full pipeline.</p>
     </section>
   );
 }
@@ -935,32 +933,32 @@ function toolsFor(agentId: string) {
 function WorkflowEdge({ edge, active }: { edge?: CanvasEdge; active: boolean }) {
   return (
     <div className="w-28 shrink-0">
-      <div className={`h-1 rounded-full ${active ? "bg-gradient-to-r from-emerald-300 via-cyan-300 to-indigo-300 shadow-lg shadow-cyan-500/40" : "bg-white/20"}`} />
-      <p className="mt-2 line-clamp-2 text-center text-[11px] font-medium text-indigo-100">{edge?.data_passed_summary?.slice(0, 2).join(" + ") ?? "evidence"}</p>
+      <div className={`h-1 rounded-full ${active ? "bg-gradient-to-r from-emerald-300 via-cyan-300 to-indigo-300 shadow-lg shadow-cyan-500/40" : "bg-slate-200 dark:bg-white/20"}`} />
+      <p className="mt-2 line-clamp-2 text-center text-[11px] font-medium text-slate-500 dark:text-indigo-100">{edge?.data_passed_summary?.slice(0, 2).join(" + ") ?? "evidence"}</p>
     </div>
   );
 }
 
 function CanvasLegend({ status, label }: { status: string; label: string }) {
-  return <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-indigo-50"><span className={`h-2.5 w-2.5 rounded-full ${dotClass(status)}`} />{label}</span>;
+  return <span className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-600 dark:border-white/15 dark:bg-white/10 dark:text-indigo-50"><span className={`h-2.5 w-2.5 rounded-full ${dotClass(status)}`} />{label}</span>;
 }
 
 function nodeClass(status: string) {
-  if (status === "failed") return "border-red-400/40 bg-red-500/10 shadow-red-500/15";
-  if (status === "approval_needed") return "border-violet-300/50 bg-violet-400/15 shadow-violet-500/25";
-  if (status === "completed" || status === "succeeded") return "border-emerald-300/40 bg-emerald-400/10 shadow-emerald-500/15";
-  if (status === "running" || status === "queued") return "border-indigo-300/50 bg-indigo-400/15 shadow-indigo-500/25";
-  if (status === "paused" || status === "waiting") return "border-amber-300/40 bg-amber-400/10 shadow-amber-500/15";
-  return "border-white/10 bg-white/8 shadow-slate-950/10";
+  if (status === "failed") return "border-red-200 bg-red-50 dark:border-red-400/40 dark:bg-red-500/10 dark:shadow-red-500/15";
+  if (status === "approval_needed") return "border-violet-200 bg-violet-50 dark:border-violet-300/50 dark:bg-violet-400/15 dark:shadow-violet-500/25";
+  if (status === "completed" || status === "succeeded") return "border-emerald-200 bg-emerald-50 dark:border-emerald-300/40 dark:bg-emerald-400/10 dark:shadow-emerald-500/15";
+  if (status === "running" || status === "queued") return "border-indigo-200 bg-indigo-50 dark:border-indigo-300/50 dark:bg-indigo-400/15 dark:shadow-indigo-500/25";
+  if (status === "paused" || status === "waiting") return "border-amber-200 bg-amber-50 dark:border-amber-300/40 dark:bg-amber-400/10 dark:shadow-amber-500/15";
+  return "border-slate-200 bg-white dark:border-white/10 dark:bg-white/8 dark:shadow-slate-950/10";
 }
 
 function nodeIconClass(status: string) {
-  if (status === "failed") return "bg-red-400 text-white";
-  if (status === "approval_needed") return "bg-violet-300 text-violet-950";
-  if (status === "completed" || status === "succeeded") return "bg-emerald-300 text-emerald-950";
-  if (status === "running" || status === "queued") return "bg-indigo-300 text-indigo-950";
-  if (status === "paused" || status === "waiting") return "bg-amber-300 text-amber-950";
-  return "bg-white/15 text-white";
+  if (status === "failed") return "bg-red-100 text-red-700 dark:bg-red-400 dark:text-white";
+  if (status === "approval_needed") return "bg-violet-100 text-violet-700 dark:bg-violet-300 dark:text-violet-950";
+  if (status === "completed" || status === "succeeded") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-300 dark:text-emerald-950";
+  if (status === "running" || status === "queued") return "bg-indigo-100 text-indigo-700 dark:bg-indigo-300 dark:text-indigo-950";
+  if (status === "paused" || status === "waiting") return "bg-amber-100 text-amber-700 dark:bg-amber-300 dark:text-amber-950";
+  return "bg-slate-200 text-slate-700 dark:bg-white/15 dark:text-white";
 }
 
 function dotClass(status: string) {

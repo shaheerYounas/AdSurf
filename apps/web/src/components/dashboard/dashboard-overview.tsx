@@ -40,12 +40,12 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
 
   return (
     <div className="mt-6 space-y-6">
-      <section className="rounded-3xl border border-white/10 bg-slate-950/90 p-5 shadow-xl shadow-slate-950/20 sm:p-6">
+      <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/90 dark:shadow-xl dark:shadow-slate-950/20 sm:p-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <label className="block text-sm font-semibold text-slate-200">
+          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-200">
             Workspace ID
             <input
-              className="mt-2 block min-h-11 w-full min-w-0 rounded-2xl border border-white/10 bg-slate-900 px-3 py-2 font-mono text-sm text-white outline-none focus:ring-2 focus:ring-indigo-300 sm:w-80"
+              className="mt-2 block min-h-11 w-full min-w-0 rounded-2xl border border-slate-200 bg-white px-3 py-2 font-mono text-sm text-slate-950 outline-none focus:ring-2 focus:ring-indigo-300 dark:border-white/10 dark:bg-slate-900 dark:text-white sm:w-80"
               id="dashboard-workspace-id"
               name="workspace_id"
               onChange={(event) => setWorkspaceId(event.target.value)}
@@ -80,27 +80,27 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
         <DashboardCard icon={<Clock3 aria-hidden="true" size={18} />} label="Pending recommendations" value={summary?.pending_recommendation_count ?? 0} />
       </div>
 
-      <div className="rounded-3xl border border-emerald-300/25 bg-emerald-300/10 px-5 py-4 text-sm text-emerald-100 shadow-sm">
+      <div className="rounded-3xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-800 shadow-sm dark:border-emerald-300/25 dark:bg-emerald-300/10 dark:text-emerald-100">
         <div className="flex flex-wrap gap-2">
           <SafetyPill text="Recommendation only" />
           <SafetyPill text="Requires human approval" />
           <SafetyPill text="No live Amazon Ads change executed" />
         </div>
-        <p className="mt-3 leading-6 text-emerald-50">Dashboard recommendations require human approval and do not change Amazon Ads accounts.</p>
+        <p className="mt-3 leading-6 text-emerald-700 dark:text-emerald-50">Dashboard recommendations require human approval and do not change Amazon Ads accounts.</p>
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <section className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/90 shadow-xl shadow-slate-950/20">
+        <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/90 dark:shadow-xl dark:shadow-slate-950/20">
           <SectionHeader icon={<FileSpreadsheet aria-hidden="true" size={18} />} title="Products ready for workflow" />
           {products.length ? (
-            <ul className="divide-y divide-white/10">
+            <ul className="divide-y divide-slate-100 dark:divide-white/10">
               {products.map((product) => (
                 <li className="flex flex-wrap items-center justify-between gap-3 px-5 py-4" key={product.id}>
                   <div className="min-w-0">
-                    <Link className="font-semibold text-white hover:text-indigo-200" href={`/products/${product.id}`}>
+                    <Link className="font-semibold text-slate-950 hover:text-indigo-600 dark:text-white dark:hover:text-indigo-200" href={`/products/${product.id}`}>
                       {product.product_name}
                     </Link>
-                    <p className="mt-1 text-sm leading-6 text-slate-400">
+                    <p className="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
                       {product.marketplace} / {product.currency} / target ACOS {product.target_acos}
                     </p>
                   </div>
@@ -114,9 +114,9 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
           ) : isSyncingInitialData ? (
             <EmptyState icon={<Loader2 aria-hidden="true" className="animate-spin" size={16} />} message="Loading product workflow data..." />
           ) : (
-            <div className="px-5 py-8 text-sm leading-6 text-slate-300">
+            <div className="px-5 py-8 text-sm leading-6 text-slate-500 dark:text-slate-300">
               No products yet.{" "}
-              <Link className="font-semibold text-indigo-200 underline" href="/products/new">
+              <Link className="font-semibold text-indigo-600 underline dark:text-indigo-200" href="/products/new">
                 Create the first product
               </Link>
               .
@@ -124,12 +124,12 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
           )}
         </section>
 
-        <section className="rounded-3xl border border-white/10 bg-slate-950/90 p-5 shadow-xl shadow-slate-950/20">
+        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/90 dark:shadow-xl dark:shadow-slate-950/20">
           <div className="flex items-center gap-2">
-            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-300 text-indigo-950">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700 dark:bg-indigo-300 dark:text-indigo-950">
               <Sparkles aria-hidden="true" size={18} />
             </span>
-            <p className="text-base font-semibold text-white">Launch checklist</p>
+            <p className="text-base font-semibold text-slate-950 dark:text-white">Launch checklist</p>
           </div>
           <div className="mt-5 space-y-3">
             <ChecklistItem done={(summary?.product_count ?? 0) > 0} label="Create product profile" />
@@ -142,16 +142,16 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
         </section>
       </div>
 
-      <section className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/90 shadow-xl shadow-slate-950/20">
+      <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/90 dark:shadow-xl dark:shadow-slate-950/20">
         <SectionHeader icon={<DatabaseZap aria-hidden="true" size={18} />} title="Rule recommendation queue" />
         {recommendations.length ? (
-          <ul className="divide-y divide-white/10">
+          <ul className="divide-y divide-slate-100 dark:divide-white/10">
             {recommendations.map((recommendation) => (
               <li className="flex flex-wrap items-center justify-between gap-3 px-5 py-4" key={recommendation.id}>
                 <div className="min-w-0">
-                  <p className="font-semibold text-white">{recommendation.recommendation_type} / {recommendation.priority}</p>
-                  <p className="mt-1 text-sm text-slate-300">{recommendation.campaign_name} / {recommendation.customer_search_term}</p>
-                  <p className="mt-1 text-xs font-semibold text-emerald-200">Requires human approval. Does not change Amazon Ads account.</p>
+                  <p className="font-semibold text-slate-950 dark:text-white">{recommendation.recommendation_type} / {recommendation.priority}</p>
+                  <p className="mt-1 text-sm text-slate-500 dark:text-slate-300">{recommendation.campaign_name} / {recommendation.customer_search_term}</p>
+                  <p className="mt-1 text-xs font-semibold text-emerald-700 dark:text-emerald-200">Requires human approval. Does not change Amazon Ads account.</p>
                 </div>
                 <Link className="inline-flex min-h-10 items-center gap-1 rounded-full bg-indigo-300 px-4 text-sm font-semibold text-indigo-950 hover:bg-indigo-200" href="/recommendations">
                   Review
@@ -163,7 +163,7 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
         ) : isSyncingInitialData ? (
           <EmptyState icon={<Loader2 aria-hidden="true" className="animate-spin" size={16} />} message="Loading recommendation queue..." />
         ) : (
-          <p className="px-5 py-8 text-sm leading-6 text-slate-300">No rule recommendations yet. Import a performance report from a product monitoring page.</p>
+          <p className="px-5 py-8 text-sm leading-6 text-slate-500 dark:text-slate-300">No rule recommendations yet. Import a performance report from a product monitoring page.</p>
         )}
       </section>
     </div>
@@ -172,28 +172,28 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
 
 function DashboardCard({ icon, label, value }: { icon: ReactNode; label: string; value: number }) {
   return (
-    <div className="rounded-3xl border border-white/10 bg-slate-950/90 p-5 shadow-xl shadow-slate-950/20">
-      <div className="flex items-center gap-2 text-sm font-semibold text-slate-300">
-        <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/10 text-indigo-200">{icon}</span>
+    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/90 dark:shadow-xl dark:shadow-slate-950/20">
+      <div className="flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
+        <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-100 text-indigo-600 dark:bg-white/10 dark:text-indigo-200">{icon}</span>
         {label}
       </div>
-      <p className="mt-4 text-3xl font-semibold text-white">{value}</p>
+      <p className="mt-4 text-3xl font-semibold text-slate-950 dark:text-white">{value}</p>
     </div>
   );
 }
 
 function SectionHeader({ icon, title }: { icon: ReactNode; title: string }) {
   return (
-    <div className="flex items-center gap-2 border-b border-white/10 px-5 py-4">
-      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-indigo-200">{icon}</span>
-      <p className="text-base font-semibold text-white">{title}</p>
+    <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-4 dark:border-white/10">
+      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-indigo-600 dark:bg-white/10 dark:text-indigo-200">{icon}</span>
+      <p className="text-base font-semibold text-slate-950 dark:text-white">{title}</p>
     </div>
   );
 }
 
 function EmptyState({ icon, message }: { icon: ReactNode; message: string }) {
   return (
-    <div className="flex items-center gap-2 px-5 py-8 text-sm text-slate-300">
+    <div className="flex items-center gap-2 px-5 py-8 text-sm text-slate-500 dark:text-slate-300">
       {icon}
       {message}
     </div>
@@ -202,7 +202,7 @@ function EmptyState({ icon, message }: { icon: ReactNode; message: string }) {
 
 function SafetyPill({ text }: { text: string }) {
   return (
-    <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300/25 bg-emerald-300/10 px-3 py-1.5 text-xs font-semibold text-emerald-100">
+    <span className="inline-flex items-center gap-2 rounded-full border border-emerald-300 bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800 dark:border-emerald-300/25 dark:bg-emerald-300/10 dark:text-emerald-100">
       <ShieldCheck size={14} /> {text}
     </span>
   );
@@ -210,11 +210,11 @@ function SafetyPill({ text }: { text: string }) {
 
 function ChecklistItem({ done, label }: { done: boolean; label: string }) {
   return (
-    <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-3 py-3 text-sm">
-      <span className={done ? "text-emerald-300" : "text-slate-500"}>
+    <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm dark:border-white/10 dark:bg-white/5">
+      <span className={done ? "text-emerald-600 dark:text-emerald-300" : "text-slate-400 dark:text-slate-500"}>
         <CheckCircle2 aria-hidden="true" size={18} />
       </span>
-      <span className={done ? "font-semibold text-white" : "text-slate-300"}>{label}</span>
+      <span className={done ? "font-semibold text-slate-950 dark:text-white" : "text-slate-500 dark:text-slate-300"}>{label}</span>
     </div>
   );
 }

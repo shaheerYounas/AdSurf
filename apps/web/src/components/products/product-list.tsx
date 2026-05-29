@@ -33,21 +33,21 @@ export function ProductList() {
   }
 
   if (error) {
-    return <div className="p-8 text-sm text-red-700">{error}</div>;
+    return <div className="p-8 text-sm text-red-700 dark:text-red-400">{error}</div>;
   }
 
   if (products.length === 0) {
-    return <div className="p-8 text-sm text-slate-600">No product profiles yet.</div>;
+    return <div className="p-8 text-sm text-slate-600 dark:text-slate-400">No product profiles yet.</div>;
   }
 
   return (
-    <ul className="divide-y divide-slate-200">
+    <ul className="divide-y divide-slate-200 dark:divide-white/10">
       {products.map((product) => (
-        <li className="p-4" key={product.id}>
-          <Link className="font-medium text-slate-950" href={`/products/${product.id}`}>
+        <li className="p-4 transition-colors hover:bg-slate-50 dark:hover:bg-white/5" key={product.id}>
+          <Link className="font-medium text-slate-950 dark:text-white" href={`/products/${product.id}`}>
             {product.product_name}
           </Link>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             {product.marketplace} / {product.currency}
           </p>
         </li>

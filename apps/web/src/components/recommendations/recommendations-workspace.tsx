@@ -64,11 +64,11 @@ export function RecommendationsWorkspace() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-md border border-slate-200 bg-white p-5">
+      <div className="rounded-md border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="space-y-2 text-sm font-medium text-slate-700">
+          <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-300">
             Workspace ID
-            <input className="block w-72 rounded-md border border-slate-300 px-3 py-2 font-mono text-sm" onChange={(event) => setWorkspaceId(event.target.value)} value={workspaceId} />
+            <input className="block w-72 rounded-md border border-slate-300 px-3 py-2 font-mono text-sm dark:border-white/10 dark:bg-slate-950/70 dark:text-white" onChange={(event) => setWorkspaceId(event.target.value)} value={workspaceId} />
           </label>
           <Filter label="Status" onChange={setStatusFilter} options={["pending_approval", "approved", "rejected"]} value={statusFilter} />
           <Filter label="Source" onChange={setSourceFilter} options={["deepseek_ai", "fallback_rules", "deterministic_rules"]} value={sourceFilter} />
@@ -78,12 +78,12 @@ export function RecommendationsWorkspace() {
             Refresh
           </Button>
         </div>
-        {message ? <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p> : null}
+        {message ? <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-400/10 dark:text-red-300">{message}</p> : null}
       </div>
 
-      <div className="overflow-x-auto rounded-md border border-slate-200 bg-white">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500">
+      <div className="overflow-x-auto rounded-md border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950/70">
+        <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-white/10">
+          <thead className="bg-slate-50 text-left text-xs font-semibold uppercase text-slate-500 dark:bg-white/5 dark:text-slate-400">
             <tr>
               <th className="px-3 py-2">Priority</th>
               <th className="px-3 py-2">Source</th>
@@ -97,46 +97,46 @@ export function RecommendationsWorkspace() {
               <th className="px-3 py-2">Decision</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-white/5">
             {filtered.map((recommendation) => (
               <tr key={recommendation.id}>
-                <td className="px-3 py-2 font-medium text-slate-900">{recommendation.priority}<br /><span className="text-xs font-normal text-slate-500">{recommendation.confidence} confidence</span></td>
-                <td className="px-3 py-2 text-slate-700">
+                <td className="px-3 py-2 font-medium text-slate-900 dark:text-white">{recommendation.priority}<br /><span className="text-xs font-normal text-slate-500 dark:text-slate-400">{recommendation.confidence} confidence</span></td>
+                <td className="px-3 py-2 text-slate-700 dark:text-slate-300">
                   {recommendationSource(recommendation) === "deepseek_ai" ? "AI-generated recommendation" : "Deterministic fallback recommendation"}
                   <br />
-                  <span className="text-xs text-slate-500">{recommendationModelLabel(recommendation)}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{recommendationModelLabel(recommendation)}</span>
                 </td>
-                <td className="px-3 py-2 text-slate-700">{recommendation.recommendation_type}<br /><span className="text-xs text-slate-500">{recommendation.entity_type}</span></td>
-                <td className="px-3 py-2 text-slate-700">{recommendation.campaign_name}<br />{recommendation.ad_group_name}</td>
-                <td className="px-3 py-2 text-slate-700">{recommendation.customer_search_term}</td>
-                <td className="px-3 py-2 text-slate-600">
+                <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{recommendation.recommendation_type}<br /><span className="text-xs text-slate-500 dark:text-slate-400">{recommendation.entity_type}</span></td>
+                <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{recommendation.campaign_name}<br />{recommendation.ad_group_name}</td>
+                <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{recommendation.customer_search_term}</td>
+                <td className="px-3 py-2 text-slate-600 dark:text-slate-400">
                   Spend {recommendation.current_metric_snapshot_json.spend ?? recommendation.input_metrics_json.spend} / clicks {recommendation.current_metric_snapshot_json.clicks ?? recommendation.input_metrics_json.clicks} / orders {recommendation.current_metric_snapshot_json.orders ?? recommendation.input_metrics_json.orders}
                   <br />
                   ACOS {recommendation.current_metric_snapshot_json.acos ?? "n/a"} / ROAS {recommendation.current_metric_snapshot_json.roas ?? "n/a"} / CVR {recommendation.current_metric_snapshot_json.cvr ?? "n/a"}
                   <br />
-                  <span className="text-slate-500">Rule {recommendation.rule_name}</span>
+                  <span className="text-slate-500 dark:text-slate-400">Rule {recommendation.rule_name}</span>
                   {aiSignals(recommendation).length ? (
                     <>
                       <br />
-                      <span className="text-slate-500">Signals {aiSignals(recommendation).join(", ")}</span>
+                      <span className="text-slate-500 dark:text-slate-400">Signals {aiSignals(recommendation).join(", ")}</span>
                     </>
                   ) : null}
                 </td>
-                <td className="min-w-72 px-3 py-2 text-slate-700">
+                <td className="min-w-72 px-3 py-2 text-slate-700 dark:text-slate-300">
                   {recommendation.explanation_json.summary}
                   <div className="mt-2 flex flex-wrap gap-1 text-xs">
-                    <span className="rounded bg-amber-50 px-2 py-1 text-amber-800">Requires human approval</span>
-                    <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-800">No live Amazon Ads change executed</span>
+                    <span className="rounded bg-amber-50 px-2 py-1 text-amber-800 dark:bg-amber-300/15 dark:text-amber-100">Requires human approval</span>
+                    <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-800 dark:bg-emerald-300/15 dark:text-emerald-100">No live Amazon Ads change executed</span>
                   </div>
                 </td>
-                <td className="min-w-64 px-3 py-2 text-slate-700">
+                <td className="min-w-64 px-3 py-2 text-slate-700 dark:text-slate-300">
                   {proposedActionLabel(recommendation)}
                   <div className="mt-2 flex flex-wrap gap-1 text-xs">
-                    <span className="rounded bg-slate-100 px-2 py-1 text-slate-700">Requires human approval</span>
-                    <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-800">Does not change Amazon Ads account</span>
+                    <span className="rounded bg-slate-100 px-2 py-1 text-slate-700 dark:bg-white/10 dark:text-slate-300">Requires human approval</span>
+                    <span className="rounded bg-emerald-50 px-2 py-1 text-emerald-800 dark:bg-emerald-300/15 dark:text-emerald-100">Does not change Amazon Ads account</span>
                   </div>
                 </td>
-                <td className="px-3 py-2 text-slate-700">{recommendation.status}</td>
+                <td className="px-3 py-2 text-slate-700 dark:text-slate-300">{recommendation.status}</td>
                 <td className="px-3 py-2">
                   {recommendation.status === "pending_approval" ? (
                     <div className="flex gap-2">
@@ -144,21 +144,21 @@ export function RecommendationsWorkspace() {
                       <Button onClick={() => setDecisionTarget({ recommendation, decision: "reject" })} type="button" variant="danger">Reject</Button>
                     </div>
                   ) : (
-                    <span className="text-slate-500">Decided</span>
+                    <span className="text-slate-500 dark:text-slate-400">Decided</span>
                   )}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-          {!isLoading && !filtered.length ? <p className="p-8 text-sm text-slate-600">No recommendations match the selected filters.</p> : null}
+          {!isLoading && !filtered.length ? <p className="p-8 text-sm text-slate-600 dark:text-slate-400">No recommendations match the selected filters.</p> : null}
       </div>
 
       {decisionTarget ? (
-        <div className="rounded-md border border-slate-300 bg-white p-5 shadow-sm">
-          <p className="font-medium text-slate-900">{decisionTarget.decision === "approve" ? "Approve recommendation" : "Reject recommendation"}</p>
-          <p className="mt-1 text-sm text-slate-600">{decisionTarget.recommendation.recommendation_type} for {decisionTarget.recommendation.customer_search_term}. This records a human decision only; no Amazon Ads change is executed.</p>
-          <textarea className="mt-3 block h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm" onChange={(event) => setNote(event.target.value)} value={note} />
+        <div className="rounded-md border border-slate-300 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
+          <p className="font-medium text-slate-900 dark:text-white">{decisionTarget.decision === "approve" ? "Approve recommendation" : "Reject recommendation"}</p>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">{decisionTarget.recommendation.recommendation_type} for {decisionTarget.recommendation.customer_search_term}. This records a human decision only; no Amazon Ads change is executed.</p>
+          <textarea className="mt-3 block h-24 w-full rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-white/10 dark:bg-slate-950/70 dark:text-white" onChange={(event) => setNote(event.target.value)} value={note} />
           <div className="mt-3 flex gap-2">
             <Button disabled={!note.trim() || isLoading} onClick={saveDecision} type="button" variant="primary">
               {isLoading ? <LoadingSpinner iconOnly size="sm" /> : null}
@@ -201,9 +201,9 @@ function proposedActionLabel(recommendation: Recommendation) {
 
 function Filter({ label, onChange, options, value }: { label: string; onChange: (value: string) => void; options: string[]; value: string }) {
   return (
-    <label className="space-y-2 text-sm font-medium text-slate-700">
+    <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-300">
       {label}
-      <select className={`block rounded-md border border-slate-300 px-3 py-2 text-sm ${selectClasses}`} onChange={(event) => onChange(event.target.value)} value={value}>
+      <select className={`block rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-white/10 dark:bg-slate-950/70 dark:text-white ${selectClasses}`} onChange={(event) => onChange(event.target.value)} value={value}>
         <option value="">All</option>
         {options.map((option) => (
           <option key={option} value={option}>{option}</option>

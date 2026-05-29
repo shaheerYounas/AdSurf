@@ -1,15 +1,9 @@
-import { PageHeader } from "@/components/page-header";
 import { AgentControlCenter } from "@/components/agents/agent-control-center";
 
 export default function AgentsPage() {
   return (
-    <div className="space-y-6">
-      <PageHeader
-        eyebrow="Agent operations"
-        title="Agent Control Center"
-        description="Inspect, configure, pause, stop, rerun, and audit monitoring agents without allowing live Amazon Ads execution."
-      />
+    <section className="rounded-[1.75rem] bg-slate-100 p-3 text-slate-950 dark:bg-slate-950 dark:text-white sm:p-4 lg:p-5">
       <AgentControlCenter />
-    </div>
+    </section>
   );
 }
