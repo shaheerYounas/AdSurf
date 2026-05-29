@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   AlertTriangle,
   BarChart3,
@@ -475,6 +476,46 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
 
 function TopCommandBar({ environmentMode, isLoading, onEnvironmentChange, onRefresh, onRunAnalysis, onBulkControl, onConfigureAgents, onViewApprovals }: { environmentMode: AgentConfig["mode"]; isLoading: boolean; onEnvironmentChange: (mode: AgentConfig["mode"]) => void; onRefresh: () => void; onRunAnalysis: () => void; onBulkControl: (action: ControlAction) => void | Promise<void>; onConfigureAgents: () => void; onViewApprovals: () => void }) {
   const [bulkOpen, setBulkOpen] = useState(false);
+  const bulkButtonRef = useRef<HTMLButtonElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+
+  const openBulk = useCallback(() => {
+    if (bulkOpen) {
+      setBulkOpen(false);
+      return;
+    }
+    const rect = bulkButtonRef.current?.getBoundingClientRect();
+    if (rect) {
+      setDropdownStyle({
+        position: "fixed",
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right,
+        zIndex: 9999,
+      });
+    }
+    setBulkOpen(true);
+  }, [bulkOpen]);
+
+  useEffect(() => {
+    if (!bulkOpen) return;
+    function handleResize() {
+      const rect = bulkButtonRef.current?.getBoundingClientRect();
+      if (rect) {
+        setDropdownStyle({
+          position: "fixed",
+          top: rect.bottom + 8,
+          right: window.innerWidth - rect.right,
+          zIndex: 9999,
+        });
+      }
+    }
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("scroll", handleResize, true);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("scroll", handleResize, true);
+    };
+  }, [bulkOpen]);
 
   return (
     <section className="rounded-3xl border border-white/70 bg-white/90 px-4 py-3 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-white/5 sm:px-5 sm:py-4">
@@ -496,42 +537,44 @@ function TopCommandBar({ environmentMode, isLoading, onEnvironmentChange, onRefr
           />
           <Button onClick={onRunAnalysis} type="button" variant="primary"><Play size={15} /> Run analysis</Button>
 
-          <div className="relative">
-            <Button onClick={() => setBulkOpen(!bulkOpen)} size="sm" type="button" variant="secondary">
+          <span ref={bulkButtonRef} className="inline-flex">
+            <Button onClick={openBulk} size="sm" type="button" variant="secondary">
               <Pause size={14} />
               <span>Bulk</span>
               <ChevronDown size={12} className={`shrink-0 text-slate-400 transition-transform ${bulkOpen ? "rotate-180" : ""}`} />
             </Button>
-            {bulkOpen && (
-              <>
-                <div className="fixed inset-0 z-10" onClick={() => setBulkOpen(false)} />
-                <div className="absolute right-0 top-full z-20 mt-2 w-56 rounded-2xl border border-slate-200 bg-white py-2 shadow-xl shadow-slate-950/10 dark:border-white/10 dark:bg-slate-900">
-                  <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                    Bulk Actions
-                  </div>
-                  {([
-                    { action: "pause" as ControlAction, label: "Pause all", icon: <Pause size={15} />, desc: "Pause eligible agent runs" },
-                    { action: "resume" as ControlAction, label: "Resume all", icon: <Play size={15} />, desc: "Resume paused agent runs" },
-                    { action: "stop" as ControlAction, label: "Stop all", icon: <Square size={15} />, desc: "Stop active agent runs" },
-                    { action: "rerun" as ControlAction, label: "Rerun failed", icon: <RotateCcw size={15} />, desc: "Rerun failed agent runs" },
-                  ]).map(({ action, label, icon, desc }) => (
-                    <button
-                      key={action}
-                      className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-white/10"
-                      onClick={() => { onBulkControl(action); setBulkOpen(false); }}
-                      type="button"
-                    >
-                      <span className="mt-0.5 shrink-0 text-slate-400 dark:text-slate-500">{icon}</span>
-                      <div className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
-                        <span className="block text-[11px] text-slate-500 dark:text-slate-400">{desc}</span>
-                      </div>
-                    </button>
-                  ))}
+          </span>
+
+          {bulkOpen && createPortal(
+            <>
+              <div className="fixed inset-0 z-[9998]" onClick={() => setBulkOpen(false)} />
+              <div style={dropdownStyle} className="w-56 rounded-2xl border border-slate-200 bg-white py-2 shadow-xl shadow-slate-950/10 dark:border-white/10 dark:bg-slate-900">
+                <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  Bulk Actions
                 </div>
-              </>
-            )}
-          </div>
+                {([
+                  { action: "pause" as ControlAction, label: "Pause all", icon: <Pause size={15} />, desc: "Pause eligible agent runs" },
+                  { action: "resume" as ControlAction, label: "Resume all", icon: <Play size={15} />, desc: "Resume paused agent runs" },
+                  { action: "stop" as ControlAction, label: "Stop all", icon: <Square size={15} />, desc: "Stop active agent runs" },
+                  { action: "rerun" as ControlAction, label: "Rerun failed", icon: <RotateCcw size={15} />, desc: "Rerun failed agent runs" },
+                ]).map(({ action, label, icon, desc }) => (
+                  <button
+                    key={action}
+                    className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-slate-100 dark:hover:bg-white/10"
+                    onClick={() => { onBulkControl(action); setBulkOpen(false); }}
+                    type="button"
+                  >
+                    <span className="mt-0.5 shrink-0 text-slate-400 dark:text-slate-500">{icon}</span>
+                    <div className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</span>
+                      <span className="block text-[11px] text-slate-500 dark:text-slate-400">{desc}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>,
+            document.body
+          )}
 
           <Button onClick={onConfigureAgents} disabled={isLoading} size="sm" type="button" variant="secondary">
             {isLoading ? <Loader2 className="animate-spin" size={14} /> : <Settings size={14} />} Configure
