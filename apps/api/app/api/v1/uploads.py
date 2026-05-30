@@ -45,6 +45,7 @@ from apps.api.app.services.keyword_scoring import KeywordScoringFailedError, Key
 from apps.api.app.services.keyword_review import KeywordReviewService
 from apps.api.app.services.storage import StorageService, get_storage_service
 from apps.api.app.services.upload_processing_worker import UploadProcessingWorker
+from apps.api.app.services.duplicate_detection import calculate_file_hash
 from apps.api.app.services.workflow_queue import enqueue_account_import_workflow
 
 router = APIRouter()
@@ -87,6 +88,18 @@ async def upload_account_report_multipart(
     if not content:
         raise ApiError(code="REPORT_FILE_EMPTY", message="Upload Report requires a non-empty file.", status_code=400)
 
+    # Phase 2: Calculate file hash for duplicate detection
+    file_hash = calculate_file_hash(content)
+
+    # Check for exact duplicate file
+    duplicate_result = _check_duplicate_upload(
+        workspace_id=workspace_id,
+        file_hash=file_hash,
+        upload_repository=upload_repository,
+        account_import_repository=account_import_repository,
+        workflow_repository=workflow_repository,
+    )
+
     payload = UploadInitRequest(
         original_filename=filename,
         mime_type=mime_type,
@@ -115,7 +128,30 @@ async def upload_account_report_multipart(
         actor_user_id=principal.user_id,
         idempotency_key=str(uuid4()),
     )
+    # Store file hash on the upload record
+    upload_repository.set_file_hash(workspace_id=workspace_id, upload_id=upload.id, file_hash=file_hash)
     storage_service.write_upload_object(storage_path=upload.storage_path, content=content)
+
+    if duplicate_result:
+        audit_repository.record(
+            workspace_id=workspace_id,
+            actor_user_id=principal.user_id,
+            action="upload.duplicate_detected",
+            entity_type="upload",
+            entity_id=upload.id,
+            details={
+                "duplicate_type": duplicate_result["duplicate_type"],
+                "previous_upload_id": duplicate_result.get("previous_upload_id"),
+                "file_hash": file_hash,
+            },
+        )
+        return success_response(
+            data={
+                "duplicate_detected": True,
+                **duplicate_result,
+                "upload_id": str(upload.id),
+            }
+        )
     queued_upload = upload_repository.mark_queued_for_processing(workspace_id=workspace_id, upload_id=upload.id)
     if queued_upload is None:
         raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found after creation.", status_code=404)
@@ -1029,6 +1065,43 @@ def _require_parse_run(
     if parse_run is None:
         raise ApiError(code="PARSE_RUN_NOT_FOUND", message="Parse run was not found.", status_code=404)
     return parse_run
+
+
+def _check_duplicate_upload(
+    *,
+    workspace_id: UUID,
+    file_hash: str,
+    upload_repository: "UploadRepository",
+    account_import_repository: "AccountImportRepository",
+    workflow_repository: "WorkflowRepository",
+) -> dict | None:
+    """Check if a file with the same hash already exists in this workspace."""
+    existing = upload_repository.find_by_file_hash(workspace_id=workspace_id, file_hash=file_hash)
+    if not existing:
+        return None
+
+    # Gather previous import info
+    imports = account_import_repository.list_imports(workspace_id=workspace_id)
+    matching_import = next((imp for imp in imports if imp.upload_id == existing.id), None)
+
+    run_count = 0
+    if matching_import:
+        latest_workflow = workflow_repository.get_latest_for_account_import(
+            workspace_id=workspace_id, account_import_id=matching_import.id
+        )
+        if latest_workflow:
+            run_count = latest_workflow.run_number
+
+    return {
+        "duplicate_type": "exact_file_duplicate",
+        "previous_upload_id": str(existing.id),
+        "previous_import_id": str(matching_import.id) if matching_import else None,
+        "previous_filename": existing.original_filename,
+        "uploaded_at": existing.created_at.isoformat() if existing.created_at else None,
+        "report_type": existing.source_type.value if existing.source_type else None,
+        "row_count": matching_import.total_rows if matching_import else None,
+        "previous_run_count": run_count,
+    }
 
 
 def _ensure_safe_init_replay(

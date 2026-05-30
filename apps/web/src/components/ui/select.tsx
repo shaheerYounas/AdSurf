@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 import { cn, humanize } from "@/lib/utils";
 
@@ -40,20 +41,75 @@ export function Select({
 }: SelectProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const options = toOptions(rawOptions);
   const selected = options.find((o) => o.value === value);
 
+  const recalcPosition = useCallback(() => {
+    const btn = buttonRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const dropdownHeight = Math.min(options.length * 44 + 16, 280); // estimate max height
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    // Determine if dropdown should open upward or downward
+    if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
+      // Open upward
+      setDropdownStyle({
+        position: "fixed",
+        bottom: window.innerHeight - rect.top + 4,
+        left: rect.left,
+        width: rect.width,
+        maxHeight: Math.min(spaceAbove - 8, 280),
+        zIndex: 9999,
+      });
+    } else {
+      // Open downward
+      setDropdownStyle({
+        position: "fixed",
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: rect.width,
+        maxHeight: Math.min(spaceBelow - 8, 280),
+        zIndex: 9999,
+      });
+    }
+  }, [options.length]);
+
   useEffect(() => {
+    if (!open) return;
+    recalcPosition();
+  }, [open, recalcPosition]);
+
+  useEffect(() => {
+    if (!open) return;
+
     function handleClickOutside(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const insideTrigger = containerRef.current?.contains(target);
+      const insideDropdown = dropdownRef.current?.contains(target);
+      if (!insideTrigger && !insideDropdown) {
         setOpen(false);
       }
     }
-    if (open) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
+
+    function handleResizeOrScroll() {
+      recalcPosition();
     }
-  }, [open]);
+
+    document.addEventListener("mousedown", handleClickOutside);
+    window.addEventListener("resize", handleResizeOrScroll);
+    window.addEventListener("scroll", handleResizeOrScroll, true);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("resize", handleResizeOrScroll);
+      window.removeEventListener("scroll", handleResizeOrScroll, true);
+    };
+  }, [open, recalcPosition]);
 
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
@@ -73,6 +129,7 @@ export function Select({
         </span>
       )}
       <button
+        ref={buttonRef}
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen(!open)}
@@ -98,41 +155,53 @@ export function Select({
         />
       </button>
 
-      {open && (
-        <div
-          className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-auto rounded-2xl border border-slate-200 bg-white py-1 shadow-xl shadow-slate-950/10 dark:border-white/10 dark:bg-slate-900"
-          role="listbox"
-        >
-          {placeholder && (
-            <div className="px-3 py-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
-              {placeholder}
-            </div>
-          )}
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              disabled={option.disabled}
-              role="option"
-              aria-selected={option.value === value}
-              onClick={() => {
-                onChange(option.value);
-                setOpen(false);
-              }}
-              className={cn(
-                "flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition",
-                option.value === value
-                  ? "bg-indigo-50 text-indigo-800 dark:bg-indigo-400/10 dark:text-indigo-200"
-                  : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10",
-                option.disabled && "cursor-not-allowed opacity-40",
-              )}
+      {open &&
+        createPortal(
+          <>
+            {/* Invisible backdrop to catch clicks outside */}
+            <div
+              className="fixed inset-0 z-[9998]"
+              onClick={() => setOpen(false)}
+              aria-hidden="true"
+            />
+            <div
+              ref={dropdownRef}
+              className="overflow-auto rounded-2xl border border-slate-200 bg-white py-1 shadow-xl shadow-slate-950/10 dark:border-white/10 dark:bg-slate-900"
+              style={dropdownStyle}
+              role="listbox"
             >
-              <span className="flex-1 truncate">{option.label ?? humanize(option.value)}</span>
-              {option.value === value && <Check size={16} className="shrink-0 text-indigo-600 dark:text-indigo-400" />}
-            </button>
-          ))}
-        </div>
-      )}
+              {placeholder && (
+                <div className="px-3 py-2 text-xs font-semibold text-slate-400 dark:text-slate-500">
+                  {placeholder}
+                </div>
+              )}
+              {options.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  disabled={option.disabled}
+                  role="option"
+                  aria-selected={option.value === value}
+                  onClick={() => {
+                    onChange(option.value);
+                    setOpen(false);
+                  }}
+                  className={cn(
+                    "flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition",
+                    option.value === value
+                      ? "bg-indigo-50 text-indigo-800 dark:bg-indigo-400/10 dark:text-indigo-200"
+                      : "text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-white/10",
+                    option.disabled && "cursor-not-allowed opacity-40",
+                  )}
+                >
+                  <span className="flex-1 truncate">{option.label ?? humanize(option.value)}</span>
+                  {option.value === value && <Check size={16} className="shrink-0 text-indigo-600 dark:text-indigo-400" />}
+                </button>
+              ))}
+            </div>
+          </>,
+          document.body
+        )}
 
       {helperText && (
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{helperText}</p>

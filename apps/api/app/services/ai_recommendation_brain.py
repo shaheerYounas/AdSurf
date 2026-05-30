@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from decimal import Decimal
 from hashlib import sha256
@@ -24,6 +24,9 @@ from apps.api.app.schemas.monitoring import (
 )
 from apps.api.app.schemas.product_profiles import ProductProfile
 from apps.api.app.services import monitoring_metrics
+from apps.api.app.services import ai_confidence as confidence_module
+from apps.api.app.services import ai_critic
+from apps.api.app.services import optimization_memory
 from apps.api.app.services.ai_client import AiClientError, AiJsonClient
 from apps.api.app.services.deepseek_client import DeepSeekClient
 from apps.api.app.services.monitoring_rules import build_recommendations
@@ -110,11 +113,26 @@ class AiRecommendationBrainResult:
     ai_run: AiRun
     used_ai: bool
     validation_errors: list[str]
+    critic_findings: list[dict[str, Any]] = field(default_factory=list)
+    rejected_by_critic: list[Recommendation] = field(default_factory=list)
+    attempts: int = 1
+
+
+# Default attempts: 1 initial + up to 2 retries. Retries feed the prior
+# validation errors back to the model so it can correct them in-place,
+# rather than failing the whole batch on the first bad JSON.
+DEFAULT_MAX_ATTEMPTS = 3
 
 
 class AiRecommendationBrain:
-    def __init__(self, *, client: AiJsonClient | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        client: AiJsonClient | None = None,
+        max_attempts: int = DEFAULT_MAX_ATTEMPTS,
+    ) -> None:
         self._client = client or DeepSeekClient()
+        self._max_attempts = max(1, max_attempts)
 
     def generate(
         self,
@@ -126,6 +144,8 @@ class AiRecommendationBrain:
         data_quality_warnings: list[dict],
         baseline_recommendations: list[Recommendation] | None = None,
         agent_config: Any | None = None,
+        pattern_index: dict[str, optimization_memory.PatternOutcome] | None = None,
+        data_window_days: int | None = None,
     ) -> AiRecommendationBrainResult:
         payload = _brain_payload(
             product=product,
@@ -135,26 +155,64 @@ class AiRecommendationBrain:
             data_quality_warnings=data_quality_warnings,
             baseline_recommendations=baseline_recommendations,
             agent_config=agent_config,
+            pattern_index=pattern_index,
+            data_window_days=data_window_days,
         )
         messages = _messages(payload)
         input_hash = _hash_payload({"messages": messages})
-        try:
-            response = self._client.complete_json(messages=messages)
-            parsed = AiRecommendationOutput.model_validate(response.content_json)
+
+        last_error: str | None = None
+        last_validation_errors: list[str] = []
+        last_content: dict | None = None
+        last_latency = 0
+        provider = getattr(self._client, "provider", "unknown")
+        model = getattr(self._client, "model", "unknown")
+
+        for attempt in range(1, self._max_attempts + 1):
+            current_messages = list(messages)
+            if attempt > 1 and last_validation_errors:
+                current_messages.append(_retry_user_message(last_validation_errors))
+
+            try:
+                response = self._client.complete_json(messages=current_messages)
+            except AiClientError as exc:
+                last_error = str(exc)
+                last_validation_errors = [last_error]
+                continue
+
+            provider = response.provider
+            model = response.model
+            last_latency = response.latency_ms
+            last_content = response.content_json
+
+            try:
+                parsed = AiRecommendationOutput.model_validate(response.content_json)
+            except ValidationError as exc:
+                last_error = str(exc)
+                last_validation_errors = _pydantic_errors(exc)
+                continue
+
             validation_errors = validate_ai_output(parsed, snapshots=snapshots)
-            status = "failed" if validation_errors else "succeeded"
+            if validation_errors:
+                last_validation_errors = validation_errors
+                last_error = "; ".join(validation_errors[:3])
+                continue
+
             ai_run = _ai_run(
                 workspace_id=import_record.workspace_id,
                 product_id=import_record.product_id,
-                provider=response.provider,
-                model=response.model,
+                provider=provider,
+                model=model,
                 input_hash=input_hash,
-                output_json={**response.content_json, "input_json": payload, "validation_errors": validation_errors},
-                status=status,
-                latency_ms=response.latency_ms,
+                output_json={
+                    **response.content_json,
+                    "input_json": payload,
+                    "validation_errors": [],
+                    "attempts": attempt,
+                },
+                status="succeeded",
+                latency_ms=last_latency,
             )
-            if validation_errors:
-                return AiRecommendationBrainResult(recommendations=[], ai_run=ai_run, used_ai=False, validation_errors=validation_errors)
             recommendations = _recommendations_from_ai(
                 product=product,
                 import_record=import_record,
@@ -162,21 +220,53 @@ class AiRecommendationBrain:
                 rollups=rollups,
                 ai_run=ai_run,
                 output=parsed,
+                pattern_index=pattern_index or {},
+                data_window_days=data_window_days,
+                agent_config=agent_config,
             )
-            return AiRecommendationBrainResult(recommendations=recommendations, ai_run=ai_run, used_ai=True, validation_errors=[])
-        except (AiClientError, ValidationError) as exc:
-            message = str(exc)
-            ai_run = _ai_run(
-                workspace_id=import_record.workspace_id,
-                product_id=import_record.product_id,
-                provider=getattr(self._client, "provider", "unknown"),
-                model=getattr(self._client, "model", "unknown"),
-                input_hash=input_hash,
-                output_json={"error": message, "input_json": payload, "validation_errors": [message], "dashboard_summary": _failed_dashboard_summary(message)},
-                status="failed",
-                latency_ms=0,
+
+            critic_outcome = ai_critic.critique(
+                recommendations=recommendations,
+                snapshots=snapshots,
             )
-            return AiRecommendationBrainResult(recommendations=[], ai_run=ai_run, used_ai=False, validation_errors=[message])
+            findings_json = [f.to_json() for f in critic_outcome.findings]
+
+            return AiRecommendationBrainResult(
+                recommendations=critic_outcome.accepted,
+                ai_run=ai_run,
+                used_ai=True,
+                validation_errors=[],
+                critic_findings=findings_json,
+                rejected_by_critic=critic_outcome.rejected,
+                attempts=attempt,
+            )
+
+        # All attempts exhausted — record a failed ai_run with the last error.
+        message = last_error or "AI recommendation generation failed after retries."
+        ai_run = _ai_run(
+            workspace_id=import_record.workspace_id,
+            product_id=import_record.product_id,
+            provider=provider,
+            model=model,
+            input_hash=input_hash,
+            output_json={
+                "error": message,
+                "input_json": payload,
+                "validation_errors": last_validation_errors or [message],
+                "last_content_json": last_content,
+                "dashboard_summary": _failed_dashboard_summary(message),
+                "attempts": self._max_attempts,
+            },
+            status="failed",
+            latency_ms=last_latency,
+        )
+        return AiRecommendationBrainResult(
+            recommendations=[],
+            ai_run=ai_run,
+            used_ai=False,
+            validation_errors=last_validation_errors or [message],
+            attempts=self._max_attempts,
+        )
 
 
 def build_deterministic_recommendations(
@@ -263,8 +353,13 @@ def _recommendations_from_ai(
     rollups: dict,
     ai_run: AiRun,
     output: AiRecommendationOutput,
+    pattern_index: dict[str, optimization_memory.PatternOutcome] | None = None,
+    data_window_days: int | None = None,
+    agent_config: Any | None = None,
 ) -> list[Recommendation]:
     now = datetime.now(UTC)
+    pattern_index = pattern_index or {}
+    strategy_mode = _strategy_mode_from_config(agent_config)
     recommendations: list[Recommendation] = []
     for item in output.recommendations:
         snapshot = _matching_snapshot(item, snapshots)
@@ -273,7 +368,25 @@ def _recommendations_from_ai(
         metrics = monitoring_metrics.snapshot_metrics(snapshot, report_performance=rollups["report"])
         recommendation_type = RecommendationType(item.recommendation_type)
         priority = RecommendationPriority(item.priority)
-        confidence = RecommendationConfidence(item.confidence)
+        ai_self_confidence = RecommendationConfidence(item.confidence)
+
+        # Override the LLM's self-reported confidence with one computed from
+        # evidence. Reviewers see *both*: the deterministic confidence drives
+        # prioritization, and the AI's claim is kept in the audit trail.
+        pattern_outcome = optimization_memory.lookup_pattern_for_candidate(
+            pattern_index=pattern_index,
+            snapshot=snapshot,
+            action=recommendation_type.value,
+            strategy_mode=strategy_mode,
+            target_acos=product.target_acos,
+        )
+        breakdown = confidence_module.compute_confidence(
+            snapshot=snapshot,
+            recommendation_type=recommendation_type,
+            data_window_days=data_window_days,
+            pattern_outcome=pattern_outcome.to_dict() if pattern_outcome else None,
+        )
+        confidence = breakdown.confidence
         proposed_action = _safe_proposed_action(item, snapshot)
         recommendations.append(
             Recommendation(
@@ -308,6 +421,9 @@ def _recommendations_from_ai(
                     "summary": item.reasoning_summary,
                     "priority": priority.value,
                     "confidence": confidence.value,
+                    "ai_self_reported_confidence": ai_self_confidence.value,
+                    "confidence_breakdown": breakdown.to_json(),
+                    "pattern_outcome": pattern_outcome.to_dict() if pattern_outcome else None,
                     "decision_source": DEEPSEEK_DECISION_SOURCE,
                     "ai_run_id": str(ai_run.id),
                     "ai_provider": ai_run.provider,
@@ -325,6 +441,42 @@ def _recommendations_from_ai(
     return recommendations
 
 
+def _strategy_mode_from_config(agent_config: Any | None) -> str:
+    if agent_config is None:
+        return "balanced"
+    data = agent_config.model_dump(mode="json") if hasattr(agent_config, "model_dump") else dict(agent_config)
+    goal = data.get("optimization_goal") or data.get("mode") or "balanced"
+    return str(goal)
+
+
+def _retry_user_message(validation_errors: list[str]) -> dict[str, str]:
+    """Build a follow-up user message that feeds validation errors back to the
+    model. We cap at 8 errors and tell the model exactly what to fix; the
+    response must be a full corrected output, not a diff."""
+
+    capped = validation_errors[:8]
+    body = {
+        "task": "retry_after_validation_failure",
+        "instruction": (
+            "Your previous response failed validation. "
+            "Produce a corrected JSON output that satisfies the schema and all stated rules. "
+            "Do not change any deterministic metric values. "
+            "Keep requires_human_approval true and executes_live_amazon_change false on every action."
+        ),
+        "validation_errors": capped,
+    }
+    return {"role": "user", "content": json.dumps(body, sort_keys=True)}
+
+
+def _pydantic_errors(exc: ValidationError) -> list[str]:
+    out: list[str] = []
+    for err in exc.errors():
+        loc = ".".join(str(part) for part in err.get("loc", ()))
+        msg = err.get("msg", "validation error")
+        out.append(f"{loc}: {msg}" if loc else msg)
+    return out[:10]
+
+
 def _brain_payload(
     *,
     product: ProductProfile,
@@ -334,6 +486,8 @@ def _brain_payload(
     data_quality_warnings: list[dict],
     baseline_recommendations: list[Recommendation] | None,
     agent_config: Any | None,
+    pattern_index: dict[str, optimization_memory.PatternOutcome] | None = None,
+    data_window_days: int | None = None,
 ) -> dict:
     return {
         "report_context": {
@@ -380,6 +534,14 @@ def _brain_payload(
         "rollups": rollups,
         "data_quality_warnings": data_quality_warnings,
         "baseline_recommendations": [_baseline_payload(item) for item in (baseline_recommendations or [])],
+        "candidate_actions": [_candidate_payload(item) for item in (baseline_recommendations or [])],
+        "prior_pattern_outcomes": _pattern_outcomes_payload(pattern_index, baseline_recommendations or []),
+        "data_window_days": data_window_days,
+        "your_job": (
+            "Select, rank, group, and explain among the candidate_actions above. "
+            "You may also add new recommendations only if the snapshots clearly support them. "
+            "Do not recalculate metrics. Prioritize evidence strength, strategic alignment, and impact."
+        ),
         "safety_boundaries": {
             "ai_may_generate_recommendation_decisions": True,
             "requires_human_approval": True,
@@ -471,10 +633,13 @@ def _rollup_items(rollups: dict) -> list[dict]:
 def _messages(payload: dict) -> list[dict[str, str]]:
     system = (
         "You are the recommendation brain for an Amazon Ads SaaS monitoring workflow. "
-        "Return JSON only. Use only the deterministic metrics supplied by the backend; do not recalculate raw metrics. "
-        "You may decide recommendation type, priority, confidence, proposed action, evidence, and explanation. "
-        "You must not approve, reject, execute, export, call Amazon Ads APIs, or claim a live Amazon Ads change was made. "
-        "Every proposed_action.requires_human_approval must be true and executes_live_amazon_change must be false."
+        "The backend has already pre-computed all metrics and a list of deterministic candidate_actions. "
+        "Your primary job is to SELECT, RANK, GROUP, and EXPLAIN among those candidates — not to invent new ones from raw rows. "
+        "You may add a recommendation outside the candidate list only when the snapshots clearly support it. "
+        "Return JSON only. Do not recalculate metrics. Do not approve, reject, execute, export, or call Amazon Ads APIs. "
+        "Do not claim a live Amazon change was made. "
+        "Every proposed_action.requires_human_approval must be true and executes_live_amazon_change must be false. "
+        "Your self-reported confidence is advisory only — the backend recomputes confidence from evidence."
     )
     user = {
         "task": "Analyze uploaded Sponsored Products Search Term report evidence and produce recommendation JSON only.",
@@ -547,6 +712,49 @@ def _baseline_payload(recommendation: Recommendation) -> dict:
         "metrics": recommendation.current_metric_snapshot_json or recommendation.input_metrics_json,
         "proposed_action": recommendation.proposed_action_json,
     }
+
+
+def _candidate_payload(recommendation: Recommendation) -> dict:
+    """A compact view of a deterministic candidate, for the prompt's
+    candidate_actions section. The brain reads these to pick winners."""
+
+    return {
+        "candidate_id": str(recommendation.id),
+        "action": recommendation.recommendation_type.value,
+        "entity_type": recommendation.entity_type.value,
+        "campaign_name": recommendation.campaign_name,
+        "ad_group_name": recommendation.ad_group_name,
+        "targeting": recommendation.targeting,
+        "customer_search_term": recommendation.customer_search_term,
+        "deterministic_priority": recommendation.priority.value,
+        "deterministic_evidence_score": (
+            recommendation.evidence_score.score
+            if recommendation.evidence_score is not None
+            else None
+        ),
+        "rule_name": recommendation.rule_name,
+    }
+
+
+def _pattern_outcomes_payload(
+    pattern_index: dict[str, optimization_memory.PatternOutcome] | None,
+    baseline_recommendations: list[Recommendation],
+) -> list[dict]:
+    """Surface only the patterns that intersect candidates in this run.
+
+    Sending the entire pattern_index would dominate the prompt for big
+    accounts; we narrow to the actions actually under consideration.
+    """
+
+    if not pattern_index:
+        return []
+
+    candidate_actions = {rec.recommendation_type.value for rec in baseline_recommendations}
+    out: list[dict] = []
+    for key_str, outcome in pattern_index.items():
+        if outcome.key.action in candidate_actions or not candidate_actions:
+            out.append(outcome.to_dict())
+    return out
 
 
 def _ai_evidence_json(*, item: AiRecommendationItem, snapshot: MonitoringSnapshot, metrics: dict, rollups: dict, product: ProductProfile, ai_run: AiRun) -> dict:

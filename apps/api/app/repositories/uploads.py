@@ -54,12 +54,26 @@ class UploadRepository(ABC):
     def update_status(self, *, workspace_id: UUID, upload_id: UUID, status: UploadStatus) -> UploadRecord | None:
         raise NotImplementedError
 
+    @abstractmethod
+    def set_file_hash(self, *, workspace_id: UUID, upload_id: UUID, file_hash: str) -> UploadRecord | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def find_by_file_hash(self, *, workspace_id: UUID, file_hash: str) -> UploadRecord | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def find_by_data_fingerprint(self, *, workspace_id: UUID, data_fingerprint: str) -> UploadRecord | None:
+        raise NotImplementedError
+
 
 class LocalUploadRepository(UploadRepository):
     """Local/test repository used only when DATABASE_URL is absent in local/test."""
 
     def __init__(self) -> None:
         self._uploads: dict[UUID, dict[UUID, UploadRecord]] = {}
+        self._file_hashes: dict[UUID, dict[str, UUID]] = {}
+        self._data_fingerprints: dict[UUID, dict[str, UUID]] = {}
 
     def create_initialized(
         self,
@@ -146,6 +160,27 @@ class LocalUploadRepository(UploadRepository):
         updated = current.model_copy(update={"status": status, "updated_at": datetime.now(UTC)})
         self._uploads[workspace_id][upload_id] = updated
         return updated
+
+    def set_file_hash(self, *, workspace_id: UUID, upload_id: UUID, file_hash: str) -> UploadRecord | None:
+        current = self.get(workspace_id=workspace_id, upload_id=upload_id)
+        if current is None:
+            return None
+        self._file_hashes.setdefault(workspace_id, {})[file_hash] = upload_id
+        updated = current.model_copy(update={"file_hash": file_hash, "updated_at": datetime.now(UTC)})
+        self._uploads[workspace_id][upload_id] = updated
+        return updated
+
+    def find_by_file_hash(self, *, workspace_id: UUID, file_hash: str) -> UploadRecord | None:
+        upload_id = self._file_hashes.get(workspace_id, {}).get(file_hash)
+        if upload_id:
+            return self._uploads.get(workspace_id, {}).get(upload_id)
+        return None
+
+    def find_by_data_fingerprint(self, *, workspace_id: UUID, data_fingerprint: str) -> UploadRecord | None:
+        upload_id = self._data_fingerprints.get(workspace_id, {}).get(data_fingerprint)
+        if upload_id:
+            return self._uploads.get(workspace_id, {}).get(upload_id)
+        return None
 
 
 class PostgresUploadRepository(UploadRepository):
@@ -302,6 +337,62 @@ class PostgresUploadRepository(UploadRepository):
                     """
                 ),
                 {"workspace_id": workspace_id, "upload_id": upload_id, "status": status.value},
+            ).mappings().first()
+        return _upload_from_row(row) if row else None
+
+    def set_file_hash(self, *, workspace_id: UUID, upload_id: UUID, file_hash: str) -> UploadRecord | None:
+        with self._engine.begin() as connection:
+            row = connection.execute(
+                text(
+                    """
+                    update uploads
+                    set file_hash = :file_hash,
+                        file_hash_algorithm = 'sha256',
+                        updated_at = now()
+                    where workspace_id = :workspace_id and id = :upload_id
+                    returning id, workspace_id, product_id, uploaded_by, original_filename, storage_path,
+                        mime_type, file_size_bytes, status, source_type, idempotency_key, file_hash,
+                        file_hash_algorithm, created_at, updated_at, confirmed_at
+                    """
+                ),
+                {"workspace_id": workspace_id, "upload_id": upload_id, "file_hash": file_hash},
+            ).mappings().first()
+        return _upload_from_row(row) if row else None
+
+    def find_by_file_hash(self, *, workspace_id: UUID, file_hash: str) -> UploadRecord | None:
+        with self._engine.begin() as connection:
+            row = connection.execute(
+                text(
+                    """
+                    select id, workspace_id, product_id, uploaded_by, original_filename, storage_path,
+                        mime_type, file_size_bytes, status, source_type, idempotency_key, file_hash,
+                        file_hash_algorithm, created_at, updated_at, confirmed_at
+                    from uploads
+                    where workspace_id = :workspace_id and file_hash = :file_hash
+                    order by created_at desc
+                    limit 1
+                    """
+                ),
+                {"workspace_id": workspace_id, "file_hash": file_hash},
+            ).mappings().first()
+        return _upload_from_row(row) if row else None
+
+    def find_by_data_fingerprint(self, *, workspace_id: UUID, data_fingerprint: str) -> UploadRecord | None:
+        with self._engine.begin() as connection:
+            row = connection.execute(
+                text(
+                    """
+                    select u.id, u.workspace_id, u.product_id, u.uploaded_by, u.original_filename, u.storage_path,
+                        u.mime_type, u.file_size_bytes, u.status, u.source_type, u.idempotency_key, u.file_hash,
+                        u.file_hash_algorithm, u.created_at, u.updated_at, u.confirmed_at
+                    from uploads u
+                    inner join account_imports ai on ai.workspace_id = u.workspace_id and ai.upload_id = u.id
+                    where u.workspace_id = :workspace_id and ai.data_fingerprint = :data_fingerprint
+                    order by u.created_at desc
+                    limit 1
+                    """
+                ),
+                {"workspace_id": workspace_id, "data_fingerprint": data_fingerprint},
             ).mappings().first()
         return _upload_from_row(row) if row else None
 

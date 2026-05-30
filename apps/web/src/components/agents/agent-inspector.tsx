@@ -12,6 +12,7 @@ import {
   TerminalSquare,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { LoadingSkeleton } from "@/components/ui/loading-spinner";
 import { Select as SelectMenu } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { humanize } from "@/lib/utils";
@@ -83,6 +84,7 @@ export function AgentInspector({
   events,
   recommendations,
   advancedMode,
+  isLoading,
   onConfigChange,
   onToggleAgent,
 }: {
@@ -92,6 +94,7 @@ export function AgentInspector({
   events: AgentEvent[];
   recommendations: Recommendation[];
   advancedMode: boolean;
+  isLoading?: boolean;
   onConfigChange: (patch: Partial<AgentConfig>) => void;
   onToggleAgent: () => void;
 }) {
@@ -184,7 +187,7 @@ export function AgentInspector({
           />
         ) : null}
         {activeTab === "Configuration" ? (
-          <Configuration config={config} onConfigChange={onConfigChange} />
+          <Configuration config={config} isLoading={isLoading} onConfigChange={onConfigChange} />
         ) : null}
         {activeTab === "Prompt / Business Goal" ? (
           <PromptBusinessGoal
@@ -280,19 +283,37 @@ function Overview({
 
 function Configuration({
   config,
+  isLoading,
   onConfigChange,
 }: {
   config?: AgentConfig;
+  isLoading?: boolean;
   onConfigChange: (patch: Partial<AgentConfig>) => void;
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  if (!config)
+  if (!config) {
+    if (isLoading) {
+      return (
+        <div className="space-y-4">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+            <div className="h-5 w-32 animate-pulse rounded-xl bg-slate-200 dark:bg-white/10" />
+          </div>
+          <LoadingSkeleton lines={6} />
+        </div>
+      );
+    }
     return (
-      <p className="text-sm text-slate-600 dark:text-slate-300">
-        Configuration will appear after this agent is registered.
-      </p>
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center dark:border-white/15 dark:bg-white/5">
+        <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+          No configuration saved yet.
+        </p>
+        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          The agent works with default settings. Save any changes below to create a configuration record.
+        </p>
+      </div>
     );
+  }
 
   return (
     <div className="space-y-6">
@@ -861,7 +882,7 @@ function Select({
   helperText?: string;
 }) {
   return (
-    <SelectComponent
+    <SelectMenu
       label={label}
       value={value}
       options={options}
