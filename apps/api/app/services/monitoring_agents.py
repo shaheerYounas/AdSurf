@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 
 from apps.api.app.domain.monitoring import AGENT_SCHEMA_VERSION
 from apps.api.app.schemas.monitoring import AiRun, MonitoringImport, MonitoringSnapshot, Recommendation
+from apps.api.app.services.dual_path_decision import DualPathDecisionService, safety_prompt_snippet
 
 
 AGENT_MODEL = "deterministic-agent-explainer-v1"
@@ -175,3 +176,117 @@ def _refusal_boundary() -> dict:
         "can_bypass_human_approval": False,
         "can_mutate_live_amazon_ads": False,
     }
+
+
+# =============================================================================
+# Dual-Path Monitoring Agent Runs: Deterministic + AI
+# =============================================================================
+
+MONITORING_AGENTS_AI_AGENT_ID = "monitoring_agents_explainer"
+
+
+class DualPathMonitoringAgentsExplain(DualPathDecisionService[dict]):
+    """Dual-path monitoring agents explanation service.
+
+    Deterministic path: build_monitoring_agent_runs (exact structured summaries).
+    AI path: LLM generates enhanced natural-language explanations for monitoring outputs.
+    Both paths produce the same output schema (agent run output dicts).
+    """
+
+    AGENT_ID = MONITORING_AGENTS_AI_AGENT_ID
+    AGENT_DISPLAY_NAME = "Monitoring Agents Explainer"
+
+    def _deterministic_path(self, inputs: dict) -> dict:
+        """Run deterministic agent run summaries."""
+        recommendations: list[Recommendation] = inputs["recommendations"]
+        snapshots: list[MonitoringSnapshot] = inputs["snapshots"]
+        warnings: list[dict] = inputs.get("warnings", [])
+        import_record: MonitoringImport = inputs["import_record"]
+
+        return {
+            "quality": _quality_summary(import_record=import_record, snapshots=snapshots, warnings=warnings),
+            "performance": _performance_summary(recommendations=recommendations, snapshots=snapshots),
+            "stakeholder": _stakeholder_summary(recommendations=recommendations, snapshots=snapshots),
+            "decision_source": "deterministic",
+            "requires_human_approval": True,
+            "executes_live_amazon_change": False,
+        }
+
+    def _ai_prompt(self, inputs: dict) -> list[dict[str, str]]:
+        recommendations: list[Recommendation] = inputs["recommendations"]
+        snapshots: list[MonitoringSnapshot] = inputs["snapshots"]
+        recs_for_prompt = [
+            {
+                "type": r.recommendation_type.value,
+                "priority": r.priority.value,
+                "confidence": r.confidence.value,
+                "campaign_name": r.campaign_name,
+                "customer_search_term": r.customer_search_term,
+                "explanation_summary": r.explanation_json.get("summary"),
+            }
+            for r in recommendations[:50]
+        ]
+        total_spend = sum((s.spend for s in snapshots), Decimal("0"))
+        total_sales = sum((s.sales for s in snapshots), Decimal("0"))
+
+        system = (
+            "You are the AdSurf Monitoring Agents Explainer. "
+            "Your job is to generate human-readable explanations for Amazon Ads monitoring outputs. "
+            f"{safety_prompt_snippet()}"
+            "You generate explanations only — you do not approve, reject, or execute any ad changes. "
+            "Return JSON only. "
+            "Every output must include decision_source='ai' and requires_human_approval=true."
+        )
+        user = {
+            "task": "explain_monitoring_outputs",
+            "metrics_summary": {
+                "total_spend": str(total_spend),
+                "total_sales": str(total_sales),
+                "total_orders": sum(s.orders for s in snapshots),
+                "snapshot_count": len(snapshots),
+                "recommendation_count": len(recommendations),
+            },
+            "recommendations": recs_for_prompt,
+            "required_output_shape": {
+                "quality_summary": {"summary": "string", "can_generate_recommendations": "boolean"},
+                "performance_summary": {"summary": "string", "top_insights": ["list of key insights"]},
+                "stakeholder_summary": {"headline": "string", "next_steps": ["list of recommended next steps"]},
+                "decision_source": "ai",
+                "requires_human_approval": True,
+                "executes_live_amazon_change": False,
+            },
+        }
+        return [
+            {"role": "system", "content": system},
+            {"role": "user", "content": json.dumps(user, default=str, sort_keys=True)},
+        ]
+
+    def _validate_ai_output(self, ai_json: dict, inputs: dict) -> list[str]:
+        errors: list[str] = []
+        if ai_json.get("decision_source") != "ai":
+            errors.append("decision_source must be 'ai'.")
+        if ai_json.get("requires_human_approval") is not True:
+            errors.append("requires_human_approval must be true.")
+        if ai_json.get("executes_live_amazon_change") is not False:
+            errors.append("executes_live_amazon_change must be false.")
+        return errors
+
+    def _parse_ai_output(self, ai_json: dict, inputs: dict) -> dict:
+        return {
+            "quality": ai_json.get("quality_summary", {}),
+            "performance": ai_json.get("performance_summary", {}),
+            "stakeholder": ai_json.get("stakeholder_summary", {}),
+            "decision_source": "ai",
+            "requires_human_approval": True,
+            "executes_live_amazon_change": False,
+        }
+
+    def _empty_result(self) -> dict:
+        return {
+            "quality": {},
+            "performance": {},
+            "stakeholder": {},
+            "decision_source": "ai",
+            "requires_human_approval": True,
+            "executes_live_amazon_change": False,
+        }

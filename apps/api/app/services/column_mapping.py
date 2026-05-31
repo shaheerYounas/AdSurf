@@ -1,3 +1,4 @@
+import json
 from uuid import UUID
 
 from apps.api.app.core.errors import ApiError
@@ -10,6 +11,7 @@ from apps.api.app.schemas.column_mapping import (
     ColumnProfileColumn,
     ManualMappingJson,
 )
+from apps.api.app.services.dual_path_decision import DualPathDecisionService, safety_prompt_snippet
 
 
 MAX_COMPETITOR_RANK_COLUMNS = 10
@@ -188,3 +190,136 @@ def _message(
         payload["column_id"] = str(column.id)
         payload["column_name"] = column.original_column_name
     messages.append(payload)
+
+
+# =============================================================================
+# Dual-Path Column Mapping: Deterministic + AI
+# =============================================================================
+
+COLUMN_MAPPING_AI_AGENT_ID = "column_mapping_agent"
+
+
+class DualPathColumnMapping(DualPathDecisionService[dict]):
+    """Dual-path column mapping service.
+
+    Deterministic path: validate_manual_mapping (exact rule-based validation).
+    AI path: LLM suggests column mappings based on column profiles and sample data.
+    Both paths produce the same output schema (mapping dict with status and messages).
+    """
+
+    AGENT_ID = COLUMN_MAPPING_AI_AGENT_ID
+    AGENT_DISPLAY_NAME = "Column Mapping Agent"
+
+    def _deterministic_path(self, inputs: dict) -> dict:
+        """Run deterministic column mapping validation."""
+        profile: ColumnProfile = inputs["profile"]
+        columns: list[ColumnProfileColumn] = inputs["columns"]
+        mapping_json: ManualMappingJson = inputs["mapping_json"]
+        status, messages, canonical_mapping = validate_manual_mapping(
+            profile=profile, columns=columns, mapping_json=mapping_json,
+        )
+        return {
+            "status": status.value,
+            "messages": messages,
+            "canonical_mapping": canonical_mapping,
+            "decision_source": "deterministic",
+            "requires_human_approval": True,
+            "executes_live_amazon_change": False,
+        }
+
+    def _ai_prompt(self, inputs: dict) -> list[dict[str, str]]:
+        columns: list[ColumnProfileColumn] = inputs["columns"]
+        columns_for_prompt = [
+            {
+                "column_id": str(col.id),
+                "original_column_name": col.original_column_name,
+                "normalized_column_name": col.normalized_column_name,
+                "inferred_data_type": col.inferred_data_type.value,
+                "sample_values": col.sample_values_json[:5],
+            }
+            for col in columns
+        ]
+        existing_mapping = inputs.get("mapping_json")
+        current_mapping = {
+            "search_term": existing_mapping.search_term if existing_mapping else None,
+            "search_volume": existing_mapping.search_volume if existing_mapping else None,
+            "competitor_rank_columns": list(existing_mapping.competitor_rank_columns) if existing_mapping and existing_mapping.competitor_rank_columns else [],
+        } if existing_mapping else None
+
+        system = (
+            "You are the AdSurf Column Mapping Agent. "
+            "Your job is to suggest column mappings for Amazon competitor keyword files. "
+            f"{safety_prompt_snippet()}"
+            "You suggest mappings only — they must be reviewed by a human before approval. "
+            "Return JSON only. "
+            "Every output must include decision_source='ai' and requires_human_approval=true."
+        )
+        user = {
+            "task": "suggest_column_mapping",
+            "available_columns": columns_for_prompt,
+            "current_mapping": current_mapping,
+            "mapping_rules": {
+                "search_term": "Must be a text column with search terms/keywords, not purely numeric.",
+                "search_volume": "Must be a numeric column representing search volume.",
+                "competitor_rank_columns": "1-10 numeric columns representing competitor ranks.",
+            },
+            "required_output_shape": {
+                "suggested_mapping": {
+                    "search_term": "original_column_name or null",
+                    "search_volume": "original_column_name or null",
+                    "competitor_rank_columns": ["original_column_name", "..."],
+                    "confidence": "high | medium | low",
+                    "reasoning": "brief explanation of mapping choices",
+                },
+                "validation_messages": [{"severity": "error | warning | info", "code": "...", "message": "..."}],
+                "decision_source": "ai",
+                "requires_human_approval": True,
+                "executes_live_amazon_change": False,
+            },
+        }
+        return [
+            {"role": "system", "content": system},
+            {"role": "user", "content": json.dumps(user, default=str, sort_keys=True)},
+        ]
+
+    def _validate_ai_output(self, ai_json: dict, inputs: dict) -> list[str]:
+        errors: list[str] = []
+        mapping = ai_json.get("suggested_mapping", {})
+        if not mapping:
+            errors.append("AI output must include suggested_mapping.")
+        if ai_json.get("decision_source") != "ai":
+            errors.append("decision_source must be 'ai'.")
+        if ai_json.get("requires_human_approval") is not True:
+            errors.append("requires_human_approval must be true.")
+        if ai_json.get("executes_live_amazon_change") is not False:
+            errors.append("executes_live_amazon_change must be false.")
+        if not mapping.get("search_term"):
+            errors.append("suggested_mapping.search_term is required.")
+        return errors
+
+    def _parse_ai_output(self, ai_json: dict, inputs: dict) -> dict:
+        mapping = ai_json.get("suggested_mapping", {})
+        return {
+            "canonical_mapping": {
+                "search_term": mapping.get("search_term"),
+                "search_volume": mapping.get("search_volume"),
+                "competitor_rank_columns": mapping.get("competitor_rank_columns", []),
+            },
+            "messages": ai_json.get("validation_messages", []),
+            "status": "valid",
+            "confidence": mapping.get("confidence", "medium"),
+            "reasoning": mapping.get("reasoning", ""),
+            "decision_source": "ai",
+            "requires_human_approval": True,
+            "executes_live_amazon_change": False,
+        }
+
+    def _empty_result(self) -> dict:
+        return {
+            "status": "invalid",
+            "messages": [{"severity": "error", "code": "AI_MAPPING_FAILED", "message": "AI column mapping could not be generated."}],
+            "canonical_mapping": {},
+            "decision_source": "ai",
+            "requires_human_approval": True,
+            "executes_live_amazon_change": False,
+        }

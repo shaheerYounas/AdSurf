@@ -100,8 +100,6 @@ class AgentConfig(BaseModel):
     strictness_level: AgentStrictnessLevel = AgentStrictnessLevel.BALANCED
     confidence_threshold: AgentConfidenceThreshold = AgentConfidenceThreshold.MEDIUM
     max_recommendations: int = Field(default=100, ge=1, le=1000)
-    max_rows_per_ai_call: int = Field(default=500, ge=1, le=50000)
-    max_groups_per_ai_call: int = Field(default=100, ge=1, le=5000)
     max_products_per_run: int = Field(default=50, ge=1, le=10000)
     analysis_depth: AgentAnalysisDepth = AgentAnalysisDepth.STANDARD
     include_account_level_analysis: bool = True
@@ -132,12 +130,7 @@ class AgentConfig(BaseModel):
     target_acos_override: Decimal | None = Field(default=None, ge=Decimal("0"), le=Decimal("10"))
     min_orders_for_scaling: int = Field(default=2, ge=0)
     min_roas_for_scaling: Decimal = Field(default=Decimal("2.0000"), ge=Decimal("0"))
-    custom_system_instruction: str | None = Field(default=None, max_length=4000)
-    custom_business_goal: str | None = Field(default=None, max_length=2000)
     optimization_goal: AgentOptimizationGoal = AgentOptimizationGoal.CONSERVATIVE_PROFITABILITY
-    brand_safety_notes: str | None = Field(default=None, max_length=2000)
-    competitor_notes: str | None = Field(default=None, max_length=2000)
-    product_margin_notes: str | None = Field(default=None, max_length=2000)
     recommendation_language: str = Field(default="en", min_length=2, max_length=20)
     explanation_detail: AgentExplanationDetail = AgentExplanationDetail.NORMAL
     show_raw_ai_reasoning_summary: bool = False
@@ -148,6 +141,37 @@ class AgentConfig(BaseModel):
     updated_by: str | None = None
     created_at: datetime | None = None
     updated_at: datetime | None = None
+
+    # === Prompt customization ===
+    custom_system_instruction: str | None = Field(default=None, max_length=4000)
+    custom_business_goal: str | None = Field(default=None, max_length=2000)
+    custom_role_description: str | None = Field(default=None, max_length=2000)
+    custom_output_format: str | None = Field(default=None, max_length=2000)
+    custom_examples_json: str | None = Field(default=None, max_length=10000)
+    additional_safety_notes: str | None = Field(default=None, max_length=2000)
+    brand_safety_notes: str | None = Field(default=None, max_length=2000)
+    competitor_notes: str | None = Field(default=None, max_length=2000)
+    product_margin_notes: str | None = Field(default=None, max_length=2000)
+
+    # === AI model parameters ===
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
+    max_tokens: int | None = Field(default=None, ge=1, le=32000)
+    top_p: float | None = Field(default=None, ge=0.0, le=1.0)
+    frequency_penalty: float | None = Field(default=None, ge=-2.0, le=2.0)
+    presence_penalty: float | None = Field(default=None, ge=-2.0, le=2.0)
+
+    # === Deterministic rule customization ===
+    deterministic_relevance_threshold: int | None = Field(default=None, ge=0, le=10)
+    deterministic_max_rank_value: int | None = Field(default=None, ge=1, le=100)
+    deterministic_keyword_batch_size: int | None = Field(default=None, ge=1, le=50)
+    deterministic_default_bid: Decimal | None = Field(default=None, ge=Decimal("0.01"), le=Decimal("1000.00"))
+    deterministic_default_budget: Decimal | None = Field(default=None, ge=Decimal("0.01"), le=Decimal("100000.00"))
+
+    # === Data limits for AI calls ===
+    max_rows_per_ai_call: int = Field(default=500, ge=1, le=50000)
+    max_groups_per_ai_call: int = Field(default=100, ge=1, le=5000)
+    max_keywords_per_ai_call: int = Field(default=200, ge=1, le=10000)
+    include_deterministic_baseline: bool = True
 
     model_config = ConfigDict(from_attributes=True)
 

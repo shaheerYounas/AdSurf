@@ -6,11 +6,13 @@ Uses the 6-component naming convention: ProductName / SP / Manual / MatchType / 
 
 from datetime import UTC, datetime
 from decimal import Decimal
+import json
 from uuid import UUID
 
 from apps.api.app.core.errors import ApiError
 from apps.api.app.repositories.competitor_cleaned import CompetitorCleanedRepository
 from apps.api.app.schemas.competitor_cleaned import CompetitorCleanedRow, CompetitorUpload, CampaignGenerationResponse
+from apps.api.app.services.dual_path_decision import DualPathDecisionService, safety_prompt_snippet
 
 DEFAULT_DAILY_BUDGET = Decimal("10.0000")
 DEFAULT_BID = Decimal("1.0000")
@@ -188,3 +190,136 @@ class CompetitorCampaignGenerationService:
         if len(items) <= batch_size:
             return [items]
         return [items[i:i + batch_size] for i in range(0, len(items), batch_size)]
+
+
+# =============================================================================
+# Dual-Path Competitor Campaign Generation: Deterministic + AI
+# =============================================================================
+
+COMPETITOR_CAMPAIGN_GEN_AI_AGENT_ID = "competitor_campaign_generation_agent"
+
+
+class DualPathCompetitorCampaignGeneration(DualPathDecisionService[list[dict]]):
+    """Dual-path competitor campaign generation service.
+
+    Deterministic path: _deterministic_competitor_campaign_rows (exact rule-based).
+    AI path: LLM reviews verified competitor keywords and proposes bulk sheet rows.
+    Both paths produce the same output schema (list of bulk sheet row dicts).
+    """
+
+    AGENT_ID = COMPETITOR_CAMPAIGN_GEN_AI_AGENT_ID
+    AGENT_DISPLAY_NAME = "Competitor Campaign Generation Agent"
+
+    def _deterministic_path(self, inputs: dict) -> list[dict]:
+        """Run deterministic competitor campaign generation."""
+        terms: list[CompetitorCleanedRow] = inputs["top_terms"]
+        product_name: str = inputs.get("product_name", "Product")
+        daily_budget: Decimal = inputs.get("daily_budget", DEFAULT_DAILY_BUDGET)
+        default_bid: Decimal = inputs.get("default_bid", DEFAULT_BID)
+        batch_size: int = inputs.get("batch_size", BATCH_SIZE)
+
+        if not terms:
+            return []
+
+        date_str = datetime.now(UTC).strftime("%b %d").lower()
+        safe_name = product_name.strip().replace(",", " ")
+        hero_term = terms[0]
+        remaining = terms[1:]
+        rows: list[dict] = []
+
+        hero_campaign = f"SP - Manual - {safe_name} - {hero_term.search_term} - Exact - {date_str}"
+        hero_ad_group = f"{safe_name} - G0"
+        rows.append({"Record Type": "Campaign", "Campaign Name": hero_campaign, "Campaign Daily Budget": str(daily_budget), "Campaign Status": "Enabled", "Ad Group Name": "", "Keyword Text": "", "Match Type": "", "Bid": ""})
+        rows.append({"Record Type": "Ad Group", "Campaign Name": hero_campaign, "Campaign Daily Budget": "", "Campaign Status": "", "Ad Group Name": hero_ad_group, "Keyword Text": "", "Match Type": "", "Bid": ""})
+        rows.append({"Record Type": "Keyword", "Campaign Name": hero_campaign, "Campaign Daily Budget": "", "Campaign Status": "", "Ad Group Name": hero_ad_group, "Keyword Text": hero_term.search_term, "Match Type": "Exact", "Bid": str(default_bid)})
+
+        batches = [remaining[i:i + batch_size] for i in range(0, len(remaining), batch_size)]
+        for group_idx, batch in enumerate(batches, start=1):
+            group_label = f"Relevant{group_idx}"
+            for match_type in ("Exact", "Phrase", "Broad"):
+                campaign_name = f"SP - Manual - {safe_name} - {group_label} - {match_type} - {date_str}"
+                ad_group_name = f"{safe_name} - G{group_idx}"
+                rows.append({"Record Type": "Campaign", "Campaign Name": campaign_name, "Campaign Daily Budget": str(daily_budget), "Campaign Status": "Enabled", "Ad Group Name": "", "Keyword Text": "", "Match Type": "", "Bid": ""})
+                rows.append({"Record Type": "Ad Group", "Campaign Name": campaign_name, "Campaign Daily Budget": "", "Campaign Status": "", "Ad Group Name": ad_group_name, "Keyword Text": "", "Match Type": "", "Bid": ""})
+                for term in batch:
+                    rows.append({"Record Type": "Keyword", "Campaign Name": campaign_name, "Campaign Daily Budget": "", "Campaign Status": "", "Ad Group Name": ad_group_name, "Keyword Text": term.search_term, "Match Type": match_type, "Bid": str(default_bid)})
+                if match_type == "Phrase":
+                    for term in batch:
+                        rows.append({"Record Type": "Negative keyword", "Campaign Name": campaign_name, "Campaign Daily Budget": "", "Campaign Status": "", "Ad Group Name": ad_group_name, "Keyword Text": term.search_term, "Match Type": "Negative Exact", "Bid": ""})
+                elif match_type == "Broad":
+                    for term in batch:
+                        rows.append({"Record Type": "Negative keyword", "Campaign Name": campaign_name, "Campaign Daily Budget": "", "Campaign Status": "", "Ad Group Name": ad_group_name, "Keyword Text": term.search_term, "Match Type": "Negative Phrase", "Bid": ""})
+        return rows
+
+    def _ai_prompt(self, inputs: dict) -> list[dict[str, str]]:
+        terms: list[CompetitorCleanedRow] = inputs["top_terms"]
+        product_name: str = inputs.get("product_name", "Product")
+        terms_for_prompt = [
+            {"search_term": t.search_term, "search_volume": str(t.search_volume) if t.search_volume else None, "relevance_score": t.relevance_score}
+            for t in terms[:50]
+        ]
+
+        system = (
+            "You are the AdSurf Competitor Campaign Generation Agent. "
+            "Your job is to propose Amazon Ads bulk sheet campaign rows from verified competitor keywords. "
+            f"{safety_prompt_snippet()}"
+            "You propose bulk sheet rows only — they must be reviewed by a human before any export. "
+            "Return JSON only. "
+            "Every output must include decision_source='ai' and requires_human_approval=true."
+        )
+        user = {
+            "task": "generate_competitor_campaign_bulk_sheet_rows",
+            "product_name": product_name,
+            "hero_term": terms_for_prompt[0] if terms_for_prompt else None,
+            "remaining_terms": terms_for_prompt[1:] if len(terms_for_prompt) > 1 else [],
+            "campaign_rules": {
+                "hero_campaign_exact_only": True,
+                "keyword_batch_size": 7,
+                "match_types": ["Exact", "Phrase", "Broad"],
+                "negative_keywords": "Phrase campaigns get Negative Exact, Broad campaigns get Negative Phrase",
+                "campaign_name_format": "SP - Manual - {product_name} - {group_label} - {match_type} - {date}",
+            },
+            "required_output_shape": {
+                "bulk_sheet_rows": [
+                    {
+                        "Record Type": "Campaign | Ad Group | Keyword | Negative keyword",
+                        "Campaign Name": "...",
+                        "Campaign Daily Budget": "string or empty",
+                        "Campaign Status": "Enabled or empty",
+                        "Ad Group Name": "string or empty",
+                        "Keyword Text": "string or empty",
+                        "Match Type": "Exact | Phrase | Broad | Negative Exact | Negative Phrase or empty",
+                        "Bid": "string or empty",
+                    }
+                ],
+                "decision_source": "ai",
+                "requires_human_approval": True,
+                "executes_live_amazon_change": False,
+            },
+        }
+        return [
+            {"role": "system", "content": system},
+            {"role": "user", "content": json.dumps(user, default=str, sort_keys=True)},
+        ]
+
+    def _validate_ai_output(self, ai_json: dict, inputs: dict) -> list[str]:
+        errors: list[str] = []
+        rows = ai_json.get("bulk_sheet_rows", [])
+        if not rows:
+            errors.append("AI output must include bulk_sheet_rows.")
+        if ai_json.get("decision_source") != "ai":
+            errors.append("decision_source must be 'ai'.")
+        if ai_json.get("requires_human_approval") is not True:
+            errors.append("requires_human_approval must be true.")
+        if ai_json.get("executes_live_amazon_change") is not False:
+            errors.append("executes_live_amazon_change must be false.")
+        for i, row in enumerate(rows):
+            if row.get("Record Type") not in ("Campaign", "Ad Group", "Keyword", "Negative keyword"):
+                errors.append(f"bulk_sheet_rows[{i}].Record Type is invalid.")
+        return errors
+
+    def _parse_ai_output(self, ai_json: dict, inputs: dict) -> list[dict]:
+        return ai_json.get("bulk_sheet_rows", [])
+
+    def _empty_result(self) -> list[dict]:
+        return []

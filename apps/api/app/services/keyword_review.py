@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+import json
 from uuid import UUID, uuid4
 
 from apps.api.app.core.errors import ApiError
@@ -14,6 +15,7 @@ from apps.api.app.schemas.keyword_review import (
     ReviewedKeywordStatus,
 )
 from apps.api.app.schemas.keyword_scoring import KeywordCandidate, KeywordCandidateStatus, KeywordScoringRunStatus
+from apps.api.app.services.dual_path_decision import DualPathDecisionService, safety_prompt_snippet
 
 
 REVIEW_ROWS_PAGE_SIZE = 500
@@ -241,3 +243,118 @@ def _review_from_candidate(*, candidate: KeywordCandidate, override: KeywordCand
         rejection_reason=candidate.rejection_reason,
         override=override,
     )
+
+
+# =============================================================================
+# Dual-Path Keyword Review: Deterministic + AI
+# =============================================================================
+
+KEYWORD_REVIEW_AI_AGENT_ID = "keyword_review_agent"
+
+
+class DualPathKeywordReview(DualPathDecisionService[list[dict]]):
+    """Dual-path keyword review service.
+
+    Deterministic path: review calculation from scored candidates (exact rules).
+    AI path: LLM reviews keyword candidates and suggests review decisions.
+    Both paths produce the same output schema (list of review dicts).
+    """
+
+    AGENT_ID = KEYWORD_REVIEW_AI_AGENT_ID
+    AGENT_DISPLAY_NAME = "Keyword Review Agent"
+
+    def _deterministic_path(self, inputs: dict) -> list[dict]:
+        """Run deterministic keyword review from scored candidates."""
+        candidates: list[KeywordCandidate] = inputs["candidates"]
+        overrides: dict[UUID, KeywordCandidateOverride] = inputs.get("overrides", {})
+        reviews: list[dict] = []
+        for candidate in candidates:
+            override = overrides.get(candidate.id)
+            review = _review_from_candidate(candidate=candidate, override=override)
+            reviews.append({
+                "search_term": review.search_term,
+                "search_volume": str(review.search_volume) if review.search_volume else None,
+                "relevance_score": review.relevance_score,
+                "original_scoring_status": review.original_scoring_status.value,
+                "effective_status": review.effective_status.value,
+                "rejection_reason": review.rejection_reason,
+                "has_override": review.override is not None,
+                "decision_source": "deterministic",
+                "requires_human_approval": True,
+                "executes_live_amazon_change": False,
+            })
+        return reviews
+
+    def _ai_prompt(self, inputs: dict) -> list[dict[str, str]]:
+        candidates: list[KeywordCandidate] = inputs["candidates"]
+        candidates_for_prompt = [
+            {
+                "search_term": c.search_term,
+                "search_volume": str(c.search_volume) if c.search_volume else None,
+                "relevance_score": c.relevance_score,
+                "scoring_status": c.scoring_status.value,
+                "rejection_reason": c.rejection_reason,
+            }
+            for c in candidates[:200]
+        ]
+
+        system = (
+            "You are the AdSurf Keyword Review Agent for Amazon Ads keyword review. "
+            "Your job is to review scored keyword candidates and suggest approval/rejection decisions. "
+            f"{safety_prompt_snippet()}"
+            "You suggest review decisions only — they must be approved by a human. "
+            "Return JSON only. "
+            "Every output must include decision_source='ai' and requires_human_approval=true."
+        )
+        user = {
+            "task": "review_keyword_candidates",
+            "candidates": candidates_for_prompt,
+            "review_rules": {
+                "approve_if_relevance_gte_3": True,
+                "error_candidates_not_overridable": True,
+            },
+            "required_output_shape": {
+                "reviews": [
+                    {
+                        "search_term": "string",
+                        "search_volume": "number or null",
+                        "relevance_score": "integer",
+                        "original_scoring_status": "approved | rejected | error",
+                        "effective_status": "approved | rejected",
+                        "rejection_reason": "string or null",
+                        "review_note": "brief explanation for human reviewer",
+                        "decision_source": "ai",
+                        "requires_human_approval": True,
+                        "executes_live_amazon_change": False,
+                    }
+                ]
+            },
+        }
+        return [
+            {"role": "system", "content": system},
+            {"role": "user", "content": json.dumps(user, default=str, sort_keys=True)},
+        ]
+
+    def _validate_ai_output(self, ai_json: dict, inputs: dict) -> list[str]:
+        errors: list[str] = []
+        reviews = ai_json.get("reviews", [])
+        if not reviews:
+            errors.append("AI output must include reviews list.")
+        for i, review in enumerate(reviews):
+            prefix = f"reviews[{i}]"
+            status = review.get("effective_status")
+            if status not in ("approved", "rejected"):
+                errors.append(f"{prefix}.effective_status must be 'approved' or 'rejected'.")
+            if review.get("decision_source") != "ai":
+                errors.append(f"{prefix}.decision_source must be 'ai'.")
+            if review.get("requires_human_approval") is not True:
+                errors.append(f"{prefix}.requires_human_approval must be true.")
+            if review.get("executes_live_amazon_change") is not False:
+                errors.append(f"{prefix}.executes_live_amazon_change must be false.")
+        return errors
+
+    def _parse_ai_output(self, ai_json: dict, inputs: dict) -> list[dict]:
+        return ai_json.get("reviews", [])
+
+    def _empty_result(self) -> list[dict]:
+        return []

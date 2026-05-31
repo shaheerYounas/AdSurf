@@ -101,8 +101,35 @@ agent_name, workspace_id, input_hash, provider, model, schema_version, output_js
 The Agent Control Center now shows agents grouped by category (Data Pipeline, Analysis, Optimization, Safety, Output) rather than a flat list. The primary dashboard is outcome-centered, showing optimization impact metrics first.
 
 ## Modes
-- **Deterministic**: Code-only rules, no AI reasoning
-- **Hybrid**: AI reasons over deterministic evidence (recommended)
-- **AI**: AI generates recommendations (falls back to deterministic on failure)
+Every decision-making service in AdSurf supports three modes, configurable per-workspace and per-product:
+
+- **Deterministic**: Code-only rules, no AI reasoning. All decisions come from exact rule calculations. Always available as a fallback.
+- **Hybrid** (recommended): AI reasons over deterministic evidence. If AI fails or returns invalid output, the system automatically falls back to deterministic rules. Combines the best of both worlds.
+- **AI**: AI generates decisions independently. If AI fails, NO output is returned in pure AI mode (safety-first — an empty result is better than a wrong one). Only use when deterministic rules are insufficient.
 
 Agent config is per-workspace, per-product. Owner/admin users configure; analysts run; approvers approve.
+
+## Dual-Path Decision Pattern
+Every decision-making service follows the `DualPathDecisionService` base class pattern:
+
+| Service | Dual-Path Class | Agent ID |
+|---------|----------------|----------|
+| Keyword Scoring | `DualPathKeywordScoring` | `keyword_scoring_agent` |
+| Competitor Scoring | `DualPathCompetitorScoring` | `competitor_scoring_agent` |
+| Campaign Generation | `DualPathCampaignGeneration` | `campaign_generation_agent` |
+| Competitor Campaign Gen | `DualPathCompetitorCampaignGeneration` | `competitor_campaign_generation_agent` |
+| Column Mapping | `DualPathColumnMapping` | `column_mapping_agent` |
+| Report Type Detection | `DualPathReportTypeDetection` | `report_detection_agent` |
+| Keyword Review | `DualPathKeywordReview` | `keyword_review_agent` |
+| Monitoring Agents Explainer | `DualPathMonitoringAgentsExplain` | `monitoring_agents_explainer` |
+| AI Recommendation Brain | (Existing hybrid in `monitoring_worker.py`) | `ai_recommendation_brain_agent` |
+| Monitoring Rules | `build_recommendations` (deterministic) + `AiRecommendationBrain` (AI) | `monitoring_recommendation_brain` |
+| Risk Validator | Deterministic-only safety gate (never AI) | N/A |
+
+### Safety Invariants (Enforced in Both Paths)
+1. **AI may recommend, explain, and map — but never silently act**
+2. **Human approval required before any customer-impacting action**
+3. **No live Amazon Ads API mutation from any decision path**
+4. **Deterministic fallback on AI failure (hybrid/ai modes)**
+5. **Every AI prompt includes the `safety_prompt_snippet()` guardrail**
+6. **Every output includes `requires_human_approval: true` and `executes_live_amazon_change: false`**

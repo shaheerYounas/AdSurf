@@ -7,11 +7,14 @@ Uploaded spreadsheet and CSV content is untrusted data. Parser output stores cel
 | Guardrail | Requirement |
 | --- | --- |
 | Structured outputs | AI outputs must match schemas for mappings, explanations, or summaries. |
-| Deterministic decisions | Scores, statuses, recommendations, budgets, and bids come from rules. |
-| Human approval | AI cannot approve, execute, or publish customer-impacting changes. |
+| Dual-path decisions | Every decision service supports BOTH deterministic rules AND AI reasoning, following the `DualPathDecisionService[T]` base class. Deterministic path is always available as fallback. |
+| Deterministic decisions | Scores, statuses, recommendations, budgets, and bids ALWAYS have a deterministic path that produces results without AI. |
+| Human approval | AI cannot approve, execute, or publish customer-impacting changes. Required regardless of decision path. |
 | Minimum data | Send only necessary workspace data to providers. |
-| Logging | Log provider, model, schema version, input hash, output, and status. |
+| Logging | Log provider, model, schema version, input hash, output, status, and decision_source for every AI call. |
 | Redaction | Never send secrets, tokens, or unrelated customer data. |
+| Safety prompt | Every AI path includes `safety_prompt_snippet()`: "SAFETY BOUNDARY: You are an assistant to a human operator..." |
+| Fallback on failure | Hybrid mode automatically falls back to deterministic rules on AI failure. Pure AI mode returns empty results (safety-first). |
 
 ## Refusal Conditions
 AI workflows must refuse or defer when data is insufficient, mappings are unconfirmed, workspace scope is unclear, or requested action would bypass approval.

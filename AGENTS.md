@@ -11,10 +11,17 @@ AI agents do not directly execute dangerous changes. Rules calculate. AI explain
 | --- | --- |
 | Documentation parity | Any future code change that changes behavior, data contracts, workflows, security, or business rules must update the relevant docs in the same change. |
 | Human approval | Never implement live ad execution, bid changes, pauses, negative keyword additions, campaign locks, or exports without an explicit approval record. |
-| Deterministic decisions | Business decisions must be produced by deterministic rules, not by unconstrained AI text. |
-| Auditability | Store inputs, outputs, rule versions, AI prompt metadata, approvals, and actor identity for every customer-impacting decision. |
+| Dual-path decisions | Every decision-making service MUST support BOTH deterministic rules AND AI-powered reasoning, following the `DualPathDecisionService[T]` base class. Deterministic path is always available as fallback. |
+| Auditability | Store inputs, outputs, rule versions, AI prompt metadata, approvals, actor identity, and `decision_source` for every customer-impacting decision. |
 | Workspace isolation | Every workspace-owned record must be workspace-scoped in API, database, storage, and logs. |
 | MVP restraint | Prefer bulk sheet export and approval workflows before Amazon Ads API automation. |
+
+## Dual-Path Decision Architecture
+All decision services inherit from `dual_path_decision.DualPathDecisionService[T]`:
+- **Deterministic path**: Pure rule-based calculation (always available, no external dependencies)
+- **AI path**: LLM-powered reasoning (configurable, with deterministic fallback)
+- **Mode selection**: `deterministic` | `ai` | `hybrid` per workspace per product
+- **Safety invariants**: AI may recommend/explain/map but never silently act; human approval always required; no live Amazon Ads API mutation; deterministic fallback on AI failure; every AI prompt includes safety guardrails; every output includes `requires_human_approval: true` and `executes_live_amazon_change: false`
 
 ## Repository Ownership Map
 | Area | Responsibility |

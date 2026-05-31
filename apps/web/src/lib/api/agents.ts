@@ -55,7 +55,34 @@ export type AgentConfig = {
   target_acos_override: string | null;
   min_orders_for_scaling: number;
   min_roas_for_scaling: string;
+
+  // Prompt customization
+  custom_system_instruction: string | null;
   custom_business_goal: string | null;
+  custom_role_description: string | null;
+  custom_output_format: string | null;
+  custom_examples_json: string | null;
+  additional_safety_notes: string | null;
+
+  // AI model parameters
+  temperature: number | null;
+  max_tokens: number | null;
+  top_p: number | null;
+  frequency_penalty: number | null;
+  presence_penalty: number | null;
+
+  // Deterministic rule customization
+  deterministic_relevance_threshold: number | null;
+  deterministic_max_rank_value: number | null;
+  deterministic_keyword_batch_size: number | null;
+  deterministic_default_bid: string | null;
+  deterministic_default_budget: string | null;
+
+  // Data limits for AI calls
+  max_keywords_per_ai_call: number;
+  include_deterministic_baseline: boolean;
+
+  // Business context
   optimization_goal: string;
   brand_safety_notes: string | null;
   competitor_notes: string | null;

@@ -1,9 +1,11 @@
 from decimal import Decimal
+import json
 from uuid import UUID
 
 from apps.api.app.schemas.campaigns import CampaignKeyword
 from apps.api.app.schemas.keyword_review import ApprovedKeywordSetItem
 from apps.api.app.schemas.product_profiles import ProductProfile
+from apps.api.app.services.dual_path_decision import DualPathDecisionService, safety_prompt_snippet
 
 
 CAMPAIGN_RULE_VERSION = "campaign_creation_rules_v1"
@@ -162,3 +164,120 @@ def _campaign_name(*, product: ProductProfile, group_index: int, match_type: str
 def _ad_group_name(*, product: ProductProfile, group_index: int) -> str:
     safe_name = product.product_name.strip().replace(",", " ")
     return f"{safe_name} - G{group_index}"
+
+
+# =============================================================================
+# Dual-Path Campaign Generation: Deterministic + AI
+# =============================================================================
+
+CAMPAIGN_GENERATION_AI_AGENT_ID = "campaign_generation_agent"
+
+
+class DualPathCampaignGeneration(DualPathDecisionService[dict]):
+    """Dual-path campaign generation service.
+
+    Deterministic path: build_campaign_plan_json (exact rule-based grouping).
+    AI path: LLM reviews keywords and proposes campaign structure.
+    Both paths produce the same output schema (campaign plan dict).
+    """
+
+    AGENT_ID = CAMPAIGN_GENERATION_AI_AGENT_ID
+    AGENT_DISPLAY_NAME = "Campaign Generation Agent"
+
+    def _deterministic_path(self, inputs: dict) -> dict:
+        """Run deterministic campaign plan generation."""
+        return build_campaign_plan_json(
+            product=inputs["product"],
+            keyword_set_id=inputs["keyword_set_id"],
+            items=inputs["items"],
+        )
+
+    def _ai_prompt(self, inputs: dict) -> list[dict[str, str]]:
+        product: ProductProfile = inputs["product"]
+        items: list[ApprovedKeywordSetItem] = inputs["items"]
+        items_for_prompt = [
+            {
+                "search_term": item.search_term,
+                "search_volume": str(item.search_volume) if item.search_volume else None,
+                "relevance_score": item.relevance_score,
+            }
+            for item in items[:100]
+        ]
+
+        system = (
+            "You are the AdSurf Campaign Generation Agent for Amazon Ads. "
+            "Your job is to propose campaign structures from approved keywords. "
+            f"{safety_prompt_snippet()}"
+            "You propose campaign plans only — they must be reviewed by a human before any bulk sheet export. "
+            "Return JSON only. "
+            "Every output must include decision_source='ai' and requires_human_approval=true."
+        )
+        user = {
+            "task": "generate_campaign_plan",
+            "product": {
+                "product_name": product.product_name,
+                "default_budget": str(product.default_budget) if product.default_budget else "10.0000",
+                "default_bid": str(product.default_bid) if product.default_bid else "1.0000",
+            },
+            "approved_keywords": items_for_prompt,
+            "campaign_rules": {
+                "hero_keyword": "top by relevance_score then search_volume",
+                "keyword_batch_size": 7,
+                "match_types": ["Exact", "Phrase", "Broad"],
+                "negative_keywords": "Phrase campaigns get Negative Exact, Broad campaigns get Negative Phrase",
+                "campaign_name_format": "{product_name} - G{group_index} - {match_type}",
+            },
+            "required_output_shape": {
+                "campaign_plan": {
+                    "hero_keyword": {"search_term": "...", "bid": "...", "relevance_score": 0},
+                    "groups": [{"group_type": "hero | keyword_group", "group_index": 0, "keywords": [{"search_term": "...", "bid": "..."}]}],
+                    "campaigns": [{
+                        "campaign_name": "...",
+                        "ad_group_name": "...",
+                        "match_type": "Exact | Phrase | Broad",
+                        "daily_budget": "...",
+                        "keywords": [{"search_term": "...", "bid": "..."}],
+                        "negative_keywords": [{"keyword_text": "...", "match_type": "Negative Exact | Negative Phrase", "rule": "..."}],
+                    }],
+                    "decision_source": "ai",
+                    "requires_human_approval": True,
+                    "executes_live_amazon_change": False,
+                }
+            },
+        }
+        return [
+            {"role": "system", "content": system},
+            {"role": "user", "content": json.dumps(user, default=str, sort_keys=True)},
+        ]
+
+    def _validate_ai_output(self, ai_json: dict, inputs: dict) -> list[str]:
+        errors: list[str] = []
+        plan = ai_json.get("campaign_plan", {})
+        if not plan:
+            errors.append("AI output must include campaign_plan.")
+        if plan.get("decision_source") != "ai":
+            errors.append("campaign_plan.decision_source must be 'ai'.")
+        if plan.get("requires_human_approval") is not True:
+            errors.append("campaign_plan.requires_human_approval must be true.")
+        if plan.get("executes_live_amazon_change") is not False:
+            errors.append("campaign_plan.executes_live_amazon_change must be false.")
+        if not plan.get("campaigns"):
+            errors.append("campaign_plan.campaigns must not be empty.")
+        return errors
+
+    def _parse_ai_output(self, ai_json: dict, inputs: dict) -> dict:
+        """Parse AI output into campaign plan dict."""
+        plan = ai_json.get("campaign_plan", {})
+        return {
+            "rule_version_id": CAMPAIGN_RULE_VERSION,
+            "keyword_set_id": str(inputs.get("keyword_set_id", "")),
+            "hero_keyword": plan.get("hero_keyword", {}),
+            "groups": plan.get("groups", []),
+            "campaigns": plan.get("campaigns", []),
+            "decision_source": "ai",
+            "requires_human_approval": True,
+            "executes_live_amazon_change": False,
+        }
+
+    def _empty_result(self) -> dict:
+        return {"keyword_set_id": "", "groups": [], "campaigns": [], "negative_keywords": []}

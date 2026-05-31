@@ -270,12 +270,30 @@ def failure_node(state: AdsWorkflowState, context: WorkflowNodeContext) -> AdsWo
 
 
 def _specialist_node(node_name: str, agent_id: str, state: AdsWorkflowState, context: WorkflowNodeContext) -> AdsWorkflowState:
+    """Specialist nodes support both deterministic and AI-driven explanations.
+    
+    The node records its execution but the actual dual-path decisions are
+    computed by the specialist services (DualPathMonitoringAgentsExplain, etc.).
+    The agent_config.mode determines whether deterministic rules, AI, or hybrid
+    is used for the explanation/review output.
+    """
+    def work(current: AdsWorkflowState) -> AdsWorkflowState:
+        agent_config = _agent_config_for(current, agent_id)
+        mode = str(agent_config.get("mode", "hybrid"))
+        updated = touch_state(current, node_name=node_name, status=WorkflowStatus.RUNNING.value)
+        return {
+            **updated,
+            f"{node_name}_mode": mode,
+            f"{node_name}_decision_source": "deterministic" if mode == "deterministic" else "hybrid",
+            f"{node_name}_approval_boundary": _approval_boundary(),
+        }
+    
     return _run_node(
         node_name,
         state,
         context,
-        lambda current: touch_state(current, node_name=node_name, status=WorkflowStatus.RUNNING.value),
-        f"{node_name.replace('_', ' ').title()} completed approval-bound review.",
+        work,
+        f"{node_name.replace('_', ' ').title()} completed approval-bound review (deterministic + AI dual-path enabled).",
         agent_id=agent_id,
     )
 

@@ -77,15 +77,70 @@ Agent configs can be workspace-level, product-level, and later account-import-le
 - `strictness_level`: conservative, balanced, aggressive
 - `confidence_threshold`: low, medium, high
 - `max_recommendations`
-- `max_rows_per_ai_call`, `max_groups_per_ai_call`, `max_products_per_run`
+- `max_rows_per_ai_call`, `max_groups_per_ai_call`, `max_products_per_run`, `max_keywords_per_ai_call`
 - `analysis_depth`: quick, standard, deep
 - account, product, campaign, keyword, and search-term scope toggles
 - recommendation type toggles for keep-running, bid, pause review, negatives, move-to-exact, budget review, data quality, and product mapping
 - risk controls for bid multipliers, pause/negative confidence, minimum clicks/spend, target ACOS, orders, and ROAS
-- prompt controls for business goals, brand safety, competitors, and margin notes
-- output controls for language, explanation detail, reasoning summary visibility, metric evidence, and risk notes
+
+### Prompt Customization (Full Control Over AI Behavior)
+| Setting | Description |
+|---------|-------------|
+| `custom_system_instruction` | Additional instructions appended to system prompt (max 4000 chars) |
+| `custom_business_goal` | Business context for the agent (max 2000 chars) |
+| `custom_role_description` | Override the agent's default role description |
+| `custom_output_format` | Custom expected output JSON format override |
+| `custom_examples_json` | Few-shot examples as JSON string (max 10000 chars) |
+| `additional_safety_notes` | Extra safety instructions appended to prompt |
+| `brand_safety_notes` | Brand-specific safety requirements |
+| `competitor_notes` | Competitor-specific context |
+| `product_margin_notes` | Product margin/cost information |
+
+### AI Model Parameters
+| Setting | Range | Description |
+|---------|-------|-------------|
+| `temperature` | 0.0 - 2.0 | Controls randomness (lower = more deterministic) |
+| `max_tokens` | 1 - 32000 | Maximum output tokens |
+| `top_p` | 0.0 - 1.0 | Nucleus sampling parameter |
+| `frequency_penalty` | -2.0 - 2.0 | Penalize token frequency |
+| `presence_penalty` | -2.0 - 2.0 | Penalize token presence |
+
+### Deterministic Rule Customization
+| Setting | Range | Description |
+|---------|-------|-------------|
+| `deterministic_relevance_threshold` | 0 - 10 | Minimum relevance score for keyword approval |
+| `deterministic_max_rank_value` | 1 - 100 | Max rank value that counts toward relevance |
+| `deterministic_keyword_batch_size` | 1 - 50 | Keywords per ad group in campaign generation |
+| `deterministic_default_bid` | $0.01 - $1000 | Default bid for new keywords |
+| `deterministic_default_budget` | $0.01 - $100,000 | Default daily budget for campaigns |
+
+### Data Limits
+| Setting | Range | Description |
+|---------|-------|-------------|
+| `max_rows_per_ai_call` | 1 - 50000 | Max rows sent to AI per call |
+| `max_groups_per_ai_call` | 1 - 5000 | Max groups sent to AI per call |
+| `max_keywords_per_ai_call` | 1 - 10000 | Max keywords sent to AI per call |
+| `include_deterministic_baseline` | true/false | Whether AI sees deterministic results for comparison |
+| `explanation_detail` | simple / normal / expert | Level of detail in AI explanations |
+| `show_raw_ai_reasoning_summary` | true/false | Show raw AI reasoning in UI |
+| `show_metric_evidence` | true/false | Show metric evidence in explanations |
+| `require_action_risk_note` | true/false | Require risk notes on all actions |
+| `recommendation_language` | language code | Output language (default: "en") |
+| `chunk_strategy` | by_product / by_campaign / by_entity_priority | How to chunk data for AI calls |
+
+### Dual-Path Default System Prompts
+Every agent has a default system prompt that can be customized. The prompt template system supports `{custom_instruction}`, `{business_goal}`, and `{safety_notes}` variable substitution. Users override these through the configuration settings above.
 
 Owner/admin roles can configure agents. Analysts can run/rerun/control agents. Approvers and viewers can inspect outputs according to workspace read access.
+<task_progress>
+- [x] Create prompt_template.py system for customizable AI prompts
+- [x] Update dual_path_decision.py base class for config-driven prompts and deterministic rules
+- [x] Update AgentConfig schema with deterministic rule customization fields
+- [x] Update each dual-path service to use custom prompts and deterministic thresholds
+- [x] Update web UI API types for prompt and rule customization
+- [x] Update docs for prompt and rule customization
+- [ ] Verify implementation completeness
+</task_progress>
 
 No API keys or arbitrary provider secrets are exposed through agent configuration.
 

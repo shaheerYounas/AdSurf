@@ -1,7 +1,9 @@
+import json
 import re
 from collections.abc import Iterable
 
 from apps.api.app.schemas.account_imports import DetectionConfidence, EntityType, ReportDetectionResult, ReportType
+from apps.api.app.services.dual_path_decision import DualPathDecisionService, safety_prompt_snippet
 
 
 SEARCH_TERM_REQUIRED = {
@@ -208,3 +210,121 @@ def _strip_info_suffixes(headers: set[str]) -> None:
 
 def _normalize_header(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.strip().lower()).strip()
+
+
+# =============================================================================
+# Dual-Path Report Type Detection: Deterministic + AI
+# =============================================================================
+
+REPORT_DETECTION_AI_AGENT_ID = "report_detection_agent"
+
+
+class DualPathReportTypeDetection(DualPathDecisionService[dict]):
+    """Dual-path report type detection service.
+
+    Deterministic path: detect() (exact header-matching rules).
+    AI path: LLM analyzes headers and sample rows to detect report type.
+    Both paths produce the same output schema (detection result dict).
+    """
+
+    AGENT_ID = REPORT_DETECTION_AI_AGENT_ID
+    AGENT_DISPLAY_NAME = "Report Detection Agent"
+
+    def _deterministic_path(self, inputs: dict) -> dict:
+        """Run deterministic report type detection."""
+        headers: list[str] = inputs["headers"]
+        sample_rows: list[dict] = inputs.get("sample_rows", [])
+        result = ReportTypeDetector().detect(headers=headers, sample_rows=sample_rows)
+        return {
+            "detected_report_type": result.detected_report_type.value,
+            "confidence": result.confidence.value,
+            "required_columns_present": result.required_columns_present,
+            "missing_columns": result.missing_columns,
+            "available_entity_levels": [level.value for level in result.available_entity_levels],
+            "product_identifiers_available": result.product_identifiers_available,
+            "decision_source": "deterministic",
+            "requires_human_approval": True,
+            "executes_live_amazon_change": False,
+        }
+
+    def _ai_prompt(self, inputs: dict) -> list[dict[str, str]]:
+        headers: list[str] = inputs["headers"]
+        sample_rows: list[dict] = inputs.get("sample_rows", [])
+        sample_rows_for_prompt = sample_rows[:5] if sample_rows else []
+
+        system = (
+            "You are the AdSurf Report Detection Agent for Amazon Ads reports. "
+            "Your job is to detect the type of an uploaded Amazon Ads report from its headers and sample data. "
+            f"{safety_prompt_snippet()}"
+            "You detect report types only — you do not modify or approve anything. "
+            "Return JSON only. "
+            "Every output must include decision_source='ai' and requires_human_approval=true."
+        )
+        user = {
+            "task": "detect_report_type",
+            "headers": headers,
+            "sample_rows": sample_rows_for_prompt,
+            "known_report_types": {
+                "bulk_sheet": {"required_columns": sorted(BULK_SHEET_REQUIRED)},
+                "sponsored_products_search_term_report": {"required_columns": sorted(SEARCH_TERM_REQUIRED)},
+                "sponsored_products_targeting_report": {"required_columns": sorted(TARGETING_REQUIRED)},
+                "sponsored_products_campaign_report": {"required_columns": sorted(CAMPAIGN_REQUIRED)},
+                "unknown_report": {"description": "Does not match any known report type"},
+            },
+            "required_output_shape": {
+                "detected_report_type": "bulk_sheet | sponsored_products_search_term_report | sponsored_products_targeting_report | sponsored_products_campaign_report | unknown_report",
+                "confidence": "high | medium | low",
+                "required_columns_present": "boolean",
+                "missing_columns": ["list of missing required column names"],
+                "available_entity_levels": ["account | product | campaign | ad_group | target | search_term"],
+                "product_identifiers_available": ["asin | sku | product_name"],
+                "reasoning": "brief explanation",
+                "decision_source": "ai",
+                "requires_human_approval": True,
+                "executes_live_amazon_change": False,
+            },
+        }
+        return [
+            {"role": "system", "content": system},
+            {"role": "user", "content": json.dumps(user, default=str, sort_keys=True)},
+        ]
+
+    def _validate_ai_output(self, ai_json: dict, inputs: dict) -> list[str]:
+        errors: list[str] = []
+        valid_types = {"bulk_sheet", "sponsored_products_search_term_report", "sponsored_products_targeting_report", "sponsored_products_campaign_report", "unknown_report"}
+        if ai_json.get("detected_report_type") not in valid_types:
+            errors.append(f"detected_report_type must be one of: {sorted(valid_types)}.")
+        if ai_json.get("decision_source") != "ai":
+            errors.append("decision_source must be 'ai'.")
+        if ai_json.get("requires_human_approval") is not True:
+            errors.append("requires_human_approval must be true.")
+        if ai_json.get("executes_live_amazon_change") is not False:
+            errors.append("executes_live_amazon_change must be false.")
+        return errors
+
+    def _parse_ai_output(self, ai_json: dict, inputs: dict) -> dict:
+        return {
+            "detected_report_type": ai_json.get("detected_report_type", "unknown_report"),
+            "confidence": ai_json.get("confidence", "low"),
+            "required_columns_present": ai_json.get("required_columns_present", False),
+            "missing_columns": ai_json.get("missing_columns", []),
+            "available_entity_levels": ai_json.get("available_entity_levels", []),
+            "product_identifiers_available": ai_json.get("product_identifiers_available", []),
+            "reasoning": ai_json.get("reasoning", ""),
+            "decision_source": "ai",
+            "requires_human_approval": True,
+            "executes_live_amazon_change": False,
+        }
+
+    def _empty_result(self) -> dict:
+        return {
+            "detected_report_type": "unknown_report",
+            "confidence": "low",
+            "required_columns_present": False,
+            "missing_columns": [],
+            "available_entity_levels": [],
+            "product_identifiers_available": [],
+            "decision_source": "ai",
+            "requires_human_approval": True,
+            "executes_live_amazon_change": False,
+        }

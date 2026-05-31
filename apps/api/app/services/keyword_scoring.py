@@ -1,15 +1,18 @@
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
+import json
 from uuid import UUID, uuid4
 
 from apps.api.app.core.errors import ApiError
 from apps.api.app.repositories.column_mapping import ColumnMappingRepository
 from apps.api.app.repositories.keyword_scoring import KeywordScoringRepository
 from apps.api.app.repositories.upload_parsing import UploadParsingRepository
+from apps.api.app.schemas.agent_control import AgentMode
 from apps.api.app.schemas.column_mapping import ColumnMapping, ColumnMappingStatus
 from apps.api.app.schemas.keyword_scoring import KeywordCandidate, KeywordCandidateStatus, KeywordScoringRun
 from apps.api.app.schemas.upload_parsing import ParsedUploadRow
+from apps.api.app.services.dual_path_decision import DualPathDecisionService, DualPathResult, safety_prompt_snippet
 
 
 SCORING_ROWS_PAGE_SIZE = 500
@@ -242,3 +245,155 @@ def _is_blank(value) -> bool:
 
 def _is_empty_row(row_data: dict) -> bool:
     return not row_data or all(_is_blank(value) for value in row_data.values())
+
+
+# =============================================================================
+# Dual-Path Keyword Scoring: Deterministic + AI
+# =============================================================================
+
+KEYWORD_SCORING_AI_AGENT_ID = "keyword_scoring_agent"
+KEYWORD_SCORING_AI_SCHEMA_VERSION = "keyword_scoring_ai_v1"
+
+
+class DualPathKeywordScoring(DualPathDecisionService[list[dict]]):
+    """Dual-path keyword scoring service.
+
+    Deterministic path: _score_row (exact rule-based scoring).
+    AI path: LLM reviews rows and assigns scores with explanations.
+    Both paths produce the same output schema (list of candidate dicts).
+    """
+
+    AGENT_ID = KEYWORD_SCORING_AI_AGENT_ID
+    AGENT_DISPLAY_NAME = "Keyword Scoring Agent"
+
+    def _deterministic_path(self, inputs: dict) -> list[dict]:
+        """Run deterministic scoring on rows."""
+        mapping: ColumnMapping = inputs["mapping"]
+        rows: list[ParsedUploadRow] = inputs["rows"]
+        return [_score_row_candidate_dict(mapping=mapping, row=row) for row in rows]
+
+    def _ai_prompt(self, inputs: dict) -> list[dict[str, str]]:
+        mapping: ColumnMapping = inputs["mapping"]
+        rows: list[ParsedUploadRow] = inputs["rows"]
+        rows_for_prompt = _serialize_rows_for_ai(rows[:200], mapping)  # Limit to 200 rows per AI call
+
+        system = (
+            "You are the AdSurf Keyword Scoring Agent for Amazon competitor keyword analysis. "
+            "Your job is to review parsed competitor keyword rows and assign scores. "
+            f"{safety_prompt_snippet()}"
+            "Return JSON only. Do not recalculate metrics that are already provided. "
+            "Every output must include decision_source='ai' and approval_required=true."
+        )
+        user = {
+            "task": "score_keyword_rows",
+            "mapping": {
+                "search_term_column": mapping.mapping_json.get("search_term", {}).get("original_column_name") if mapping.mapping_json.get("search_term") else None,
+                "search_volume_column": mapping.mapping_json.get("search_volume", {}).get("original_column_name") if mapping.mapping_json.get("search_volume") else None,
+                "competitor_rank_columns": [
+                    col.get("original_column_name") for col in mapping.mapping_json.get("competitor_rank_columns", [])
+                ],
+            },
+            "rows": rows_for_prompt,
+            "scoring_rules": {
+                "relevance_threshold": 3,
+                "approve_if_relevance_gte_3": True,
+                "reject_if_relevance_lt_3": True,
+                "error_conditions": ["missing_search_term", "invalid_search_volume", "empty_row", "invalid_competitor_rank"],
+            },
+            "required_output_shape": {
+                "candidates": [
+                    {
+                        "search_term": "string or null",
+                        "search_volume": "number or null",
+                        "relevance_score": "integer (0-10)",
+                        "scoring_status": "approved | rejected | error",
+                        "rejection_reason": "string or null",
+                        "rank_columns_evaluated": ["list of column names with counts_for_relevance"],
+                        "ai_confidence": "high | medium | low",
+                        "ai_reasoning": "brief explanation",
+                        "decision_source": "ai",
+                        "requires_human_approval": True,
+                        "executes_live_amazon_change": False,
+                    }
+                ]
+            },
+        }
+        return [
+            {"role": "system", "content": system},
+            {"role": "user", "content": json.dumps(user, default=str, sort_keys=True)},
+        ]
+
+    def _validate_ai_output(self, ai_json: dict, inputs: dict) -> list[str]:
+        errors: list[str] = []
+        candidates = ai_json.get("candidates", [])
+        if not candidates:
+            errors.append("AI output must include at least one candidate.")
+        for i, candidate in enumerate(candidates):
+            prefix = f"candidates[{i}]"
+            status = candidate.get("scoring_status")
+            if status not in ("approved", "rejected", "error"):
+                errors.append(f"{prefix}.scoring_status must be 'approved', 'rejected', or 'error', got '{status}'.")
+            if candidate.get("decision_source") != "ai":
+                errors.append(f"{prefix}.decision_source must be 'ai'.")
+            if candidate.get("requires_human_approval") is not True:
+                errors.append(f"{prefix}.requires_human_approval must be true.")
+            if candidate.get("executes_live_amazon_change") is not False:
+                errors.append(f"{prefix}.executes_live_amazon_change must be false.")
+        return errors
+
+    def _parse_ai_output(self, ai_json: dict, inputs: dict) -> list[dict]:
+        """Parse AI output into candidate dicts (compatible with deterministic format)."""
+        mapping: ColumnMapping = inputs["mapping"]
+        rows: list[ParsedUploadRow] = inputs["rows"]
+        candidates = ai_json.get("candidates", [])
+        parsed: list[dict] = []
+        for i, ai_candidate in enumerate(candidates):
+            row = rows[i] if i < len(rows) else None
+            parsed.append({
+                "search_term": ai_candidate.get("search_term"),
+                "search_volume": Decimal(str(ai_candidate.get("search_volume", 0))) if ai_candidate.get("search_volume") is not None else None,
+                "relevance_score": int(ai_candidate.get("relevance_score", 0)),
+                "scoring_status": ai_candidate.get("scoring_status", "error"),
+                "rejection_reason": ai_candidate.get("rejection_reason"),
+                "rank_values": ai_candidate.get("rank_columns_evaluated", []),
+                "ai_confidence": ai_candidate.get("ai_confidence", "medium"),
+                "ai_reasoning": ai_candidate.get("ai_reasoning", ""),
+                "decision_source": "ai",
+                "source_row_id": str(row.id) if row and row.id else None,
+            })
+        return parsed
+
+    def _empty_result(self) -> list[dict]:
+        return []
+
+
+def _score_row_candidate_dict(*, mapping: ColumnMapping, row: ParsedUploadRow) -> dict:
+    """Score a row and return as a plain dict (for dual-path output)."""
+    candidate = _score_row(mapping=mapping, row=row)
+    return {
+        "search_term": candidate.search_term,
+        "search_volume": candidate.search_volume,
+        "relevance_score": candidate.relevance_score,
+        "scoring_status": candidate.scoring_status.value,
+        "rejection_reason": candidate.rejection_reason,
+        "rank_values": candidate.competitor_rank_values_json,
+        "decision_source": "deterministic",
+        "source_row_id": str(candidate.source_row_id),
+    }
+
+
+def _serialize_rows_for_ai(rows: list[ParsedUploadRow], mapping: ColumnMapping) -> list[dict]:
+    """Serialize parsed upload rows into AI-friendly format."""
+    serialized: list[dict] = []
+    search_term_key = mapping.mapping_json.get("search_term", {}).get("original_column_name", "")
+    search_volume_key = mapping.mapping_json.get("search_volume", {}).get("original_column_name", "")
+    rank_keys = [col.get("original_column_name", "") for col in mapping.mapping_json.get("competitor_rank_columns", [])]
+    for row in rows:
+        data = row.row_data_json or {}
+        serialized.append({
+            "row_number": row.row_number,
+            "search_term": _string_value(data.get(search_term_key)),
+            "search_volume": _string_value(data.get(search_volume_key)),
+            "competitor_rank_values": {key: _string_value(data.get(key)) for key in rank_keys if key},
+        })
+    return serialized
