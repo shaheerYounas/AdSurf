@@ -310,3 +310,16 @@ class AgentWorkflowResponse(BaseModel):
     nodes: list[AgentWorkflowNode]
     edges: list[AgentWorkflowEdge]
     events: list[AgentRunEvent]
+
+
+class AgentTemplateResponse(BaseModel):
+    id: UUID
+    name: str
+    description: str | None = None
+    category: str | None = None
+    config_json: dict = Field(default_factory=dict)
+    is_public: bool = True
+    usage_count: int = 0
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
