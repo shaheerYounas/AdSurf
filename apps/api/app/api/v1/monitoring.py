@@ -143,11 +143,18 @@ def get_product_monitoring(
     product = product_repository.get(workspace_id=workspace_id, product_id=product_id)
     if product is None:
         raise ApiError(code="PRODUCT_NOT_FOUND", message="Product profile was not found.", status_code=404)
-    imports = monitoring_repository.list_imports(workspace_id=workspace_id, product_id=product_id)
-    recommendations = monitoring_repository.list_recommendations(workspace_id=workspace_id, product_id=product_id)
-    ai_brain_runs = monitoring_repository.list_ai_runs(workspace_id=workspace_id, product_id=product_id, agent_name=AI_RECOMMENDATION_AGENT_NAME)
-    product_summaries = monitoring_repository.list_ai_runs(workspace_id=workspace_id, product_id=product_id, agent_name="stakeholder_reporting_agent")
-    latest_summary = ai_brain_runs[0] if ai_brain_runs and ai_brain_runs[0].status == "succeeded" else product_summaries[0] if product_summaries else monitoring_repository.latest_ai_run(workspace_id=workspace_id, agent_name="stakeholder_reporting_agent")
+    # Fetch all data concurrently for speed
+    from concurrent.futures import ThreadPoolExecutor
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        imports_future = pool.submit(monitoring_repository.list_imports, workspace_id=workspace_id, product_id=product_id)
+        recommendations_future = pool.submit(monitoring_repository.list_recommendations, workspace_id=workspace_id, product_id=product_id, limit=500)
+        ai_brain_future = pool.submit(monitoring_repository.list_ai_runs, workspace_id=workspace_id, product_id=product_id, agent_name=AI_RECOMMENDATION_AGENT_NAME, limit=1)
+        product_summaries_future = pool.submit(monitoring_repository.list_ai_runs, workspace_id=workspace_id, product_id=product_id, agent_name="stakeholder_reporting_agent", limit=1)
+        imports = imports_future.result()
+        recommendations = recommendations_future.result()
+        ai_brain_runs = ai_brain_future.result()
+        product_summaries = product_summaries_future.result()
+    latest_summary = ai_brain_runs[0] if ai_brain_runs and ai_brain_runs[0].status == "succeeded" else product_summaries[0] if product_summaries else None
     counts: dict[str, int] = {}
     for recommendation in recommendations:
         counts[recommendation.status.value] = counts.get(recommendation.status.value, 0) + 1

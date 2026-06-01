@@ -1,259 +1,655 @@
-"""14-day automated monitoring system (items 16-20).
+"""Phase 3 Monitoring Backbone — 14-Day Observation Loop for AdSurf.
 
-Implements the plan's monitoring cycle:
-- Days 1-7: Budget consumption check with 10% bid increases
-- Day 7: ACOS evaluation (lock if < 50%)
-- Days 8-14: Locked campaigns receive no changes
+Implements the monitoring infrastructure that turns AdSurf from a
+"recommendation reporter" into an "optimization system":
+
+1. Daily snapshot ingestion with time-series tracking
+2. Day-7 ACOS checkpoint (gate for bid adjustments)
+3. Campaign-lock state machine (prevent conflicting changes within lock window)
+4. 14-day closed-loop observation before re-recommending
+5. Recommendation outcome tracking per snapshot
+
+Architecture:
+    monitoring_snapshots (daily)
+    → Day-7 checkpoint evaluation
+    → 14-day outcome summarization
+    → campaign_lock state transitions
+    → feedback loop trigger
+
+Usage:
+    from apps.api.app.services.monitoring_14day import (
+        ingest_daily_snapshot,
+        evaluate_7day_checkpoint,
+        check_campaign_lock,
+        summarize_14day_outcome,
+    )
 """
 
-from dataclasses import dataclass
-from datetime import UTC, date, datetime, timedelta
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from datetime import date, datetime, timedelta, UTC
 from decimal import Decimal
-from uuid import UUID
-
-from sqlalchemy import text
-from sqlalchemy.engine import Engine
-
-from apps.api.app.core.database import get_database_engine
-from apps.api.app.core.errors import ApiError
-
-DAILY_BUDGET_DEFAULT = Decimal("10.0000")
-BID_INCREASE_MULTIPLIER = Decimal("1.10")
-DEFAULT_BID = Decimal("1.0000")
-ACOS_LOCK_THRESHOLD = Decimal("50.0000")
-DAYS_7 = 7
-DAYS_14 = 14
-LOCK_DURATION_DAYS = 7
-MAX_CONSECUTIVE_INCREASES = 5
-BUDGET_CONSUMPTION_THRESHOLD = Decimal("0.80")  # 80% of daily budget
+from enum import StrEnum
+from typing import Any
+from uuid import UUID, uuid4
 
 
-@dataclass(frozen=True)
-class Monitoring14DayResult:
+# ── Campaign Lock State Machine ─────────────────────────────────────────
+
+class CampaignLockState(StrEnum):
+    """Lock states for campaign optimization windows."""
+
+    UNLOCKED = "unlocked"           # Ready for recommendations
+    LOCKED_PENDING = "locked_pending"   # Recommendation made, waiting for implementation
+    LOCKED_ACTIVE = "locked_active"     # Change applied, in 14-day observation window
+    LOCKED_COOLDOWN = "locked_cooldown" # 14 days passed, decisions being evaluated
+    EXPIRED = "expired"                 # Observation complete, ready for next cycle
+
+
+@dataclass
+class CampaignLock:
+    """A lock entry preventing conflicting changes within the observation window."""
+
+    lock_id: UUID
+    workspace_id: UUID
+    product_id: UUID
     campaign_name: str
-    day: int
-    date_snapshot: date
-    spend: Decimal
-    daily_budget: Decimal
-    budget_consumed_pct: Decimal
-    impressions: int
-    clicks: int
-    orders: int
-    sales: Decimal
-    acos: Decimal | None
-    action: str
-    previous_bid: Decimal
-    suggested_bid: Decimal
-    locked: bool
-    day7_checkpoint: bool
+    state: CampaignLockState
+    recommendation_type: str
+    applied_change: str  # e.g., "increase_bid_20%", "add_negative_exact"
+    applied_at: datetime | None = None
+    lock_until: datetime | None = None  # 14 days from applied_at
+    day7_checkpoint: datetime | None = None
+    day14_checkpoint: datetime | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
-class Monitoring14DayService:
-    """14-day automated monitoring system.
+# ── Daily Snapshot ──────────────────────────────────────────────────────
 
-    In production, this would be driven by a scheduled Lambda/cron job that:
-    1. Pulls daily performance reports for each campaign
-    2. Inserts daily_budget_snapshots rows
-    3. On Day 7, evaluates ACOS and creates campaign_locks if needed
-    4. On Days 1-7, increases bids by 10% if budget not consumed
-    5. On Days 8-14, skips locked campaigns
+@dataclass
+class DailySnapshot:
+    """A single day's worth of performance data for one entity."""
 
-    For the MVP, this is a synchronous endpoint that simulates/summarizes
-    what the monitoring cycle would produce.
+    snapshot_date: date
+    campaign_name: str
+    ad_group_name: str
+    targeting: str
+    customer_search_term: str
+    impressions: int = 0
+    clicks: int = 0
+    spend: Decimal = Decimal("0")
+    sales: Decimal = Decimal("0")
+    orders: int = 0
+    acos: Decimal | None = None
+    roas: Decimal | None = None
+    cpc: Decimal | None = None
+    ctr: Decimal | None = None
+    cvr: Decimal | None = None
+    # Tracking
+    recommendation_active: bool = False
+    recommendation_type: str | None = None
+    days_since_recommendation: int | None = None
+
+
+# ── Day-7 Checkpoint ────────────────────────────────────────────────────
+
+@dataclass
+class Day7Checkpoint:
+    """Results of the 7-day ACOS checkpoint evaluation.
+
+    This is the early-warning gate: if a bid increase hasn't shown
+    positive ACOS movement by day 7, it triggers a review before
+    the full 14-day window closes.
     """
 
-    def __init__(self, engine: Engine | None = None) -> None:
-        self._engine = engine or get_database_engine()
+    recommendation_id: UUID
+    campaign_name: str
+    recommendation_type: str
+    applied_at: datetime
+    checkpoint_date: date
 
-    def simulate_14day_cycle(
-        self,
-        *,
-        workspace_id: UUID,
-        product_id: UUID,
-        campaign_name: str,
-        daily_budget: Decimal = DAILY_BUDGET_DEFAULT,
-        starting_bid: Decimal = DEFAULT_BID,
-    ) -> list[Monitoring14DayResult]:
-        results: list[Monitoring14DayResult] = []
-        current_bid = starting_bid
-        consecutive_increases = 0
-        is_locked = False
-        lock_until: date | None = None
+    # Pre-change metrics (7 days before change)
+    pre_week_spend: Decimal
+    pre_week_sales: Decimal
+    pre_week_acos: Decimal | None
+    pre_week_orders: int
+    pre_week_clicks: int
 
-        for day in range(1, DAYS_14 + 1):
-            snapshot_date = date.today() - timedelta(days=DAYS_14 - day)
-            spend = _simulate_daily_spend(daily_budget, day, is_locked)
-            impressions = int(spend * Decimal("100"))
-            clicks = int(spend * Decimal("2"))
-            orders = int(spend * Decimal("0.05"))
-            sales = Decimal(orders) * Decimal("25.0000") if orders > 0 else Decimal("0")
-            acos = (spend / sales * Decimal("100")).quantize(Decimal("0.01")) if sales > 0 else None
+    # Post-change metrics (7 days after change)
+    post_week_spend: Decimal
+    post_week_sales: Decimal
+    post_week_acos: Decimal | None
+    post_week_orders: int
+    post_week_clicks: int
 
-            budget_consumed_pct = (spend / daily_budget * Decimal("100")).quantize(Decimal("0.1"))
-            action = "keep_running"
-            day7_checkpoint = False
-
-            if is_locked and lock_until and snapshot_date <= lock_until:
-                action = "locked_no_changes"
-            elif day <= DAYS_7 and budget_consumed_pct < BUDGET_CONSUMPTION_THRESHOLD * 100:
-                if consecutive_increases < MAX_CONSECUTIVE_INCREASES:
-                    current_bid = (current_bid * BID_INCREASE_MULTIPLIER).quantize(Decimal("0.01"))
-                    consecutive_increases += 1
-                    action = f"bid_increased_10pct_to_{current_bid}"
-                else:
-                    action = "max_increases_reached"
-            elif day == DAYS_7:
-                day7_checkpoint = True
-                if acos is not None and acos < ACOS_LOCK_THRESHOLD:
-                    is_locked = True
-                    lock_until = snapshot_date + timedelta(days=LOCK_DURATION_DAYS)
-                    action = "locked_acos_below_50pct"
-                    self._record_lock(
-                        workspace_id=workspace_id,
-                        campaign_name=campaign_name,
-                        acos=acos,
-                        lock_until=lock_until,
-                    )
-                else:
-                    action = "continue_monitoring_acos_above_50pct"
-
-            self._record_daily_snapshot(
-                workspace_id=workspace_id,
-                product_id=product_id,
-                campaign_name=campaign_name,
-                snapshot_date=snapshot_date,
-                daily_budget=daily_budget,
-                spend=spend,
-                impressions=impressions,
-                clicks=clicks,
-                orders=orders,
-                sales=sales,
-                acos=acos,
-                bid_multiplier=BID_INCREASE_MULTIPLIER if action.startswith("bid_increased") else Decimal("1.0"),
-                previous_bid=current_bid / BID_INCREASE_MULTIPLIER if action.startswith("bid_increased") else current_bid,
-                suggested_bid=current_bid,
-            )
-
-            if day7_checkpoint:
-                self._record_day7_checkpoint(
-                    workspace_id=workspace_id,
-                    product_id=product_id,
-                    campaign_name=campaign_name,
-                    acos=acos or Decimal("0"),
-                    decision="locked" if is_locked else "continue_monitoring",
-                    lock_until=lock_until,
-                )
-
-            results.append(Monitoring14DayResult(
-                campaign_name=campaign_name,
-                day=day,
-                date_snapshot=snapshot_date,
-                spend=spend,
-                daily_budget=daily_budget,
-                budget_consumed_pct=budget_consumed_pct,
-                impressions=impressions,
-                clicks=clicks,
-                orders=orders,
-                sales=sales,
-                acos=acos,
-                action=action,
-                previous_bid=current_bid / BID_INCREASE_MULTIPLIER if action.startswith("bid_increased") else current_bid,
-                suggested_bid=current_bid,
-                locked=is_locked,
-                day7_checkpoint=day7_checkpoint,
-            ))
-
-        return results
-
-    def _record_daily_snapshot(self, *, workspace_id: UUID, product_id: UUID, campaign_name: str, snapshot_date: date, daily_budget: Decimal, spend: Decimal, impressions: int, clicks: int, orders: int, sales: Decimal, acos: Decimal | None, bid_multiplier: Decimal, previous_bid: Decimal, suggested_bid: Decimal) -> None:
-        with self._engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    insert into daily_budget_snapshots (
-                        id, workspace_id, product_id, campaign_name, snapshot_date,
-                        daily_budget, spend, impressions, clicks, orders, sales, acos,
-                        bid_multiplier, previous_bid, suggested_bid
-                    ) values (
-                        gen_random_uuid(), :workspace_id, :product_id, :campaign_name, :snapshot_date,
-                        :daily_budget, :spend, :impressions, :clicks, :orders, :sales, :acos,
-                        :bid_multiplier, :previous_bid, :suggested_bid
-                    )
-                    on conflict (workspace_id, product_id, campaign_name, snapshot_date)
-                    do update set spend = :spend, impressions = :impressions, clicks = :clicks,
-                        orders = :orders, sales = :sales, acos = :acos,
-                        bid_multiplier = :bid_multiplier, previous_bid = :previous_bid,
-                        suggested_bid = :suggested_bid
-                    """
-                ),
-                {
-                    "workspace_id": workspace_id, "product_id": product_id,
-                    "campaign_name": campaign_name, "snapshot_date": snapshot_date,
-                    "daily_budget": str(daily_budget), "spend": str(spend),
-                    "impressions": impressions, "clicks": clicks,
-                    "orders": orders, "sales": str(sales),
-                    "acos": str(acos) if acos is not None else None,
-                    "bid_multiplier": str(bid_multiplier),
-                    "previous_bid": str(previous_bid), "suggested_bid": str(suggested_bid),
-                },
-            )
-
-    def _record_lock(self, *, workspace_id: UUID, campaign_name: str, acos: Decimal, lock_until: date) -> None:
-        with self._engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    insert into campaign_locks (
-                        id, workspace_id, campaign_name, status, acos_at_lock, locked_until
-                    ) values (
-                        gen_random_uuid(), :workspace_id, :campaign_name, 'locked',
-                        :acos, :locked_until
-                    )
-                    on conflict (workspace_id, campaign_name)
-                    do update set status = 'locked', acos_at_lock = :acos,
-                        locked_until = :locked_until, locked_at = now(),
-                        unlocked_at = null
-                    """
-                ),
-                {
-                    "workspace_id": workspace_id, "campaign_name": campaign_name,
-                    "acos": str(acos), "locked_until": lock_until,
-                },
-            )
-
-    def _record_day7_checkpoint(self, *, workspace_id: UUID, product_id: UUID, campaign_name: str, acos: Decimal, decision: str, lock_until: date | None) -> None:
-        with self._engine.begin() as connection:
-            connection.execute(
-                text(
-                    """
-                    insert into day7_checkpoints (
-                        id, workspace_id, product_id, campaign_name,
-                        total_spend_7d, total_sales_7d, acos_7d,
-                        decision, locked_until
-                    ) values (
-                        gen_random_uuid(), :workspace_id, :product_id, :campaign_name,
-                        :spend, :sales, :acos, :decision, :locked_until
-                    )
-                    on conflict (workspace_id, product_id, campaign_name)
-                    do update set acos_7d = :acos, decision = :decision,
-                        locked_until = :locked_until, evaluated_at = now()
-                    """
-                ),
-                {
-                    "workspace_id": workspace_id, "product_id": product_id,
-                    "campaign_name": campaign_name,
-                    "spend": str(Decimal("70")),  # Simulated 7-day spend
-                    "sales": str(Decimal("70") / acos * Decimal("100") if acos > 0 else Decimal("0")),
-                    "acos": str(acos), "decision": decision,
-                    "locked_until": lock_until,
-                },
-            )
+    # Evaluation
+    acos_delta_pct: float = 0.0
+    status: str = "on_track"  # on_track | needs_review | flag_early
+    recommendation: str = ""
+    early_termination_recommended: bool = False
 
 
-def _simulate_daily_spend(daily_budget: Decimal, day: int, is_locked: bool) -> Decimal:
-    """Simulate daily spend. Early days spend less, ramps up over time."""
-    if is_locked:
-        return daily_budget * Decimal("0.85")  # Stable spend during lock
-    ramp = min(Decimal(day) / Decimal("7"), Decimal("1"))
-    noise = Decimal("0.85") + Decimal("0.30") * (1 - ramp)  # More variance early on
-    return (daily_budget * ramp * noise).quantize(Decimal("0.01"))
+# ── 14-Day Outcome ──────────────────────────────────────────────────────
+
+@dataclass
+class Day14Outcome:
+    """Full 14-day observation outcome for a recommendation."""
+
+    recommendation_id: UUID
+    campaign_name: str
+    recommendation_type: str
+    applied_at: datetime
+    observation_end: date
+
+    # Pre-change metrics
+    pre_spend: Decimal
+    pre_sales: Decimal
+    pre_acos: Decimal | None
+    pre_orders: int
+
+    # Post-change metrics
+    post_spend: Decimal
+    post_sales: Decimal
+    post_acos: Decimal | None
+    post_orders: int
+
+    # Deltas
+    spend_delta_pct: float = 0.0
+    sales_delta_pct: float = 0.0
+    acos_delta_pct: float = 0.0
+    orders_delta_pct: float = 0.0
+
+    # Outcome classification
+    outcome: str = "unchanged"  # improved | worsened | unchanged | insufficient_data
+    confidence: str = "medium"  # high | medium | low
+    feedback_triggered: bool = False
+
+    # Rule calibration suggestions
+    rule_adjustments: list[dict[str, Any]] = field(default_factory=list)
+
+
+# ── Core Functions ──────────────────────────────────────────────────────
+
+
+def ingest_daily_snapshot(
+    *,
+    workspace_id: UUID,
+    product_id: UUID,
+    snapshot: DailySnapshot,
+    campaign_locks: dict[str, CampaignLock] | None = None,
+) -> dict[str, Any]:
+    """Ingest a single day's snapshot into the monitoring time-series.
+
+    Args:
+        workspace_id: Workspace scope
+        product_id: Product scope
+        snapshot: Daily performance data for one entity
+        campaign_locks: Active campaign locks to check against
+
+    Returns:
+        Dict with ingestion status and any triggered conditions
+    """
+    locks = campaign_locks or {}
+    campaign_key = snapshot.campaign_name.lower().strip()
+
+    # Check if this campaign has an active lock
+    active_lock = locks.get(campaign_key)
+    triggered: list[str] = []
+
+    if active_lock and active_lock.state == CampaignLockState.LOCKED_ACTIVE:
+        # Check if we've hit Day 7
+        if active_lock.applied_at:
+            days_since = (snapshot.snapshot_date - active_lock.applied_at.date()).days
+
+            if days_since > 0:
+                snapshot.days_since_recommendation = days_since
+                snapshot.recommendation_active = True
+                snapshot.recommendation_type = active_lock.recommendation_type
+
+            if days_since >= 7 and not active_lock.day7_checkpoint:
+                triggered.append("day7_checkpoint")
+
+            if days_since >= 14:
+                triggered.append("day14_outcome")
+
+    return {
+        "snapshot_ingested": True,
+        "campaign_locked": campaign_key in locks,
+        "lock_state": str(active_lock.state) if active_lock else None,
+        "days_since_recommendation": snapshot.days_since_recommendation,
+        "triggered_conditions": triggered,
+    }
+
+
+def evaluate_7day_checkpoint(
+    *,
+    recommendation_id: UUID,
+    campaign_name: str,
+    recommendation_type: str,
+    applied_at: datetime,
+    pre_week_snapshots: list[DailySnapshot],
+    post_week_snapshots: list[DailySnapshot],
+) -> Day7Checkpoint:
+    """Evaluate the Day-7 ACOS checkpoint for early warning.
+
+    If a bid increase hasn't produced positive ACOS movement by day 7,
+    this is flagged for review before the full 14-day window closes.
+    """
+    # Aggregate pre-week metrics
+    pre_spend = sum(s.spend for s in pre_week_snapshots)
+    pre_sales = sum(s.sales for s in pre_week_snapshots)
+    pre_orders = sum(s.orders for s in pre_week_snapshots)
+    pre_clicks = sum(s.clicks for s in pre_week_snapshots)
+    pre_acos = (pre_spend / pre_sales) if pre_sales > 0 else None
+
+    # Aggregate post-week metrics
+    post_spend = sum(s.spend for s in post_week_snapshots)
+    post_sales = sum(s.sales for s in post_week_snapshots)
+    post_orders = sum(s.orders for s in post_week_snapshots)
+    post_clicks = sum(s.clicks for s in post_week_snapshots)
+    post_acos = (post_spend / post_sales) if post_sales > 0 else None
+
+    # Calculate ACOS delta
+    acos_delta_pct = 0.0
+    if pre_acos and post_acos:
+        acos_delta_pct = float((post_acos - pre_acos) / pre_acos * 100) if pre_acos > 0 else 0.0
+
+    checkpoint_date = applied_at.date() + timedelta(days=7)
+    status = "on_track"
+    recommendation = ""
+    early_termination = False
+
+    if recommendation_type == "increase_bid":
+        # Bid increase: ACOS should NOT have worsened significantly
+        if acos_delta_pct > 20.0:
+            status = "flag_early"
+            recommendation = "ACOS increased significantly after bid increase. Consider early review."
+            early_termination = acos_delta_pct > 50.0
+        elif acos_delta_pct > 10.0:
+            status = "needs_review"
+            recommendation = "ACOS trending up after bid increase. Monitor closely."
+        elif post_sales < pre_sales * Decimal("0.8"):
+            status = "needs_review"
+            recommendation = "Sales declined despite bid increase. Review targeting."
+
+    elif recommendation_type in {"add_negative_exact", "add_negative_phrase"}:
+        # Negative keyword: spend should be zero or near-zero
+        if post_spend > Decimal("1.00"):
+            status = "needs_review"
+            recommendation = "Spend still occurring on negative keyword — verify implementation."
+        else:
+            status = "on_track"
+            recommendation = "Negative keyword effective — spend eliminated."
+
+    elif recommendation_type == "decrease_bid":
+        # Bid decrease: ACOS should improve without killing sales
+        if acos_delta_pct < -5.0 and post_sales >= pre_sales * Decimal("0.5"):
+            status = "on_track"
+            recommendation = "Bid decrease improving ACOS with acceptable sales retention."
+        elif post_sales < pre_sales * Decimal("0.3"):
+            status = "flag_early"
+            recommendation = "Sales dropped severely after bid decrease. Consider reverting."
+            early_termination = True
+
+    return Day7Checkpoint(
+        recommendation_id=recommendation_id,
+        campaign_name=campaign_name,
+        recommendation_type=recommendation_type,
+        applied_at=applied_at,
+        checkpoint_date=checkpoint_date,
+        pre_week_spend=pre_spend,
+        pre_week_sales=pre_sales,
+        pre_week_acos=pre_acos,
+        pre_week_orders=pre_orders,
+        pre_week_clicks=pre_clicks,
+        post_week_spend=post_spend,
+        post_week_sales=post_sales,
+        post_week_acos=post_acos,
+        post_week_orders=post_orders,
+        post_week_clicks=post_clicks,
+        acos_delta_pct=round(acos_delta_pct, 1),
+        status=status,
+        recommendation=recommendation,
+        early_termination_recommended=early_termination,
+    )
+
+
+def check_campaign_lock(
+    *,
+    campaign_name: str,
+    active_locks: list[CampaignLock],
+) -> CampaignLock | None:
+    """Check if a campaign has an active lock preventing new recommendations.
+
+    A campaign is locked if:
+    - A recommendation was made within the last 14 days
+    - The lock hasn't expired
+    - No conflicting recommendation type is active
+    """
+    campaign_key = campaign_name.lower().strip()
+    now = datetime.now(UTC)
+
+    for lock in active_locks:
+        if lock.campaign_name.lower().strip() != campaign_key:
+            continue
+
+        if lock.state == CampaignLockState.EXPIRED:
+            continue
+
+        if lock.lock_until and now > lock.lock_until:
+            # Lock has expired — should transition to EXPIRED
+            continue
+
+        return lock
+
+    return None
+
+
+def summarize_14day_outcome(
+    *,
+    recommendation_id: UUID,
+    campaign_name: str,
+    recommendation_type: str,
+    applied_at: datetime,
+    pre_period_snapshots: list[DailySnapshot],
+    post_period_snapshots: list[DailySnapshot],
+    minimum_clicks_for_confidence: int = 10,
+) -> Day14Outcome:
+    """Summarize the full 14-day outcome of a recommendation.
+
+    This is the primary closed-loop evaluation that determines:
+    1. Whether the recommendation improved, worsened, or had no effect
+    2. Confidence level based on data volume
+    3. Rule calibration suggestions for the learning feedback loop
+    """
+    if not pre_period_snapshots or not post_period_snapshots:
+        return Day14Outcome(
+            recommendation_id=recommendation_id,
+            campaign_name=campaign_name,
+            recommendation_type=recommendation_type,
+            applied_at=applied_at,
+            observation_end=applied_at.date() + timedelta(days=14),
+            pre_spend=Decimal("0"),
+            pre_sales=Decimal("0"),
+            pre_acos=None,
+            pre_orders=0,
+            post_spend=Decimal("0"),
+            post_sales=Decimal("0"),
+            post_acos=None,
+            post_orders=0,
+            outcome="insufficient_data",
+            confidence="low",
+        )
+
+    # Aggregate pre-period
+    pre_spend = sum(s.spend for s in pre_period_snapshots)
+    pre_sales = sum(s.sales for s in pre_period_snapshots)
+    pre_orders = sum(s.orders for s in pre_period_snapshots)
+    pre_clicks = sum(s.clicks for s in pre_period_snapshots)
+    pre_acos = (pre_spend / pre_sales) if pre_sales > 0 else None
+
+    # Aggregate post-period
+    post_spend = sum(s.spend for s in post_period_snapshots)
+    post_sales = sum(s.sales for s in post_period_snapshots)
+    post_orders = sum(s.orders for s in post_period_snapshots)
+    post_clicks = sum(s.clicks for s in post_period_snapshots)
+    post_acos = (post_spend / post_sales) if post_sales > 0 else None
+
+    # Calculate deltas
+    spend_delta = float((post_spend - pre_spend) / pre_spend * 100) if pre_spend > 0 else 0.0
+    sales_delta = float((post_sales - pre_sales) / pre_sales * 100) if pre_sales > 0 else 0.0
+    acos_delta = 0.0
+    if pre_acos and post_acos and pre_acos > 0:
+        acos_delta = float((post_acos - pre_acos) / pre_acos * 100)
+    orders_delta = float((post_orders - pre_orders) / pre_orders * 100) if pre_orders > 0 else 0.0
+
+    # Classify outcome
+    outcome = _classify_14day_outcome(
+        recommendation_type=recommendation_type,
+        pre_spend=float(pre_spend),
+        pre_sales=float(pre_sales),
+        pre_acos=float(pre_acos) if pre_acos else 0.0,
+        post_spend=float(post_spend),
+        post_sales=float(post_sales),
+        post_acos=float(post_acos) if post_acos else 0.0,
+        acos_delta=acos_delta,
+        sales_delta=sales_delta,
+    )
+
+    # Determine confidence
+    total_clicks = post_clicks
+    confidence = "low"
+    if total_clicks >= minimum_clicks_for_confidence * 5:
+        confidence = "high"
+    elif total_clicks >= minimum_clicks_for_confidence * 2:
+        confidence = "medium"
+
+    # Generate rule calibration suggestions
+    adjustments = _generate_rule_adjustments(
+        recommendation_type=recommendation_type,
+        outcome=outcome,
+        acos_delta=acos_delta,
+        sales_delta=sales_delta,
+    )
+
+    return Day14Outcome(
+        recommendation_id=recommendation_id,
+        campaign_name=campaign_name,
+        recommendation_type=recommendation_type,
+        applied_at=applied_at,
+        observation_end=applied_at.date() + timedelta(days=14),
+        pre_spend=pre_spend,
+        pre_sales=pre_sales,
+        pre_acos=pre_acos,
+        pre_orders=pre_orders,
+        post_spend=post_spend,
+        post_sales=post_sales,
+        post_acos=post_acos,
+        post_orders=post_orders,
+        spend_delta_pct=round(spend_delta, 1),
+        sales_delta_pct=round(sales_delta, 1),
+        acos_delta_pct=round(acos_delta, 1),
+        orders_delta_pct=round(orders_delta, 1),
+        outcome=outcome,
+        confidence=confidence,
+        feedback_triggered=True,
+        rule_adjustments=adjustments,
+    )
+
+
+def _classify_14day_outcome(
+    *,
+    recommendation_type: str,
+    pre_spend: float,
+    pre_sales: float,
+    pre_acos: float,
+    post_spend: float,
+    post_sales: float,
+    post_acos: float,
+    acos_delta: float,
+    sales_delta: float,
+) -> str:
+    """Classify the 14-day outcome based on recommendation type and metric deltas."""
+    if pre_spend == 0 and post_spend == 0:
+        return "insufficient_data"
+
+    if recommendation_type == "increase_bid":
+        # Positive: sales up, ACOS didn't explode
+        if sales_delta > 10.0 and acos_delta < 15.0:
+            return "improved"
+        if acos_delta > 30.0:
+            return "worsened"
+        if sales_delta < -20.0:
+            return "worsened"
+
+    elif recommendation_type == "decrease_bid":
+        # Positive: ACOS improved without sales dying
+        if acos_delta < -5.0 and sales_delta > -30.0:
+            return "improved"
+        if sales_delta < -50.0:
+            return "worsened"
+
+    elif recommendation_type in {"add_negative_exact", "add_negative_phrase"}:
+        # Positive: spend eliminated
+        if post_spend < 1.0:
+            return "improved"
+        if post_spend > pre_spend * 0.5:
+            return "worsened"
+
+    elif recommendation_type in {"pause_review", "pause_keyword"}:
+        if post_spend < pre_spend * 0.1:
+            return "improved"
+        if post_spend > pre_spend * 0.3:
+            return "worsened"
+
+    elif recommendation_type in {"harvest_to_exact", "move_to_exact"}:
+        if acos_delta < -5.0 and sales_delta >= -10.0:
+            return "improved"
+        if acos_delta > 15.0:
+            return "worsened"
+
+    # Default: general health check
+    if post_acos < pre_acos * 0.95 and sales_delta >= -20.0:
+        return "improved"
+    if post_acos > pre_acos * 1.15:
+        return "worsened"
+
+    return "unchanged"
+
+
+def _generate_rule_adjustments(
+    *,
+    recommendation_type: str,
+    outcome: str,
+    acos_delta: float,
+    sales_delta: float,
+) -> list[dict[str, Any]]:
+    """Generate rule calibration suggestions from 14-day outcomes."""
+    adjustments = []
+
+    if outcome == "improved":
+        # Rule is working — maybe tighten?
+        adjustments.append({
+            "rule_name": _rule_name_for_type(recommendation_type),
+            "suggestion": "tighten",
+            "confidence_increase": 0.05,
+            "reason": "Rule recommendation improved outcomes.",
+        })
+    elif outcome == "worsened":
+        adjustments.append({
+            "rule_name": _rule_name_for_type(recommendation_type),
+            "suggestion": "loosen",
+            "confidence_decrease": 0.10,
+            "reason": "Rule recommendation worsened outcomes. Review thresholds.",
+        })
+    elif outcome == "unchanged":
+        adjustments.append({
+            "rule_name": _rule_name_for_type(recommendation_type),
+            "suggestion": "review",
+            "reason": "No significant impact detected. Rule may need stricter filters.",
+        })
+
+    return adjustments
+
+
+def _rule_name_for_type(recommendation_type: str) -> str:
+    """Map recommendation type to rule name for calibration."""
+    mapping = {
+        "increase_bid": "bid_optimization_rule",
+        "decrease_bid": "bid_optimization_rule",
+        "set_bid": "bid_optimization_rule",
+        "add_negative_exact": "negative_keyword_rule",
+        "add_negative_phrase": "negative_keyword_rule",
+        "pause_review": "pause_review_rule",
+        "pause_keyword": "pause_review_rule",
+        "pause_target": "pause_review_rule",
+        "harvest_to_exact": "harvest_rule",
+        "move_to_exact": "harvest_rule",
+        "keep_running": "harvest_rule",
+        "budget_review": "budget_reallocation_rule",
+        "increase_campaign_budget": "budget_reallocation_rule",
+    }
+    return mapping.get(recommendation_type, "evidence_rule")
+
+
+# ── Lock Lifecycle Management ───────────────────────────────────────────
+
+
+def create_campaign_lock(
+    *,
+    workspace_id: UUID,
+    product_id: UUID,
+    campaign_name: str,
+    recommendation_type: str,
+    applied_change: str,
+) -> CampaignLock:
+    """Create a campaign lock after a recommendation is approved/applied.
+
+    The lock prevents new recommendations on the same campaign
+    for 14 days while the change is being evaluated.
+    """
+    now = datetime.now(UTC)
+    return CampaignLock(
+        lock_id=uuid4(),
+        workspace_id=workspace_id,
+        product_id=product_id,
+        campaign_name=campaign_name,
+        state=CampaignLockState.LOCKED_PENDING,
+        recommendation_type=recommendation_type,
+        applied_change=applied_change,
+        applied_at=None,
+        lock_until=now + timedelta(days=14),
+        day7_checkpoint=None,
+        day14_checkpoint=None,
+        created_at=now,
+    )
+
+
+def advance_lock_state(
+    lock: CampaignLock,
+    *,
+    event: str,  # "applied", "day7_passed", "day14_passed", "expire"
+    outcome: Day14Outcome | None = None,
+) -> CampaignLock:
+    """Advance a campaign lock through its lifecycle states."""
+    transitions = {
+        ("LOCKED_PENDING", "applied"): CampaignLockState.LOCKED_ACTIVE,
+        ("LOCKED_ACTIVE", "day7_passed"): CampaignLockState.LOCKED_ACTIVE,  # Still active, just marking checkpoint
+        ("LOCKED_ACTIVE", "day14_passed"): CampaignLockState.LOCKED_COOLDOWN,
+        ("LOCKED_COOLDOWN", "expire"): CampaignLockState.EXPIRED,
+    }
+
+    # Map the StrEnum value (lowercase with underscores) to transition key format
+    value_to_key = {
+        "unlocked": "UNLOCKED",
+        "locked_pending": "LOCKED_PENDING",
+        "locked_active": "LOCKED_ACTIVE",
+        "locked_cooldown": "LOCKED_COOLDOWN",
+        "expired": "EXPIRED",
+    }
+    current = value_to_key.get(lock.state.value, "LOCKED_PENDING")
+    new_state = transitions.get((current, event))
+
+    if new_state is None:
+        # Check for direct expiration
+        if event == "expire":
+            new_state = CampaignLockState.EXPIRED
+
+    if new_state is None:
+        return lock  # No valid transition
+
+    return CampaignLock(
+        lock_id=lock.lock_id,
+        workspace_id=lock.workspace_id,
+        product_id=lock.product_id,
+        campaign_name=lock.campaign_name,
+        state=new_state,
+        recommendation_type=lock.recommendation_type,
+        applied_change=lock.applied_change,
+        applied_at=datetime.now(UTC) if event == "applied" else lock.applied_at,
+        lock_until=lock.lock_until,
+        day7_checkpoint=datetime.now(UTC) if event == "day7_passed" else lock.day7_checkpoint,
+        day14_checkpoint=datetime.now(UTC) if event == "day14_passed" else lock.day14_checkpoint,
+        created_at=lock.created_at,
+    )

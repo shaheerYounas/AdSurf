@@ -1,10 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 from apps.api.app.api.routes import api_router
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.errors import register_error_handlers
 from apps.api.app.core.logging_setup import setup_logging
+from apps.api.app.core.performance import add_performance_headers_middleware
 from apps.api.app.schemas.envelope import success_response
 
 
@@ -17,6 +19,10 @@ def create_app() -> FastAPI:
         docs_url="/docs" if settings.app_env != "production" else None,
         redoc_url="/redoc" if settings.app_env != "production" else None,
     )
+    # Performance: GZip compression for all responses
+    app.add_middleware(GZipMiddleware, minimum_size=500)
+    # Performance: timing headers and cache control
+    app.add_middleware(add_performance_headers_middleware())
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],

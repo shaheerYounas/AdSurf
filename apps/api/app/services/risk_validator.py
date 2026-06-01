@@ -27,6 +27,10 @@ from apps.api.app.schemas.monitoring import (
     RecommendationConfidence,
     RecommendationType,
 )
+from apps.api.app.services.statistical_significance import (
+    evaluate_recommendation_significance,
+    evidence_strength_label,
+)
 
 
 class ValidationResult:
@@ -187,8 +191,38 @@ def _validate_evidence(recommendation: Recommendation) -> ValidationResult:
     clicks = int(metrics.get("clicks", 0))
     spend = float(metrics.get("spend", 0))
     orders = int(metrics.get("orders", 0))
+    impressions = int(metrics.get("impressions", 0))
 
     evidence_score = recommendation.evidence_score
+
+    # ── Wilson lower-bound statistical significance gate ──
+    sig_report = evaluate_recommendation_significance(
+        clicks=clicks,
+        orders=orders,
+        impressions=impressions,
+        spend=spend,
+        recommendation_type=str(recommendation.recommendation_type.value),
+        z_score=1.96,
+    )
+
+    # Hard errors from significance checks
+    errors.extend(sig_report.errors)
+
+    # Warnings from significance checks
+    warnings.extend(sig_report.warnings)
+
+    # Evidence strength label (from Wilson + sample size)
+    strength = evidence_strength_label(
+        clicks=clicks,
+        orders=orders,
+        wilson_lower=sig_report.wilson_cvr_lower,
+    )
+    if strength == "very_weak":
+        errors.append(f"Evidence strength is {strength}: only {clicks} clicks, {orders} orders. Cannot recommend action without more data.")
+    elif strength == "weak":
+        warnings.append(f"Evidence strength is {strength}: {clicks} clicks, {orders} orders. Recommendation is tentative and needs review.")
+    elif strength == "strong":
+        pass  # no warning needed for strong evidence
 
     if evidence_score and evidence_score.quality == EvidenceQuality.INSUFFICIENT:
         if recommendation.recommendation_type in {
@@ -211,9 +245,19 @@ def _validate_evidence(recommendation: Recommendation) -> ValidationResult:
         RecommendationType.INCREASE_BID,
         RecommendationType.INCREASE_CAMPAIGN_BUDGET,
     }:
-        warnings.append("Increasing bid without any order history is risky.")
+        if sig_report.wilson_cvr_lower < 0.01:
+            warnings.append(f"Increasing bid without any order history is risky. Wilson CVR lower bound: {sig_report.wilson_cvr_lower:.4f}")
 
-    return ValidationResult(is_valid=len(errors) == 0, errors=errors, warnings=warnings, risk_level="high" if errors else "low")
+    # Include significance report in evidence
+    if sig_report.requires_more_data:
+        warnings.append(f"More data needed for statistical significance: clicks={clicks}/{sig_report.minimum_clicks_met}, spend={spend:.2f}/{sig_report.minimum_spend_met}")
+
+    return ValidationResult(
+        is_valid=len(errors) == 0,
+        errors=errors,
+        warnings=warnings,
+        risk_level="high" if errors else "medium" if warnings else "low",
+    )
 
 
 def _validate_strategy(

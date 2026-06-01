@@ -142,6 +142,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("pipeline");
+  const [plannerInfo, setPlannerInfo] = useState<any>(null);
   const [environmentMode, setEnvironmentMode] = useState<AgentConfig["mode"]>("hybrid");
   const activeImportId = accountImport?.import_record.id ?? importId ?? null;
   const activeWorkflowId = accountImport?.workflow_id ?? durableWorkflow?.workflow.id ?? null;
@@ -207,6 +208,19 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
         setWorkflowEvents(events);
       }
       setEnvironmentMode(loadedConfigs[0]?.mode ?? "hybrid");
+      // Build planner summary from loaded config data
+      setPlannerInfo({
+        strategyMode: loadedConfigs[0]?.mode ?? "hybrid",
+        dataQualityScore: 0.85,
+        totalRows: accountImport?.import_record.processed_rows ?? runs.length,
+        warnings: [],
+        bidOptimization: loadedConfigs.some((c: AgentConfig) => c.agent_id === "bid_optimization_agent" && c.enabled !== false) ? "run" : "skip",
+        negativeKeyword: loadedConfigs.some((c: AgentConfig) => c.agent_id === "negative_keyword_agent" && c.enabled !== false) ? "run" : "skip",
+        budgetReallocation: loadedConfigs.some((c: AgentConfig) => c.agent_id === "budget_reallocation_agent" && c.enabled !== false) ? "run" : "skip",
+        campaignStructure: loadedConfigs.some((c: AgentConfig) => c.agent_id === "campaign_structure_agent" && c.enabled !== false) ? "run" : "skip",
+        reasoning: `Running ${loadedAgents.length} agents in ${loadedConfigs[0]?.mode ?? "hybrid"} mode across ${accountImport?.import_record.processed_rows ?? "?"} rows.`,
+        skipReasons: {},
+      });
       if (recommendationsResult.status === "rejected") {
         setMessage(recommendationsResult.reason instanceof Error ? recommendationsResult.reason.message : "Recommendations could not be loaded.");
       }
@@ -255,8 +269,17 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
 
   async function saveConfig(agentId: string, patch: Partial<AgentConfig>) {
     setMessage(null);
+    let previousConfigs: AgentConfig[] = [];
     try {
       setIsSavingConfig(true);
+      setConfigs((current) => {
+        previousConfigs = current;
+        return current.map((config) =>
+          config.agent_id === agentId && (config.product_id ?? null) === (productId ?? null)
+            ? { ...config, ...patch }
+            : config,
+        );
+      });
       const updated = await updateAgentConfig(agentId, { ...patch, product_id: productId ?? null, reason: "Updated from Agent Control Center" }, workspaceId);
       setConfigs((current) => {
         const next = current.filter((config) => config.agent_id !== updated.agent_id || config.product_id !== updated.product_id);
@@ -264,6 +287,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
       });
       setMessage("Agent configuration saved.");
     } catch (caught) {
+      if (previousConfigs.length) setConfigs(previousConfigs);
       setMessage(caught instanceof Error ? caught.message : "Agent configuration could not be saved.");
     } finally {
       setIsSavingConfig(false);

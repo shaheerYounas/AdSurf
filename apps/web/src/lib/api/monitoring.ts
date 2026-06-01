@@ -58,6 +58,17 @@ export type MonitoringSummary = {
   } | null;
 };
 
+// ── Request deduplication ──────────────────────────────────────────────
+// Prevents duplicate in-flight requests for the same endpoint.
+const _pendingRequests = new Map<string, Promise<any>>();
+
+function deduplicate<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  if (_pendingRequests.has(key)) return _pendingRequests.get(key)!;
+  const promise = fn().finally(() => _pendingRequests.delete(key));
+  _pendingRequests.set(key, promise);
+  return promise;
+}
+
 export async function createMonitoringImport(productId: string, uploadId: string, workspaceId = defaultWorkspaceId) {
   const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/products/${productId}/monitoring-imports`, {
     method: "POST",
@@ -76,38 +87,40 @@ export async function processMonitoringJobs(workspaceId = defaultWorkspaceId) {
 }
 
 export async function getProductMonitoring(productId: string, workspaceId = defaultWorkspaceId): Promise<MonitoringSummary> {
-  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/products/${productId}/monitoring`, {
-    headers: localAuthHeaders(workspaceId),
-    cache: "no-store",
+  return deduplicate(`monitoring:${productId}:${workspaceId}`, async () => {
+    const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/products/${productId}/monitoring`, {
+      headers: localAuthHeaders(workspaceId),
+    });
+    return readApiData<MonitoringSummary>(response, "Monitoring summary could not be loaded.");
   });
-  return readApiData<MonitoringSummary>(response, "Monitoring summary could not be loaded.");
 }
 
 export async function getRecommendations(workspaceId = defaultWorkspaceId): Promise<Recommendation[]> {
-  const controller = new AbortController();
-  const timeout = globalThis.setTimeout(() => controller.abort(), 5000);
-  let response: Response;
-  try {
-    response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/recommendations`, {
-      headers: localAuthHeaders(workspaceId),
-      cache: "no-store",
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") return [];
-    throw error;
-  } finally {
-    globalThis.clearTimeout(timeout);
-  }
-  return readApiData<Recommendation[]>(response, "Recommendations could not be loaded.");
+  return deduplicate(`recs:${workspaceId}`, async () => {
+    const controller = new AbortController();
+    const timeout = globalThis.setTimeout(() => controller.abort(), 8000);
+    try {
+      const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/recommendations`, {
+        headers: localAuthHeaders(workspaceId),
+        signal: controller.signal,
+      });
+      return readApiData<Recommendation[]>(response, "Recommendations could not be loaded.");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return [];
+      throw error;
+    } finally {
+      globalThis.clearTimeout(timeout);
+    }
+  });
 }
 
 export async function getProductRecommendations(productId: string, workspaceId = defaultWorkspaceId): Promise<Recommendation[]> {
-  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/products/${productId}/recommendations`, {
-    headers: localAuthHeaders(workspaceId),
-    cache: "no-store",
+  return deduplicate(`recs:${productId}:${workspaceId}`, async () => {
+    const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/products/${productId}/recommendations`, {
+      headers: localAuthHeaders(workspaceId),
+    });
+    return readApiData<Recommendation[]>(response, "Recommendations could not be loaded.");
   });
-  return readApiData<Recommendation[]>(response, "Recommendations could not be loaded.");
 }
 
 export async function decideRecommendation(recommendationId: string, decision: "approve" | "reject", note: string, workspaceId = defaultWorkspaceId) {

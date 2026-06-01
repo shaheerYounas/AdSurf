@@ -7,6 +7,7 @@ from sqlalchemy.engine import Engine, RowMapping
 
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.database import get_database_engine
+from apps.api.app.core.performance import get_pooled_engine
 from apps.api.app.core.errors import ApiError
 from apps.api.app.schemas.monitoring import (
     AiRun,
@@ -426,7 +427,10 @@ _local_repository = LocalMonitoringRepository()
 def get_monitoring_repository() -> MonitoringRepository:
     settings = get_settings()
     if settings.database_url:
-        return PostgresMonitoringRepository(engine=get_database_engine())
+        # Use pooled engine for production performance (5 persistent connections + 10 overflow)
+        pooled = get_pooled_engine()
+        engine = pooled if pooled is not None else get_database_engine()
+        return PostgresMonitoringRepository(engine=engine)
     if settings.is_local_or_test:
         return _local_repository
     raise ApiError(code="DATABASE_NOT_CONFIGURED", message="DATABASE_URL must be configured outside local and test environments.", status_code=503)

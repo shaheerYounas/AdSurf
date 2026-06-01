@@ -6,6 +6,7 @@ import json
 from time import perf_counter
 from uuid import UUID, uuid4
 
+from apps.api.app.core.observability import get_tracer, set_workspace_context, SpanKind
 from apps.api.app.orchestration.checkpoints import persist_node_state
 from apps.api.app.orchestration.events import checkpoint, emit_event
 from apps.api.app.orchestration.graph_state import AdsWorkflowState, touch_state
@@ -311,59 +312,80 @@ def _run_node(
 ) -> AdsWorkflowState:
     workflow_id = UUID(state["workflow_id"])
     workspace_id = UUID(state["workspace_id"])
+    workspace_id_str = state.get("workspace_id") if hasattr(state, "get") else str(workspace_id)
+    set_workspace_context(str(workspace_id_str))
+
     started = perf_counter()
-    emit_event(
-        context.workflow_repository,
-        workflow_id=workflow_id,
-        workspace_id=workspace_id,
-        node_name=node_name,
+    tracer = get_tracer()
+
+    with tracer.span(
+        f"node.{node_name}",
+        kind=SpanKind.WORKFLOW,
+        workspace_id=str(workspace_id),
         agent_id=agent_id,
-        event_type="node_started",
-        message=f"{node_name} started.",
-    )
-    try:
-        updated = work(state)
-        persist_node_state(
-            context.workflow_repository,
-            workspace_id=workspace_id,
-            workflow_id=workflow_id,
-            node_name=node_name,
-            status=status,
-            state_json=updated,
-            completed=completed,
-        )
-        checkpoint(context.workflow_repository, workflow_id=workflow_id, node_name=node_name, state_json=updated, status=status)
+    ) as trace_span:
         emit_event(
             context.workflow_repository,
             workflow_id=workflow_id,
             workspace_id=workspace_id,
             node_name=node_name,
             agent_id=agent_id,
-            event_type="node_completed" if not completed else "workflow_completed",
-            message=success_message,
-            metadata_json={"approval_boundary": updated.get("safety_boundaries", {})},
-            latency_ms=int((perf_counter() - started) * 1000),
+            event_type="node_started",
+            message=f"{node_name} started.",
         )
-        trace_ids = list(updated.get("trace_ids") or [])
-        updated["trace_ids"] = trace_ids
-        return updated
-    except Exception as exc:  # noqa: BLE001 - failures must be traced and routed.
-        errored = touch_state(state, node_name=node_name, status=WorkflowStatus.FAILED.value)
-        errors = list(errored.get("errors") or [])
-        errors.append({"code": "NODE_FAILED", "node_name": node_name, "message": str(exc)})
-        errored["errors"] = errors
-        emit_event(
-            context.workflow_repository,
-            workflow_id=workflow_id,
-            workspace_id=workspace_id,
-            node_name=node_name,
-            agent_id=agent_id,
-            event_type="node_failed",
-            message=f"{node_name} failed. No live Amazon Ads change executed.",
-            metadata_json={"error": str(exc)},
-            latency_ms=int((perf_counter() - started) * 1000),
-        )
-        return errored
+        try:
+            updated = work(state)
+            persist_node_state(
+                context.workflow_repository,
+                workspace_id=workspace_id,
+                workflow_id=workflow_id,
+                node_name=node_name,
+                status=status,
+                state_json=updated,
+                completed=completed,
+            )
+            checkpoint(context.workflow_repository, workflow_id=workflow_id, node_name=node_name, state_json=updated, status=status)
+            latency = int((perf_counter() - started) * 1000)
+            trace_span.set_attribute("latency_ms", latency)
+            trace_span.set_attribute("status", str(status.value))
+            trace_span.set_attribute("completed", completed)
+            emit_event(
+                context.workflow_repository,
+                workflow_id=workflow_id,
+                workspace_id=workspace_id,
+                node_name=node_name,
+                agent_id=agent_id,
+                event_type="node_completed" if not completed else "workflow_completed",
+                message=success_message,
+                metadata_json={"approval_boundary": updated.get("safety_boundaries", {}), "trace_latency_ms": latency},
+                latency_ms=latency,
+            )
+            trace_ids = list(updated.get("trace_ids") or [])
+            updated["trace_ids"] = trace_ids
+            trace_span.add_event("node_completed", latency_ms=latency)
+            return updated
+        except Exception as exc:  # noqa: BLE001 - failures must be traced and routed.
+            latency = int((perf_counter() - started) * 1000)
+            trace_span.set_attribute("error", str(exc))
+            trace_span.set_attribute("latency_ms", latency)
+            trace_span.add_event("node_failed", error=str(exc), latency_ms=latency)
+            trace_span.finish(status="error")
+            errored = touch_state(state, node_name=node_name, status=WorkflowStatus.FAILED.value)
+            errors = list(errored.get("errors") or [])
+            errors.append({"code": "NODE_FAILED", "node_name": node_name, "message": str(exc)})
+            errored["errors"] = errors
+            emit_event(
+                context.workflow_repository,
+                workflow_id=workflow_id,
+                workspace_id=workspace_id,
+                node_name=node_name,
+                agent_id=agent_id,
+                event_type="node_failed",
+                message=f"{node_name} failed. No live Amazon Ads change executed.",
+                metadata_json={"error": str(exc)},
+                latency_ms=latency,
+            )
+            return errored
 
 
 def _load_account_import(state: AdsWorkflowState, context: WorkflowNodeContext):

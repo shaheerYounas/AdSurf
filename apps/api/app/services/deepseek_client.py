@@ -7,6 +7,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from apps.api.app.core.config import get_settings
+from apps.api.app.core.observability import trace_llm_call
 from apps.api.app.services.ai_client import AiConfigurationError, AiJsonClient, AiJsonResponse, AiProviderError, AiResponseError
 
 
@@ -40,29 +41,41 @@ class DeepSeekClient(AiJsonClient):
         }
         start = time.monotonic()
         last_error: Exception | None = None
-        for attempt in range(self._retries + 1):
-            try:
-                request = Request(f"{self._base_url}/chat/completions", data=body, headers=headers, method="POST")
-                with urlopen(request, timeout=timeout) as response:
-                    response_body = response.read().decode("utf-8")
-                content = self._extract_content(response_body)
-                parsed = self._parse_content_json(content)
-                return AiJsonResponse(provider=self.provider, model=self.model, content_json=parsed, latency_ms=int((time.monotonic() - start) * 1000))
-            except HTTPError as exc:
-                last_error = exc
-                if exc.code not in {408, 409, 425, 429, 500, 502, 503, 504} or attempt >= self._retries:
-                    raise AiProviderError(f"DeepSeek request failed with status {exc.code}.") from exc
-            except URLError as exc:
-                last_error = exc
-                if attempt >= self._retries:
-                    raise AiProviderError("DeepSeek request failed due to a network error.") from exc
-            except TimeoutError as exc:
-                last_error = exc
-                if attempt >= self._retries:
-                    raise AiProviderError("DeepSeek request timed out.") from exc
-            if attempt < self._retries:
-                time.sleep(min(2**attempt, 4))
-        raise AiProviderError("DeepSeek request failed.") from last_error
+        with trace_llm_call(
+            provider=self.provider,
+            model=self.model,
+            messages_count=len(messages),
+        ) as trace_span:
+            for attempt in range(self._retries + 1):
+                try:
+                    request = Request(f"{self._base_url}/chat/completions", data=body, headers=headers, method="POST")
+                    with urlopen(request, timeout=timeout) as response:
+                        response_body = response.read().decode("utf-8")
+                    content = self._extract_content(response_body)
+                    parsed = self._parse_content_json(content)
+                    result = AiJsonResponse(provider=self.provider, model=self.model, content_json=parsed, latency_ms=int((time.monotonic() - start) * 1000))
+                    trace_span.set_attribute("latency_ms", result.latency_ms)
+                    trace_span.set_attribute("attempts", attempt + 1)
+                    trace_span.add_event("llm_response_received", latency_ms=result.latency_ms)
+                    return result
+                except HTTPError as exc:
+                    last_error = exc
+                    trace_span.add_event("llm_http_error", code=exc.code, attempt=attempt + 1)
+                    if exc.code not in {408, 409, 425, 429, 500, 502, 503, 504} or attempt >= self._retries:
+                        raise AiProviderError(f"DeepSeek request failed with status {exc.code}.") from exc
+                except URLError as exc:
+                    last_error = exc
+                    trace_span.add_event("llm_network_error", attempt=attempt + 1)
+                    if attempt >= self._retries:
+                        raise AiProviderError("DeepSeek request failed due to a network error.") from exc
+                except TimeoutError as exc:
+                    last_error = exc
+                    trace_span.add_event("llm_timeout", attempt=attempt + 1)
+                    if attempt >= self._retries:
+                        raise AiProviderError("DeepSeek request timed out.") from exc
+                if attempt < self._retries:
+                    time.sleep(min(2**attempt, 4))
+            raise AiProviderError("DeepSeek request failed.") from last_error
 
     def _extract_content(self, response_body: str) -> str:
         try:

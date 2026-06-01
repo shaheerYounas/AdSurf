@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { createPortal } from "react-dom";
 import { Check, ChevronDown } from "lucide-react";
 import { cn, humanize } from "@/lib/utils";
 
@@ -41,48 +40,17 @@ export function Select({
 }: SelectProps) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const options = toOptions(rawOptions);
   const selected = options.find((o) => o.value === value);
-
-  const recalcPosition = useCallback(() => {
-    const btn = buttonRef.current;
-    if (!btn) return;
-    const rect = btn.getBoundingClientRect();
-    const dropdownHeight = Math.min(options.length * 44 + 16, 280); // estimate max height
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-
-    // Determine if dropdown should open upward or downward
-    if (spaceBelow < dropdownHeight && spaceAbove > spaceBelow) {
-      // Open upward
-      setDropdownStyle({
-        position: "fixed",
-        bottom: window.innerHeight - rect.top + 4,
-        left: rect.left,
-        width: rect.width,
-        maxHeight: Math.min(spaceAbove - 8, 280),
-        zIndex: 9999,
-      });
-    } else {
-      // Open downward
-      setDropdownStyle({
-        position: "fixed",
-        top: rect.bottom + 4,
-        left: rect.left,
-        width: rect.width,
-        maxHeight: Math.min(spaceBelow - 8, 280),
-        zIndex: 9999,
-      });
-    }
-  }, [options.length]);
-
-  useEffect(() => {
-    if (!open) return;
-    recalcPosition();
-  }, [open, recalcPosition]);
+  const selectOption = useCallback(
+    (option: SelectOption) => {
+      if (option.disabled) return;
+      onChange(option.value);
+      setOpen(false);
+    },
+    [onChange],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -96,20 +64,12 @@ export function Select({
       }
     }
 
-    function handleResizeOrScroll() {
-      recalcPosition();
-    }
-
     document.addEventListener("mousedown", handleClickOutside);
-    window.addEventListener("resize", handleResizeOrScroll);
-    window.addEventListener("scroll", handleResizeOrScroll, true);
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      window.removeEventListener("resize", handleResizeOrScroll);
-      window.removeEventListener("scroll", handleResizeOrScroll, true);
     };
-  }, [open, recalcPosition]);
+  }, [open]);
 
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
@@ -129,7 +89,6 @@ export function Select({
         </span>
       )}
       <button
-        ref={buttonRef}
         type="button"
         disabled={disabled}
         onClick={() => !disabled && setOpen(!open)}
@@ -155,19 +114,10 @@ export function Select({
         />
       </button>
 
-      {open &&
-        createPortal(
-          <>
-            {/* Invisible backdrop to catch clicks outside */}
-            <div
-              className="fixed inset-0 z-[9998]"
-              onClick={() => setOpen(false)}
-              aria-hidden="true"
-            />
+      {open && (
             <div
               ref={dropdownRef}
-              className="overflow-auto rounded-2xl border border-slate-200 bg-white py-1 shadow-xl shadow-slate-950/10 dark:border-white/10 dark:bg-slate-900"
-              style={dropdownStyle}
+              className="absolute left-0 top-full z-50 mt-1 max-h-72 w-full overflow-auto rounded-2xl border border-slate-200 bg-white py-1 shadow-xl shadow-slate-950/10 dark:border-white/10 dark:bg-slate-900"
               role="listbox"
             >
               {placeholder && (
@@ -182,14 +132,20 @@ export function Select({
                   disabled={option.disabled}
                   role="option"
                   aria-selected={option.value === value}
-                  onMouseDown={(e) => {
-                    // Fire on mousedown so the option's selection runs BEFORE the
-                    // document-level mousedown click-outside handler removes us
-                    // from the DOM (which would cancel the subsequent click event).
+                  onPointerDown={(e) => {
                     e.preventDefault();
-                    if (option.disabled) return;
-                    onChange(option.value);
-                    setOpen(false);
+                    e.stopPropagation();
+                    selectOption(option);
+                  }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectOption(option);
+                  }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    selectOption(option);
                   }}
                   className={cn(
                     "flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition",
@@ -204,9 +160,7 @@ export function Select({
                 </button>
               ))}
             </div>
-          </>,
-          document.body
-        )}
+      )}
 
       {helperText && (
         <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{helperText}</p>

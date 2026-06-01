@@ -48,6 +48,8 @@ class Settings(BaseModel):
     queue_backend: str = "local"
     redis_url: str | None = None
     langgraph_checkpoint_backend: str = "postgres"
+    observability_tracing_mode: str = "console"
+    observability_token_usage_workspace_view: str = "token_usage_by_workspace"
 
     @property
     def is_known_app_env(self) -> bool:

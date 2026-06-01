@@ -149,8 +149,12 @@ export function RecommendationsWorkspace() {
         title={decisionTarget?.decision === "approve" ? "Approve recommendation" : "Reject recommendation"}
         description={`${decisionTarget?.recommendation.recommendation_type ?? ""} for ${decisionTarget?.recommendation.customer_search_term ?? ""}. This records a human decision only; no Amazon Ads change is executed.`}
       >
+        {/* Safety disclaimer */}
+        <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:bg-amber-400/10 dark:text-amber-300">
+          This records a human decision only. No Amazon Ads API call is made. Changes must be exported and uploaded to Amazon Ads manually.
+        </p>
         <textarea
-          className="block h-28 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition hover:border-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:border-white/20 dark:focus:border-indigo-400 dark:focus:ring-indigo-400/20"
+          className="block mt-3 h-28 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-950 outline-none transition hover:border-slate-300 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:border-white/20 dark:focus:border-indigo-400 dark:focus:ring-indigo-400/20"
           onChange={(event) => setNote(event.target.value)}
           placeholder="Add a note explaining your decision..."
           value={note}
