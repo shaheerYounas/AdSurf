@@ -3,6 +3,7 @@ from functools import lru_cache
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
+from sqlalchemy.pool import NullPool
 
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.errors import ApiError
@@ -17,7 +18,7 @@ def get_database_engine() -> Engine:
             message="DATABASE_URL is required for database-backed operations.",
             status_code=503,
         )
-    return create_engine(settings.database_url, pool_pre_ping=True)
+    return create_engine(settings.database_url, pool_pre_ping=True, poolclass=NullPool)
 
 
 def run_database_operation(operation):

@@ -177,8 +177,20 @@ export async function updateAgentConfig(agentId: string, payload: Partial<AgentC
 }
 
 export async function getAgentRuns(workspaceId = defaultWorkspaceId, monitoringImportId?: string): Promise<AgentRun[]> {
-  const suffix = monitoringImportId ? `?monitoring_import_id=${monitoringImportId}` : "";
-  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/agent-runs${suffix}`, { headers: localAuthHeaders(workspaceId), cache: "no-store" });
+  const params = new URLSearchParams({ limit: "250" });
+  if (monitoringImportId) params.set("monitoring_import_id", monitoringImportId);
+  const suffix = `?${params.toString()}`;
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(() => controller.abort(), 5000);
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/agent-runs${suffix}`, { headers: localAuthHeaders(workspaceId), cache: "no-store", signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return [];
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeout);
+  }
   return readApiData<AgentRun[]>(response, "Agent runs could not be loaded.");
 }
 

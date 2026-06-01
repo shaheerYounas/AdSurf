@@ -99,7 +99,7 @@ class MonitoringRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def list_ai_runs(self, *, workspace_id: UUID, product_id: UUID | None = None, agent_name: str | None = None) -> list[AiRun]:
+    def list_ai_runs(self, *, workspace_id: UUID, product_id: UUID | None = None, agent_name: str | None = None, limit: int | None = None) -> list[AiRun]:
         raise NotImplementedError
 
 
@@ -188,7 +188,7 @@ class LocalMonitoringRepository(MonitoringRepository):
         runs = [run for run in self._ai_runs.values() if run.workspace_id == workspace_id and run.agent_name == agent_name]
         return sorted(runs, key=lambda run: run.created_at, reverse=True)[0] if runs else None
 
-    def list_ai_runs(self, *, workspace_id: UUID, product_id: UUID | None = None, agent_name: str | None = None) -> list[AiRun]:
+    def list_ai_runs(self, *, workspace_id: UUID, product_id: UUID | None = None, agent_name: str | None = None, limit: int | None = None) -> list[AiRun]:
         runs = [
             run
             for run in self._ai_runs.values()
@@ -196,7 +196,8 @@ class LocalMonitoringRepository(MonitoringRepository):
             and (product_id is None or run.product_id == product_id)
             and (agent_name is None or run.agent_name == agent_name)
         ]
-        return sorted(runs, key=lambda run: run.created_at, reverse=True)
+        sorted_runs = sorted(runs, key=lambda run: run.created_at, reverse=True)
+        return sorted_runs[:limit] if limit is not None else sorted_runs
 
 
 class PostgresMonitoringRepository(MonitoringRepository):
@@ -404,8 +405,8 @@ class PostgresMonitoringRepository(MonitoringRepository):
             ).mappings().first()
         return _ai_run_from_row(row) if row else None
 
-    def list_ai_runs(self, *, workspace_id: UUID, product_id: UUID | None = None, agent_name: str | None = None) -> list[AiRun]:
-        params = {"workspace_id": workspace_id}
+    def list_ai_runs(self, *, workspace_id: UUID, product_id: UUID | None = None, agent_name: str | None = None, limit: int | None = None) -> list[AiRun]:
+        params = {"workspace_id": workspace_id, "limit": limit}
         clauses = ["workspace_id = :workspace_id"]
         if product_id:
             clauses.append("product_id = :product_id")
@@ -413,8 +414,9 @@ class PostgresMonitoringRepository(MonitoringRepository):
         if agent_name:
             clauses.append("agent_name = :agent_name")
             params["agent_name"] = agent_name
+        limit_clause = " limit :limit" if limit is not None else ""
         with self._engine.begin() as connection:
-            rows = connection.execute(text(f"select * from ai_runs where {' and '.join(clauses)} order by created_at desc"), params).mappings().all()
+            rows = connection.execute(text(f"select * from ai_runs where {' and '.join(clauses)} order by created_at desc{limit_clause}"), params).mappings().all()
         return [_ai_run_from_row(row) for row in rows]
 
 

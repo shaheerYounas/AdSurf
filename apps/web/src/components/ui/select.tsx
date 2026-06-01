@@ -182,7 +182,12 @@ export function Select({
                   disabled={option.disabled}
                   role="option"
                   aria-selected={option.value === value}
-                  onClick={() => {
+                  onMouseDown={(e) => {
+                    // Fire on mousedown so the option's selection runs BEFORE the
+                    // document-level mousedown click-outside handler removes us
+                    // from the DOM (which would cancel the subsequent click event).
+                    e.preventDefault();
+                    if (option.disabled) return;
                     onChange(option.value);
                     setOpen(false);
                   }}

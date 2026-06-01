@@ -111,13 +111,14 @@ def list_agent_runs(
     product_id: UUID | None = Query(default=None),
     monitoring_import_id: UUID | None = Query(default=None),
     agent_id: str | None = Query(default=None),
+    limit: int = Query(default=250, ge=1, le=1000),
     principal: WorkspacePrincipal = Depends(require_workspace_member),
     monitoring_repository: MonitoringRepository = Depends(get_monitoring_repository),
     control_repository: AgentControlRepository = Depends(get_agent_control_repository),
 ) -> dict:
     principal.ensure_workspace(workspace_id)
     principal.require_role(PRODUCT_PROFILE_READ_ROLES)
-    runs = [_run_detail(run, control_repository=control_repository, monitoring_import_id_filter=monitoring_import_id) for run in monitoring_repository.list_ai_runs(workspace_id=workspace_id, product_id=product_id)]
+    runs = [_run_detail(run, control_repository=control_repository, monitoring_import_id_filter=monitoring_import_id) for run in monitoring_repository.list_ai_runs(workspace_id=workspace_id, product_id=product_id, limit=limit)]
     filtered = [run for run in runs if (monitoring_import_id is None or run.monitoring_import_id == monitoring_import_id) and (agent_id is None or run.agent_id == agent_id)]
     return success_response(data=[run.model_dump(mode="json") for run in filtered])
 

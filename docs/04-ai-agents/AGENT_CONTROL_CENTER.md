@@ -72,7 +72,7 @@ Agent configs can be workspace-level, product-level, and later account-import-le
 
 - `enabled`
 - `mode`: deterministic, ai, hybrid
-- `provider`: deepseek, fallback, deterministic
+- `provider`: primary, deepseek, fallback, deterministic
 - `model`
 - `strictness_level`: conservative, balanced, aggressive
 - `confidence_threshold`: low, medium, high
@@ -151,3 +151,7 @@ Events store agent ID, run ID when available, monitoring import ID when availabl
 
 ## Recommendation Traceability
 Agent runs store Agent Control Center metadata in run output, including agent ID, monitoring import ID, mode, strictness, confidence threshold, safety boundary, and related recommendation IDs. Recommendation evidence also stores the AI run ID/provider/model when applicable.
+
+The Agent Control Center reads recent agent runs through `GET /agent-runs?limit=250` by default and treats slow run history or recommendation history as non-blocking so configuration controls remain usable even when historical storage is large.
+
+Inspector configuration saves update the visible agent config from the `PATCH /agent-configs/{agent_id}` response instead of reloading the full control center after every field change.

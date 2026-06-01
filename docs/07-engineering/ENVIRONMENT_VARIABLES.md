@@ -29,5 +29,6 @@
 
 ## Supabase Local Development Notes
 - `DATABASE_URL` should use Supabase's IPv4-compatible pooler connection string when the direct `db.<project-ref>.supabase.co` host is not reachable from the local network.
+- The FastAPI SQLAlchemy engine uses non-persistent connections for `DATABASE_URL` so repeated Agent Control Center saves do not hold Supabase pooler session slots.
 - Server-side Supabase Storage requires a valid `SUPABASE_SERVICE_ROLE_KEY`; anon and publishable keys are not sufficient for backend upload/export object writes.
 - `SUPABASE_STORAGE_BUCKET_UPLOADS` must point to a private bucket that exists in the Supabase project, such as `workspace-uploads`.

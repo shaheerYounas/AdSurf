@@ -257,9 +257,12 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
     setMessage(null);
     try {
       setIsSavingConfig(true);
-      await updateAgentConfig(agentId, { ...patch, product_id: productId ?? null, reason: "Updated from Agent Control Center" }, workspaceId);
+      const updated = await updateAgentConfig(agentId, { ...patch, product_id: productId ?? null, reason: "Updated from Agent Control Center" }, workspaceId);
+      setConfigs((current) => {
+        const next = current.filter((config) => config.agent_id !== updated.agent_id || config.product_id !== updated.product_id);
+        return [...next, updated];
+      });
       setMessage("Agent configuration saved.");
-      await load();
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "Agent configuration could not be saved.");
     } finally {

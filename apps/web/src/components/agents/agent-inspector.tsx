@@ -52,11 +52,10 @@ const MODE_OPTIONS = [
 ];
 
 const PROVIDER_OPTIONS = [
-  { value: "openai", label: "OpenAI" },
-  { value: "anthropic", label: "Anthropic" },
+  { value: "primary", label: "Primary provider" },
   { value: "deepseek", label: "DeepSeek" },
-  { value: "google", label: "Google" },
-  { value: "local", label: "Local" },
+  { value: "fallback", label: "Fallback provider" },
+  { value: "deterministic", label: "Deterministic rules" },
 ];
 
 const STRICTNESS_OPTIONS = [
@@ -151,7 +150,9 @@ export function AgentInspector({
           }
         />
         <Pill>{MODE_OPTIONS.find((o) => o.value === config?.mode)?.label ?? config?.mode ?? "Hybrid"}</Pill>
-        <Pill>{PROVIDER_OPTIONS.find((o) => o.value === config?.provider)?.label ?? config?.provider ?? "DeepSeek"}</Pill>
+        {config?.mode !== "deterministic" && (
+          <Pill>{PROVIDER_OPTIONS.find((o) => o.value === config?.provider)?.label ?? config?.provider ?? "DeepSeek"}</Pill>
+        )}
         <Pill>{config?.strictness_level ? humanize(config.strictness_level) : "Balanced"}</Pill>
       </div>
 
@@ -257,7 +258,9 @@ function Overview({
           ["Current task", currentTask(agent.agent_id)],
           [
             "Provider / Model",
-            `${PROVIDER_OPTIONS.find((o) => o.value === (config?.provider ?? run?.provider))?.label ?? config?.provider ?? run?.provider ?? "DeepSeek"} / ${config?.model ?? run?.model ?? "default"}`,
+            config?.mode === "deterministic"
+              ? "Deterministic (no AI)"
+              : `${PROVIDER_OPTIONS.find((o) => o.value === (config?.provider ?? run?.provider))?.label ?? config?.provider ?? run?.provider ?? "DeepSeek"} / ${config?.model ?? run?.model ?? "default"}`,
           ],
           [
             "Last run",
@@ -433,18 +436,20 @@ function Configuration({
             }
             helperText="How conservative the agent should be when making decisions."
           />
-          <Select
-            label="Confidence threshold"
-            value={config.confidence_threshold}
-            options={CONFIDENCE_OPTIONS}
-            onChange={(confidence_threshold) =>
-              onConfigChange({
-                confidence_threshold:
-                  confidence_threshold as AgentConfig["confidence_threshold"],
-              })
-            }
-            helperText="Minimum AI confidence needed to proceed with a recommendation."
-          />
+          {usesAi && (
+            <Select
+              label="Confidence threshold"
+              value={config.confidence_threshold}
+              options={CONFIDENCE_OPTIONS}
+              onChange={(confidence_threshold) =>
+                onConfigChange({
+                  confidence_threshold:
+                    confidence_threshold as AgentConfig["confidence_threshold"],
+                })
+              }
+              helperText="Minimum AI confidence needed to proceed with a recommendation."
+            />
+          )}
           <NumberInput
             label="Max recommendations"
             value={config.max_recommendations}
@@ -452,13 +457,15 @@ function Configuration({
               onConfigChange({ max_recommendations })
             }
           />
-          <NumberInput
-            label="Max rows per AI call"
-            value={config.max_rows_per_ai_call}
-            onChange={(max_rows_per_ai_call) =>
-              onConfigChange({ max_rows_per_ai_call })
-            }
-          />
+          {usesAi && (
+            <NumberInput
+              label="Max rows per AI call"
+              value={config.max_rows_per_ai_call}
+              onChange={(max_rows_per_ai_call) =>
+                onConfigChange({ max_rows_per_ai_call })
+              }
+            />
+          )}
           <NumberInput
             label="Max products per run"
             value={config.max_products_per_run}

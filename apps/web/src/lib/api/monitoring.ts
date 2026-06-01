@@ -84,10 +84,21 @@ export async function getProductMonitoring(productId: string, workspaceId = defa
 }
 
 export async function getRecommendations(workspaceId = defaultWorkspaceId): Promise<Recommendation[]> {
-  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/recommendations`, {
-    headers: localAuthHeaders(workspaceId),
-    cache: "no-store",
-  });
+  const controller = new AbortController();
+  const timeout = globalThis.setTimeout(() => controller.abort(), 5000);
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/recommendations`, {
+      headers: localAuthHeaders(workspaceId),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") return [];
+    throw error;
+  } finally {
+    globalThis.clearTimeout(timeout);
+  }
   return readApiData<Recommendation[]>(response, "Recommendations could not be loaded.");
 }
 
