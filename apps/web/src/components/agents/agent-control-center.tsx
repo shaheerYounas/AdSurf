@@ -65,30 +65,38 @@ type UploadStatusMessage = { kind: "idle" | "loading" | "success" | "error"; tex
 
 const workflowOrder = [
   "report_upload_node",
-  "report_detection_agent",
-  "product_resolution_agent",
-  "metrics_analysis_agent",
-  "ai_recommendation_brain_agent",
+  "import_data_quality_agent",
+  "entity_resolution_agent",
+  "metrics_normalization_agent",
+  "account_strategy_agent",
+  "search_term_mining_agent",
   "bid_optimization_agent",
   "negative_keyword_agent",
-  "budget_allocation_agent",
-  "pause_review_agent",
-  "stakeholder_reporting_agent",
+  "budget_reallocation_agent",
+  "campaign_structure_agent",
+  "risk_policy_validator_agent",
   "human_approval_agent",
+  "bulk_change_compiler_agent",
+  "learning_feedback_agent",
+  "stakeholder_reporting_agent",
 ];
 
 const fallbackAgents: AgentDefinition[] = [
   definition("report_upload_node", "Report Upload", "Receives Amazon Ads reports or bulk sheets and starts the account workflow.", "start", "uploaded_report"),
-  definition("report_detection_agent", "Report Detection Agent", "Detects report type, confidence, required columns, and analysis readiness.", "validation", "report_detection_summary"),
-  definition("product_resolution_agent", "Product Resolution Agent", "Maps ASINs, SKUs, product names, and unknown product groups.", "mapping", "product_mapping_suggestions"),
-  definition("metrics_analysis_agent", "Metrics Analysis Agent", "Calculates account, product, campaign, target, and search-term metrics.", "analysis", "performance_rollups"),
-  definition("ai_recommendation_brain_agent", "AI Recommendation Brain", "Creates strict JSON recommendation decisions from grouped metrics.", "decision", "recommendation_json"),
-  definition("bid_optimization_agent", "Bid Optimization Agent", "Reviews bid-related recommendations across products and campaigns.", "specialist", "bid_recommendation_review"),
-  definition("negative_keyword_agent", "Negative Keyword Agent", "Reviews wasted search terms and negative keyword candidates.", "specialist", "negative_keyword_review"),
-  definition("budget_allocation_agent", "Budget Allocation Agent", "Reviews budget pressure and reallocation opportunities.", "specialist", "budget_review"),
-  definition("pause_review_agent", "Pause Review Agent", "Identifies campaigns, ad groups, or targets that may need pause review.", "specialist", "pause_review"),
-  definition("stakeholder_reporting_agent", "Stakeholder Reporting Agent", "Produces executive summaries and approver notes.", "reporting", "stakeholder_summary"),
+  definition("import_data_quality_agent", "Import & Data Quality Agent", "Checks uploaded reports for missing columns, wrong date ranges, mixed marketplaces, and other data quality issues.", "validation", "data_quality_report"),
+  definition("entity_resolution_agent", "Entity Resolution Agent", "Maps campaigns, ad groups, SKUs, ASINs, search terms, keywords, and targeting expressions.", "mapping", "entity_mapping"),
+  definition("metrics_normalization_agent", "Metrics Normalization Agent", "Calculates spend, sales, orders, CPC, CTR, CVR, ACOS, ROAS, CPA deterministically.", "analysis", "normalized_metrics"),
+  definition("account_strategy_agent", "Account Strategy Agent", "Determines the optimization goal: profit, growth, launch, cleanup, brand defense.", "strategy", "strategy_configuration"),
+  definition("search_term_mining_agent", "Search Term Mining Agent", "Classifies search terms: harvest, keep, negative, watch, ignore, brand defense, competitor term.", "analysis", "search_term_classifications"),
+  definition("bid_optimization_agent", "Bid Optimization Agent", "Generates bid increase/decrease/set actions with current bid, recommended bid, and evidence.", "decision", "bid_recommendations"),
+  definition("negative_keyword_agent", "Negative Keyword Agent", "Reviews wasted search terms and generates negative exact/phrase recommendations.", "decision", "negative_keyword_recommendations"),
+  definition("budget_reallocation_agent", "Budget Reallocation Agent", "Recommends budget shifts: out-of-budget profitable campaigns, spending-but-unprofitable, no impressions.", "decision", "budget_recommendations"),
+  definition("campaign_structure_agent", "Campaign Structure Agent", "Recommends moving converting terms to exact, separating branded/non-branded, isolating hero terms.", "decision", "campaign_structure_recommendations"),
+  definition("risk_policy_validator_agent", "Risk & Policy Validator Agent", "Rejects unsafe actions: bid increase above max, pause with little data, recommendations without evidence.", "validation", "validation_report"),
   definition("human_approval_agent", "Human Approval Agent", "Routes recommendations to humans and prevents automatic approval.", "approval", "approval_queue"),
+  definition("bulk_change_compiler_agent", "Bulk Change Compiler Agent", "Generates approved-changes table, bulk upload file, audit log, before/after, and rollback reference.", "export", "bulk_export"),
+  definition("learning_feedback_agent", "Learning & Feedback Agent", "Tracks whether implemented changes improved metrics. Builds optimization memory over time.", "analysis", "learning_report"),
+  definition("stakeholder_reporting_agent", "Stakeholder Reporting Agent", "Produces executive summaries and approver notes.", "reporting", "stakeholder_summary"),
 ];
 
 const templates = [
@@ -264,10 +272,19 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
     setIsSavingConfig(true);
     setMessage(`Saving ${mode} mode across agents.`);
     try {
-      for (const config of configs) {
-        await updateAgentConfig(config.agent_id, { mode, product_id: productId ?? null, reason: "Environment mode updated from top bar" }, workspaceId);
-      }
-      setMessage(`Environment mode saved as ${mode}.`);
+      const knownAgentIds = new Set(agentCatalog.map((agent) => agent.agent_id));
+      const targetAgentIds = new Set<string>(knownAgentIds);
+      for (const config of configs) if (knownAgentIds.has(config.agent_id)) targetAgentIds.add(config.agent_id);
+      const results = await Promise.allSettled(
+        Array.from(targetAgentIds).map((agentId) =>
+          updateAgentConfig(agentId, { mode, product_id: productId ?? null, reason: "Environment mode updated from top bar" }, workspaceId),
+        ),
+      );
+      const failures = results.filter((r) => r.status === "rejected").length;
+      if (failures === results.length) throw new Error("Environment mode could not be saved.");
+      setMessage(failures
+        ? `Environment mode saved as ${mode} for ${results.length - failures} of ${results.length} agents. ${failures} unsupported agents were skipped.`
+        : `Environment mode saved as ${mode}.`);
       await load();
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "Environment mode could not be saved.");
@@ -1252,15 +1269,21 @@ function uploadStatusClass(kind: UploadStatusMessage["kind"]) {
 
 function edgeSummary(source: string, target: string) {
   const summaries: Record<string, string[]> = {
-    "report_upload_node:report_detection_agent": ["headers", "sample rows", "file metadata"],
-    "report_detection_agent:product_resolution_agent": ["report type", "missing columns", "entity levels"],
-    "product_resolution_agent:metrics_analysis_agent": ["ASIN/SKU groups", "campaign groups", "mapping suggestions"],
-    "metrics_analysis_agent:ai_recommendation_brain_agent": ["grouped metrics", "winners", "wasters", "quality warnings"],
-    "ai_recommendation_brain_agent:bid_optimization_agent": ["bid candidates", "confidence", "risk notes"],
-    "ai_recommendation_brain_agent:negative_keyword_agent": ["wasted search terms", "negative candidates"],
-    "ai_recommendation_brain_agent:budget_allocation_agent": ["budget pressure", "spend/sales shares"],
-    "ai_recommendation_brain_agent:pause_review_agent": ["zero-order spend", "pause candidates"],
-    "stakeholder_reporting_agent:human_approval_agent": ["approver notes", "recommendation queue"],
+    "report_upload_node:import_data_quality_agent": ["headers", "sample rows", "file metadata"],
+    "import_data_quality_agent:entity_resolution_agent": ["quality flags", "row count", "column map"],
+    "entity_resolution_agent:metrics_normalization_agent": ["entity mapping", "ASIN/SKU groups", "campaign groups"],
+    "metrics_normalization_agent:account_strategy_agent": ["normalized metrics", "spend/sales", "ACOS/ROAS"],
+    "account_strategy_agent:search_term_mining_agent": ["strategy mode", "risk policy", "thresholds"],
+    "search_term_mining_agent:bid_optimization_agent": ["search term classes", "winners", "wasters"],
+    "search_term_mining_agent:negative_keyword_agent": ["wasted terms", "negative candidates"],
+    "bid_optimization_agent:risk_policy_validator_agent": ["bid candidates", "evidence", "risk notes"],
+    "negative_keyword_agent:risk_policy_validator_agent": ["negative candidates", "evidence"],
+    "budget_reallocation_agent:risk_policy_validator_agent": ["budget shifts", "evidence"],
+    "campaign_structure_agent:risk_policy_validator_agent": ["structural changes", "evidence"],
+    "risk_policy_validator_agent:human_approval_agent": ["validated set", "rejected set"],
+    "human_approval_agent:bulk_change_compiler_agent": ["approved changes", "audit trail"],
+    "bulk_change_compiler_agent:learning_feedback_agent": ["applied changes", "before/after"],
+    "learning_feedback_agent:stakeholder_reporting_agent": ["impact metrics", "outcome history"],
   };
   return summaries[`${source}:${target}`] ?? ["validated evidence", "recommendation context"];
 }
@@ -1286,16 +1309,22 @@ function agentIcon(agentId: string) {
 function currentTask(agentId: string) {
   const tasks: Record<string, string> = {
     report_upload_node: "Waiting for report upload",
-    report_detection_agent: "Detect report type and missing columns",
-    product_resolution_agent: "Resolve ASINs, SKUs, and product mappings",
-    metrics_analysis_agent: "Analyze account, product, campaign, keyword, and search-term metrics",
-    ai_recommendation_brain_agent: "Generate strict JSON recommendations",
-    bid_optimization_agent: "Review bid increase/decrease risk",
-    negative_keyword_agent: "Review wasted search terms",
-    budget_allocation_agent: "Review budget pressure",
-    pause_review_agent: "Review pause candidates",
-    stakeholder_reporting_agent: "Create summaries and approver notes",
+    import_data_quality_agent: "Validate report rows, columns, and data quality",
+    entity_resolution_agent: "Map campaigns, ad groups, ASINs, SKUs, and search terms",
+    metrics_normalization_agent: "Calculate CPC, CTR, CVR, ACOS, ROAS deterministically",
+    account_strategy_agent: "Determine optimization goal and risk policy",
+    search_term_mining_agent: "Classify search terms: harvest, negative, watch, ignore",
+    bid_optimization_agent: "Recommend bid increase/decrease with evidence",
+    negative_keyword_agent: "Recommend negative exact/phrase candidates",
+    budget_reallocation_agent: "Recommend budget shifts across campaigns",
+    campaign_structure_agent: "Recommend structural campaign changes",
+    risk_policy_validator_agent: "Validate every recommendation against safety rules",
     human_approval_agent: "Route recommendations to approval queue",
+    bulk_change_compiler_agent: "Compile approved changes into Amazon bulk export",
+    learning_feedback_agent: "Compare prior recommendations with new metrics",
+    stakeholder_reporting_agent: "Create summaries and approver notes",
+    // Legacy
+    ai_recommendation_brain_agent: "Generate strict JSON recommendations (legacy)",
   };
   return tasks[agentId] ?? "Inspect evidence";
 }
