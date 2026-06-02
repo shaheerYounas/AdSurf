@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CompetitorUploadStatus(StrEnum):
@@ -99,3 +99,27 @@ class CompetitorCleanedRowsResponse(BaseModel):
     page: int
     page_size: int
     has_next: bool
+
+
+class CompetitorReference(BaseModel):
+    name: str
+    asin: str | None = None
+
+
+class CompetitorVerificationEvidenceResult(BaseModel):
+    position: int = Field(ge=1)
+    title: str | None = None
+    asin: str | None = None
+    matched_competitor_name: str | None = None
+    matched_competitor_asin: str | None = None
+
+
+class CompetitorVerificationEvidenceRow(BaseModel):
+    search_term: str
+    results: list[CompetitorVerificationEvidenceResult] = []
+
+
+class CompetitorVerificationRequest(BaseModel):
+    competitors: list[str | CompetitorReference]
+    evidence_rows: list[CompetitorVerificationEvidenceRow] = []
+    required_match_count: int = Field(default=3, ge=3, le=5)

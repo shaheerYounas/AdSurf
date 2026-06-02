@@ -44,7 +44,23 @@ export type CompetitorCleanedRow = {
   scoring_status: string | null;
   rejection_reason: string | null;
   scored_at: string | null;
+  verification_status: string | null;
+  verification_result_json: Record<string, unknown> | null;
+  verified_at: string | null;
   created_at: string;
+};
+
+export type CompetitorReference = string | { name: string; asin?: string | null };
+
+export type CompetitorVerificationEvidenceRow = {
+  search_term: string;
+  results: {
+    position: number;
+    title?: string | null;
+    asin?: string | null;
+    matched_competitor_name?: string | null;
+    matched_competitor_asin?: string | null;
+  }[];
 };
 
 export type CompetitorUploadResponse = {
@@ -164,13 +180,14 @@ export async function scoreCompetitorUpload(
 
 export async function verifyCompetitorKeywords(
   uploadId: string,
-  competitors: string[],
+  payload: CompetitorReference[] | { competitors: CompetitorReference[]; evidence_rows?: CompetitorVerificationEvidenceRow[]; required_match_count?: number },
   workspaceId = defaultWorkspaceId,
 ): Promise<CompetitorVerificationResponse> {
+  const body = Array.isArray(payload) ? { competitors: payload } : payload;
   const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/competitor-uploads/${uploadId}/verify`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...localAuthHeaders(workspaceId) },
-    body: JSON.stringify({ competitors }),
+    body: JSON.stringify(body),
   });
   return readApiData<CompetitorVerificationResponse>(response, "Verification failed.");
 }

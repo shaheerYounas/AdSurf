@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, Boxes, CheckCircle2, ChevronRight, Clock3, DatabaseZap, FileSpreadsheet, Loader2, RefreshCw, Sparkles, UploadCloud } from "lucide-react";
+import { AlertCircle, Boxes, CheckCircle2, ChevronRight, Clock3, DatabaseZap, FileSpreadsheet, Loader2, RefreshCw, ShieldCheck, Sparkles, UploadCloud } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -62,6 +62,12 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
           Supabase is still syncing dashboard data. You can continue using the app while the numbers refresh.
         </div>
       ) : null}
+
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 shadow-sm dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-100">
+        <ShieldCheck aria-hidden="true" size={18} />
+        <span className="font-semibold">Recommendation only</span>
+        <span className="text-emerald-700 dark:text-emerald-200">Does not change Amazon Ads account without approval.</span>
+      </div>
 
       {/* Metric cards — lighter, more spacious */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-5">

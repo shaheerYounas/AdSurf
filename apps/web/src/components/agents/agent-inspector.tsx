@@ -32,6 +32,7 @@ type InspectorTab =
   | "Output"
   | "Recommendations"
   | "Permissions"
+  | "Safety"
   | "Trace";
 
 const tabs: InspectorTab[] = [
@@ -42,6 +43,7 @@ const tabs: InspectorTab[] = [
   "Output",
   "Recommendations",
   "Permissions",
+  "Safety",
   "Trace",
 ];
 
@@ -222,7 +224,7 @@ export function AgentInspector({
         {activeTab === "Recommendations" ? (
           <RelatedRecommendations recommendations={relatedRecommendations} />
         ) : null}
-        {activeTab === "Permissions" ? <Permissions /> : null}
+        {activeTab === "Permissions" || activeTab === "Safety" ? <Permissions /> : null}
         {activeTab === "Trace" ? (
           <TraceEvents
             events={events.filter(

@@ -12,7 +12,7 @@
 | Campaign plan | Hero campaign plus grouped Exact, Phrase, Broad campaigns. |
 | Negatives | Negative Exact and Negative Phrase structure generated from rules. |
 | Bulk export | Amazon bulk sheet export after customer approval. |
-| Monitoring | Manual report upload or stored snapshots for 14-day analysis. |
+| Monitoring | Manual report upload, stored snapshots, or deterministic 14-day simulation for approval-gated analysis. |
 | Recommendations | Bid increase, pause, negative keyword, and lock recommendations. |
 | Audit logs | All decisions, approvals, exports, and AI runs are logged. |
 
@@ -33,10 +33,11 @@
 | Later scope | Multi-marketplace defaults, currency conversion, and marketplace-specific bulk sheet variations. |
 
 ## Competitor Verification
-- Competitor presence verification is optional enrichment in MVP.
-- It must not be required to generate a campaign plan.
-- Approved keyword source of truth is relevance score plus user approval.
-- Optional verification results may be displayed as supporting evidence but must not silently override scoring or approval.
+- Competitor presence verification uses manual Amazon top-result evidence in MVP.
+- Evidence is accepted per search term as positions 1-15 with explicit matched competitor name or ASIN.
+- A keyword is verified when at least 3 distinct original competitors are present in the top 15 evidence rows.
+- Campaign generation from the competitor-direct workflow requires both `scoring_status=approved` and `verification_status=verified`.
+- Verification does not execute live Amazon Ads changes and remains auditable evidence for approval-controlled campaign export.
 
 ## Customer Override Policy
 | Override | MVP policy |

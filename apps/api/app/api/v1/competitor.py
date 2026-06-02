@@ -14,7 +14,7 @@ from apps.api.app.core.errors import ApiError
 from apps.api.app.domain.uploads import build_upload_storage_path, sanitize_upload_filename
 from apps.api.app.repositories.audit_logs import AuditLogRepository, get_audit_log_repository
 from apps.api.app.repositories.competitor_cleaned import CompetitorCleanedRepository, get_competitor_cleaned_repository
-from apps.api.app.schemas.competitor_cleaned import CompetitorCleanedRowsResponse, CampaignGenerationResponse, CompetitorScoringResponse, CompetitorUpload, CompetitorUploadResponse, CompetitorVerificationResponse
+from apps.api.app.schemas.competitor_cleaned import CompetitorCleanedRowsResponse, CampaignGenerationResponse, CompetitorScoringResponse, CompetitorUpload, CompetitorUploadResponse, CompetitorVerificationRequest, CompetitorVerificationResponse
 from apps.api.app.schemas.envelope import success_response
 from apps.api.app.services.competitor_campaign_gen import CompetitorCampaignGenerationService
 from apps.api.app.services.competitor_cleaner import CompetitorCleanerService
@@ -140,7 +140,7 @@ def score_competitor_upload(
 def verify_competitor_keywords(
     workspace_id: UUID,
     upload_id: UUID,
-    competitors: list[str] = Body(..., embed=True),
+    payload: CompetitorVerificationRequest = Body(...),
     principal: WorkspacePrincipal = Depends(require_workspace_member),
     repository: CompetitorCleanedRepository = Depends(get_competitor_cleaned_repository),
     audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
@@ -148,11 +148,22 @@ def verify_competitor_keywords(
     principal.ensure_workspace(workspace_id)
     principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
     verifier = CompetitorVerificationService(repository=repository)
-    result = verifier.verify(workspace_id=workspace_id, upload_id=upload_id, competitors=competitors)
+    result = verifier.verify(
+        workspace_id=workspace_id,
+        upload_id=upload_id,
+        competitors=payload.competitors,
+        evidence_rows=payload.evidence_rows,
+        required_match_count=payload.required_match_count,
+    )
     audit_repository.record(
         workspace_id=workspace_id, actor_user_id=principal.user_id,
         action="competitor_upload.verified", entity_type="competitor_upload", entity_id=upload_id,
-        details={"verified_count": result.verified_count, "unverified_count": result.unverified_count},
+        details={
+            "verified_count": result.verified_count,
+            "unverified_count": result.unverified_count,
+            "verification_method": "manual_evidence",
+            "required_match_count": payload.required_match_count,
+        },
     )
     upload = repository.get_upload(workspace_id=workspace_id, upload_id=upload_id)
     return success_response(data=CompetitorVerificationResponse(

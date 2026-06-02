@@ -27,7 +27,7 @@ def build_campaign_plan_json(*, product: ProductProfile, keyword_set_id: UUID, i
     groups = [{"group_type": "hero", "group_index": 0, "keywords": [hero_keyword.model_dump(mode="json")]}]
     campaigns = [
         {
-            "campaign_name": _campaign_name(product=product, group_index=0, match_type="Hero"),
+            "campaign_name": _campaign_name(product=product, match_type="Exact", keyword_or_group=hero_item.search_term),
             "ad_group_name": _ad_group_name(product=product, group_index=0),
             "match_type": "Exact",
             "daily_budget": str(daily_budget),
@@ -156,14 +156,21 @@ def _negative_keywords(*, match_type: str, keywords: list[CampaignKeyword]) -> l
     return []
 
 
-def _campaign_name(*, product: ProductProfile, group_index: int, match_type: str) -> str:
+def _campaign_name(*, product: ProductProfile, match_type: str, group_index: int | None = None, keyword_or_group: str | None = None) -> str:
     safe_name = product.product_name.strip().replace(",", " ")
-    return f"{safe_name} - G{group_index} - {match_type}"
+    label = (keyword_or_group or (f"Relevant{group_index}" if group_index is not None else "Relevant1")).strip().replace(",", " ")
+    return f"{safe_name} / SP / Manual / {match_type} / {label} / {_date_label()}"
 
 
 def _ad_group_name(*, product: ProductProfile, group_index: int) -> str:
     safe_name = product.product_name.strip().replace(",", " ")
     return f"{safe_name} - G{group_index}"
+
+
+def _date_label() -> str:
+    from datetime import UTC, datetime
+
+    return datetime.now(UTC).strftime("%b %d").replace(" 0", " ")
 
 
 # =============================================================================
@@ -225,7 +232,7 @@ class DualPathCampaignGeneration(DualPathDecisionService[dict]):
                 "keyword_batch_size": 7,
                 "match_types": ["Exact", "Phrase", "Broad"],
                 "negative_keywords": "Phrase campaigns get Negative Exact, Broad campaigns get Negative Phrase",
-                "campaign_name_format": "{product_name} - G{group_index} - {match_type}",
+                "campaign_name_format": "{ProductName} / SP / Manual / {MatchType} / {KeywordOrRelevantGroup} / {Mon DD}",
             },
             "required_output_shape": {
                 "campaign_plan": {

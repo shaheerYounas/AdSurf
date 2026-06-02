@@ -1,23 +1,20 @@
-"""Amazon search verification for competitor keywords (items 5-7).
+"""Manual Amazon-result evidence verification for competitor keywords."""
 
-Uses a simulated PAAPI call. In production, replace _search_amazon() with actual
-Amazon Product Advertising API 5.0 SearchItems calls.
-"""
-
-import asyncio
-import random
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
 from apps.api.app.core.errors import ApiError
 from apps.api.app.repositories.competitor_cleaned import CompetitorCleanedRepository
-from apps.api.app.schemas.competitor_cleaned import CompetitorCleanedRow, CompetitorUpload
+from apps.api.app.schemas.competitor_cleaned import (
+    CompetitorCleanedRow,
+    CompetitorReference,
+    CompetitorVerificationEvidenceRow,
+)
 
 VERIFICATION_PAGE_SIZE = 500
-SEARCH_RESULTS_COUNT = 12
-MIN_COMPETITOR_MATCHES = 3
-MAX_COMPETITOR_MATCHES = 5
+TOP_RESULTS_CHECKED = 15
+DEFAULT_REQUIRED_MATCH_COUNT = 3
 
 
 @dataclass(frozen=True)
@@ -28,18 +25,19 @@ class VerificationResult:
     preview_rows: list[CompetitorCleanedRow]
 
 
+@dataclass(frozen=True)
+class _Competitor:
+    key: str
+    name: str
+    asin: str | None
+
+
 class CompetitorVerificationService:
-    """Simulated Amazon search verification.
+    """Verify approved keywords from user-provided Amazon top-result evidence.
 
-    In the MVP this uses a rule-based simulation because:
-    - PAAPI requires Amazon Associates approval and has rate limits (1 TPS default)
-    - Scraping Amazon violates ToS and is unreliable
-    - The plan's "manual check" can be approximated until real PAAPI integration
-
-    When PAAPI credentials are available, replace _search_amazon() with:
-        paapi = boto3.client(...)
-        response = paapi.search_items(Keywords=search_term, ...)
-        organic_results = [item['ASIN'] for item in response['SearchResult']['Items']]
+    Evidence is deterministic and auditable: a keyword is verified only when at
+    least ``required_match_count`` distinct original competitors are explicitly
+    matched in positions 1-15 of that keyword's Amazon result evidence.
     """
 
     def __init__(self, repository: CompetitorCleanedRepository) -> None:
@@ -50,13 +48,22 @@ class CompetitorVerificationService:
         *,
         workspace_id: UUID,
         upload_id: UUID,
-        competitors: list[str],
+        competitors: list[str | dict | CompetitorReference],
+        evidence_rows: list[CompetitorVerificationEvidenceRow | dict] | None = None,
+        required_match_count: int = DEFAULT_REQUIRED_MATCH_COUNT,
     ) -> VerificationResult:
         upload = self._repository.get_upload(workspace_id=workspace_id, upload_id=upload_id)
         if upload is None:
             raise ApiError(code="COMPETITOR_UPLOAD_NOT_FOUND", message="Competitor upload was not found.", status_code=404)
         if not competitors:
-            raise ApiError(code="COMPETITOR_LIST_REQUIRED", message="At least one competitor name is required for verification.", status_code=400)
+            raise ApiError(code="COMPETITOR_LIST_REQUIRED", message="At least one competitor name or ASIN is required for verification.", status_code=400)
+        if required_match_count < 3 or required_match_count > 5:
+            raise ApiError(code="INVALID_MATCH_THRESHOLD", message="required_match_count must be between 3 and 5.", status_code=400)
+
+        normalized_competitors = _normalize_competitors(competitors)
+        if not normalized_competitors:
+            raise ApiError(code="COMPETITOR_LIST_REQUIRED", message="At least one competitor name or ASIN is required for verification.", status_code=400)
+        evidence_by_term = _evidence_by_search_term(evidence_rows or [])
 
         verified_total = 0
         unverified_total = 0
@@ -74,39 +81,39 @@ class CompetitorVerificationService:
             if not rows:
                 break
 
-            # Only verify approved scored rows
-            approved = [r for r in rows if r.scoring_status == "approved" and r.relevance_score is not None and r.relevance_score >= 3]
             updated: list[CompetitorCleanedRow] = []
-            for row in approved:
-                matches = self._search_amazon(search_term=row.search_term or "", competitors=competitors)
-                threshold = random.randint(MIN_COMPETITOR_MATCHES, MAX_COMPETITOR_MATCHES)
-                verified = matches >= threshold
+            for row in rows:
+                if row.scoring_status != "approved" or row.relevance_score is None or row.relevance_score < 3:
+                    updated_row = row.model_copy(update={
+                        "verification_status": "unverified",
+                        "verification_result_json": {
+                            "reason": "not_approved_for_verification",
+                            "verification_method": "manual_evidence",
+                            "required_match_count": required_match_count,
+                            "top_results_checked": TOP_RESULTS_CHECKED,
+                        },
+                        "verified_at": now,
+                    })
+                    unverified_total += 1
+                    updated.append(updated_row)
+                    continue
+
+                evaluation = _evaluate_row(
+                    search_term=row.search_term or "",
+                    competitors=normalized_competitors,
+                    evidence=evidence_by_term.get(_normalize_text(row.search_term or "")),
+                    required_match_count=required_match_count,
+                )
+                verified = evaluation["verified"]
                 if verified:
                     verified_total += 1
                 else:
                     unverified_total += 1
                 updated.append(row.model_copy(update={
                     "verification_status": "verified" if verified else "unverified",
-                    "verification_result_json": {
-                        "search_term": row.search_term,
-                        "competitors_checked": competitors,
-                        "competitor_matches_found": matches,
-                        "match_threshold": threshold,
-                        "verified": verified,
-                        "verification_method": "simulated_paapi",
-                    },
+                    "verification_result_json": evaluation,
                     "verified_at": now,
                 }))
-
-            # Update non-approved rows too (mark them as unverified so all rows have a status)
-            for row in rows:
-                if row.scoring_status != "approved" or row.relevance_score is None or row.relevance_score < 3:
-                    if row.verification_status is None:
-                        updated.append(row.model_copy(update={
-                            "verification_status": "unverified",
-                            "verification_result_json": {"reason": "not_approved_for_verification"},
-                            "verified_at": now,
-                        }))
 
             self._repository.update_verification_rows(rows=updated)
             all_rows.extend(updated)
@@ -116,25 +123,106 @@ class CompetitorVerificationService:
 
         return VerificationResult(
             verified_count=verified_total,
-            unverified_count=unverified_total + (len(all_rows) - verified_total - unverified_total),
+            unverified_count=unverified_total,
             total_count=len(all_rows),
             preview_rows=all_rows[:20],
         )
 
-    def _search_amazon(self, *, search_term: str, competitors: list[str]) -> int:
-        """Simulated Amazon search. Returns number of competitors found in top results.
 
-        In production: calls Amazon PAAPI SearchItems with search_term,
-        extracts top SEARCH_RESULTS_COUNT organic results,
-        counts how many product competitors appear (by name or ASIN).
-        """
-        if not search_term or not competitors:
-            return 0
-        # Simulation: each competitor has ~40% chance of appearing in results
-        # This produces reasonable 0-10 match counts matching the plan's 3-5 threshold
-        matches = 0
-        for _ in range(SEARCH_RESULTS_COUNT):
-            for competitor in competitors:
-                if random.random() < 0.40:
-                    matches += 1
-        return min(matches, len(competitors))
+def _normalize_competitors(competitors: list[str | dict | CompetitorReference]) -> list[_Competitor]:
+    normalized: list[_Competitor] = []
+    seen: set[str] = set()
+    for item in competitors:
+        if isinstance(item, str):
+            name = item.strip()
+            asin = None
+        elif isinstance(item, CompetitorReference):
+            name = item.name.strip()
+            asin = item.asin.strip().upper() if item.asin else None
+        else:
+            name = str(item.get("name", "")).strip()
+            asin_value = item.get("asin")
+            asin = str(asin_value).strip().upper() if asin_value else None
+        if not name and not asin:
+            continue
+        key = asin or _normalize_text(name)
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(_Competitor(key=key, name=name or asin or "competitor", asin=asin))
+    return normalized
+
+
+def _evidence_by_search_term(evidence_rows: list[CompetitorVerificationEvidenceRow | dict]) -> dict[str, CompetitorVerificationEvidenceRow]:
+    evidence: dict[str, CompetitorVerificationEvidenceRow] = {}
+    for item in evidence_rows:
+        row = item if isinstance(item, CompetitorVerificationEvidenceRow) else CompetitorVerificationEvidenceRow.model_validate(item)
+        key = _normalize_text(row.search_term)
+        if key:
+            evidence[key] = row
+    return evidence
+
+
+def _evaluate_row(
+    *,
+    search_term: str,
+    competitors: list[_Competitor],
+    evidence: CompetitorVerificationEvidenceRow | None,
+    required_match_count: int,
+) -> dict:
+    if evidence is None:
+        return {
+            "search_term": search_term,
+            "verified": False,
+            "reason": "manual_evidence_missing",
+            "competitor_matches_found": 0,
+            "matched_competitors": [],
+            "required_match_count": required_match_count,
+            "top_results_checked": TOP_RESULTS_CHECKED,
+            "verification_method": "manual_evidence",
+            "requires_human_approval": True,
+            "executes_live_amazon_change": False,
+        }
+
+    competitor_by_name = {_normalize_text(c.name): c for c in competitors if c.name}
+    competitor_by_asin = {c.asin: c for c in competitors if c.asin}
+    matched: dict[str, dict] = {}
+    considered_results: list[dict] = []
+
+    for result in evidence.results:
+        if result.position < 1 or result.position > TOP_RESULTS_CHECKED:
+            continue
+        matched_competitor = None
+        if result.matched_competitor_asin:
+            matched_competitor = competitor_by_asin.get(result.matched_competitor_asin.strip().upper())
+        if matched_competitor is None and result.matched_competitor_name:
+            matched_competitor = competitor_by_name.get(_normalize_text(result.matched_competitor_name))
+        considered_results.append(result.model_dump(mode="json"))
+        if matched_competitor is None:
+            continue
+        matched[matched_competitor.key] = {
+            "name": matched_competitor.name,
+            "asin": matched_competitor.asin,
+            "position": result.position,
+            "result_asin": result.asin,
+            "result_title": result.title,
+        }
+
+    verified = len(matched) >= required_match_count
+    return {
+        "search_term": search_term,
+        "verified": verified,
+        "reason": "manual_evidence_threshold_met" if verified else "manual_evidence_below_threshold",
+        "competitor_matches_found": len(matched),
+        "matched_competitors": list(matched.values()),
+        "required_match_count": required_match_count,
+        "top_results_checked": TOP_RESULTS_CHECKED,
+        "evidence_results": considered_results,
+        "verification_method": "manual_evidence",
+        "requires_human_approval": True,
+        "executes_live_amazon_change": False,
+    }
+
+
+def _normalize_text(value: str) -> str:
+    return " ".join(value.strip().lower().split())

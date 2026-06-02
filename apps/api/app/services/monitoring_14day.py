@@ -92,6 +92,125 @@ class DailySnapshot:
     days_since_recommendation: int | None = None
 
 
+@dataclass(frozen=True)
+class MonitoringDayResult:
+    """Deterministic daily result for the PDF 14-day monitoring workflow."""
+
+    day: int
+    date_snapshot: date
+    spend: Decimal
+    daily_budget: Decimal
+    budget_consumed_pct: Decimal
+    impressions: int
+    clicks: int
+    orders: int
+    sales: Decimal
+    acos: Decimal | None
+    action: str
+    previous_bid: Decimal
+    suggested_bid: Decimal
+    locked: bool
+    day7_checkpoint: bool
+
+
+BID_INCREASE_MULTIPLIER = Decimal("1.10")
+ACOS_LOCK_THRESHOLD = Decimal("0.50")
+RATE_QUANT = Decimal("0.0001")
+
+
+class Monitoring14DayService:
+    """Plan-aligned 14-day monitoring cycle used by the competitor API.
+
+    The service creates deterministic recommendation states only. It never
+    mutates Amazon Ads and every actionable result remains approval-gated.
+    """
+
+    def simulate_14day_cycle(
+        self,
+        *,
+        workspace_id: UUID,
+        product_id: UUID,
+        campaign_name: str,
+        daily_budget: Decimal,
+        starting_bid: Decimal,
+        start_date: date | None = None,
+    ) -> list[MonitoringDayResult]:
+        if daily_budget <= 0:
+            raise ValueError("daily_budget must be greater than zero")
+        if starting_bid <= 0:
+            raise ValueError("starting_bid must be greater than zero")
+
+        current_date = start_date or datetime.now(UTC).date()
+        current_bid = starting_bid
+        locked = False
+        results: list[MonitoringDayResult] = []
+
+        for day in range(1, 15):
+            previous_bid = current_bid
+            spend = self._daily_spend(day=day, bid=current_bid, starting_bid=starting_bid, daily_budget=daily_budget, locked=locked)
+            sales = self._daily_sales(day=day, spend=spend)
+            orders = int(sales // Decimal("25")) if sales > 0 else 0
+            clicks = max(int(spend / Decimal("0.50")), 0)
+            impressions = max(clicks * 50, 0)
+            acos = (spend / sales).quantize(RATE_QUANT) if sales > 0 else None
+            consumed_pct = ((spend / daily_budget) * Decimal("100")).quantize(RATE_QUANT)
+            day7_checkpoint = day == 7
+            action = "keep_running"
+            suggested_bid = current_bid
+
+            if locked:
+                action = "watch_lock"
+            elif day <= 7 and spend < daily_budget:
+                suggested_bid = (current_bid * BID_INCREASE_MULTIPLIER).quantize(RATE_QUANT)
+                action = "increase_bid"
+                current_bid = suggested_bid
+
+            if day7_checkpoint:
+                total_spend = sum(item.spend for item in results) + spend
+                total_sales = sum(item.sales for item in results) + sales
+                cumulative_acos = (total_spend / total_sales).quantize(RATE_QUANT) if total_sales > 0 else None
+                if cumulative_acos is not None and cumulative_acos < ACOS_LOCK_THRESHOLD:
+                    locked = True
+                    action = "watch_lock"
+                    suggested_bid = previous_bid
+                    current_bid = previous_bid
+
+            results.append(MonitoringDayResult(
+                day=day,
+                date_snapshot=current_date + timedelta(days=day - 1),
+                spend=spend,
+                daily_budget=daily_budget,
+                budget_consumed_pct=consumed_pct,
+                impressions=impressions,
+                clicks=clicks,
+                orders=orders,
+                sales=sales,
+                acos=acos,
+                action=action,
+                previous_bid=previous_bid,
+                suggested_bid=suggested_bid,
+                locked=locked,
+                day7_checkpoint=day7_checkpoint,
+            ))
+
+        return results
+
+    @staticmethod
+    def _daily_spend(*, day: int, bid: Decimal, starting_bid: Decimal, daily_budget: Decimal, locked: bool) -> Decimal:
+        if locked:
+            return daily_budget
+        pressure = min(bid / starting_bid, Decimal("1.00"))
+        if day >= 7:
+            pressure = Decimal("1.00")
+        return min(daily_budget, daily_budget * pressure * Decimal("0.75")).quantize(RATE_QUANT)
+
+    @staticmethod
+    def _daily_sales(*, day: int, spend: Decimal) -> Decimal:
+        if day < 7:
+            return (spend * Decimal("2.20")).quantize(RATE_QUANT)
+        return (spend * Decimal("2.50")).quantize(RATE_QUANT)
+
+
 # ── Day-7 Checkpoint ────────────────────────────────────────────────────
 
 @dataclass

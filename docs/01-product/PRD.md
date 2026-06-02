@@ -18,7 +18,7 @@ Amazon Ads AI Automation Control Center helps Amazon sellers and agencies conver
 3. System cleans the file and maps columns.
 4. Rule engine calculates relevance score.
 5. System filters bad search terms.
-6. Optional competitor presence verification is recorded as an enrichment.
+6. Competitor presence verification is recorded from manual Amazon top-result evidence.
 7. Customer approves keyword list.
 8. System generates Hero, Exact, Phrase, Broad, and negative keyword plan.
 9. System generates Amazon bulk sheet export.
@@ -35,5 +35,5 @@ Amazon Ads AI Automation Control Center helps Amazon sellers and agencies conver
 | Scoring | Relevance Score exactly follows documented domain rules. |
 | Campaigns | Campaign plan matches Hero/grouping/match-type/negative rules. |
 | Export | Bulk sheet validates before customer approval. |
-| Monitoring | 14-day recommendations are rule-generated and explainable. |
+| Monitoring | 14-day bid, ACOS, and lock recommendations are rule-generated, approval-gated, and explainable. |
 | Approval | No live or export-impacting action bypasses human approval. |

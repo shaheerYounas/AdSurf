@@ -100,7 +100,7 @@ export function ProductDetailPanel({ productId }: { productId: string }) {
         </dl>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-4">
+      <div className="grid gap-4 lg:grid-cols-5">
         <WorkflowCard
           href={`/products/${productId}/uploads`}
           icon={<UploadCloud aria-hidden="true" size={18} />}
@@ -114,6 +114,13 @@ export function ProductDetailPanel({ productId }: { productId: string }) {
           label="Map and score keywords"
           meta={latestProcessedUpload ? latestProcessedUpload.original_filename : "Needs processed upload"}
           status={latestProcessedUpload ? "Open" : "Waiting"}
+        />
+        <WorkflowCard
+          href={`/products/${productId}/competitors`}
+          icon={<FileSpreadsheet aria-hidden="true" size={18} />}
+          label="Verify competitors"
+          meta="Manual Amazon result evidence"
+          status="Ready"
         />
         <WorkflowCard
           href={`/products/${productId}/monitoring`}

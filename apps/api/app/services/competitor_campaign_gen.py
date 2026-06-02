@@ -67,11 +67,11 @@ class CompetitorCampaignGenerationService:
         hero_term = top_terms[0]
         remaining = top_terms[1:]
 
-        date_str = datetime.now(UTC).strftime("%b %d").lower()  # e.g. "may 29"
+        date_str = _date_label()
         safe_name = product_name.strip().replace(",", " ")
 
         # Hero campaign (plan item 9)
-        hero_campaign_name = f"SP - Manual - {safe_name} - {hero_term.search_term} - Exact - {date_str}"
+        hero_campaign_name = _campaign_name(product_name=safe_name, match_type="Exact", keyword_or_group=hero_term.search_term, date_label=date_str)
         hero_ad_group = f"{safe_name} - G0"
         campaigns = [
             {
@@ -111,7 +111,7 @@ class CompetitorCampaignGenerationService:
         for group_idx, batch in enumerate(batches, start=1):
             group_label = f"Relevant{group_idx}"
             for match_type in ("Exact", "Phrase", "Broad"):
-                campaign_name = f"SP - Manual - {safe_name} - {group_label} - {match_type} - {date_str}"
+                campaign_name = _campaign_name(product_name=safe_name, match_type=match_type, keyword_or_group=group_label, date_label=date_str)
                 ad_group_name = f"{safe_name} - G{group_idx}"
                 campaigns.append({
                     "Record Type": "Campaign",
@@ -221,13 +221,13 @@ class DualPathCompetitorCampaignGeneration(DualPathDecisionService[list[dict]]):
         if not terms:
             return []
 
-        date_str = datetime.now(UTC).strftime("%b %d").lower()
+        date_str = _date_label()
         safe_name = product_name.strip().replace(",", " ")
         hero_term = terms[0]
         remaining = terms[1:]
         rows: list[dict] = []
 
-        hero_campaign = f"SP - Manual - {safe_name} - {hero_term.search_term} - Exact - {date_str}"
+        hero_campaign = _campaign_name(product_name=safe_name, match_type="Exact", keyword_or_group=hero_term.search_term, date_label=date_str)
         hero_ad_group = f"{safe_name} - G0"
         rows.append({"Record Type": "Campaign", "Campaign Name": hero_campaign, "Campaign Daily Budget": str(daily_budget), "Campaign Status": "Enabled", "Ad Group Name": "", "Keyword Text": "", "Match Type": "", "Bid": ""})
         rows.append({"Record Type": "Ad Group", "Campaign Name": hero_campaign, "Campaign Daily Budget": "", "Campaign Status": "", "Ad Group Name": hero_ad_group, "Keyword Text": "", "Match Type": "", "Bid": ""})
@@ -237,7 +237,7 @@ class DualPathCompetitorCampaignGeneration(DualPathDecisionService[list[dict]]):
         for group_idx, batch in enumerate(batches, start=1):
             group_label = f"Relevant{group_idx}"
             for match_type in ("Exact", "Phrase", "Broad"):
-                campaign_name = f"SP - Manual - {safe_name} - {group_label} - {match_type} - {date_str}"
+                campaign_name = _campaign_name(product_name=safe_name, match_type=match_type, keyword_or_group=group_label, date_label=date_str)
                 ad_group_name = f"{safe_name} - G{group_idx}"
                 rows.append({"Record Type": "Campaign", "Campaign Name": campaign_name, "Campaign Daily Budget": str(daily_budget), "Campaign Status": "Enabled", "Ad Group Name": "", "Keyword Text": "", "Match Type": "", "Bid": ""})
                 rows.append({"Record Type": "Ad Group", "Campaign Name": campaign_name, "Campaign Daily Budget": "", "Campaign Status": "", "Ad Group Name": ad_group_name, "Keyword Text": "", "Match Type": "", "Bid": ""})
@@ -277,7 +277,7 @@ class DualPathCompetitorCampaignGeneration(DualPathDecisionService[list[dict]]):
                 "keyword_batch_size": 7,
                 "match_types": ["Exact", "Phrase", "Broad"],
                 "negative_keywords": "Phrase campaigns get Negative Exact, Broad campaigns get Negative Phrase",
-                "campaign_name_format": "SP - Manual - {product_name} - {group_label} - {match_type} - {date}",
+                "campaign_name_format": "{ProductName} / SP / Manual / {MatchType} / {KeywordOrRelevantGroup} / {Mon DD}",
             },
             "required_output_shape": {
                 "bulk_sheet_rows": [
@@ -323,3 +323,12 @@ class DualPathCompetitorCampaignGeneration(DualPathDecisionService[list[dict]]):
 
     def _empty_result(self) -> list[dict]:
         return []
+
+
+def _date_label() -> str:
+    return datetime.now(UTC).strftime("%b %d").replace(" 0", " ")
+
+
+def _campaign_name(*, product_name: str, match_type: str, keyword_or_group: str | None, date_label: str) -> str:
+    label = (keyword_or_group or "Relevant1").strip().replace(",", " ")
+    return f"{product_name} / SP / Manual / {match_type} / {label} / {date_label}"

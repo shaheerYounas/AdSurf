@@ -82,15 +82,15 @@ const workflowOrder = [
 ];
 
 const fallbackAgents: AgentDefinition[] = [
-  definition("report_upload_node", "Report Upload", "Receives Amazon Ads reports or bulk sheets and starts the account workflow.", "start", "uploaded_report"),
+  definition("report_upload_node", "Report Upload", "Report Detection Agent entry point that receives Amazon Ads reports or bulk sheets and starts the account workflow.", "start", "uploaded_report"),
   definition("import_data_quality_agent", "Import & Data Quality Agent", "Checks uploaded reports for missing columns, wrong date ranges, mixed marketplaces, and other data quality issues.", "validation", "data_quality_report"),
-  definition("entity_resolution_agent", "Entity Resolution Agent", "Maps campaigns, ad groups, SKUs, ASINs, search terms, keywords, and targeting expressions.", "mapping", "entity_mapping"),
+  definition("entity_resolution_agent", "Entity Resolution Agent", "Product Resolution Agent mapping for campaigns, ad groups, SKUs, ASINs, search terms, keywords, and targeting expressions.", "mapping", "entity_mapping"),
   definition("metrics_normalization_agent", "Metrics Normalization Agent", "Calculates spend, sales, orders, CPC, CTR, CVR, ACOS, ROAS, CPA deterministically.", "analysis", "normalized_metrics"),
   definition("account_strategy_agent", "Account Strategy Agent", "Determines the optimization goal: profit, growth, launch, cleanup, brand defense.", "strategy", "strategy_configuration"),
   definition("search_term_mining_agent", "Search Term Mining Agent", "Classifies search terms: harvest, keep, negative, watch, ignore, brand defense, competitor term.", "analysis", "search_term_classifications"),
   definition("bid_optimization_agent", "Bid Optimization Agent", "Generates bid increase/decrease/set actions with current bid, recommended bid, and evidence.", "decision", "bid_recommendations"),
   definition("negative_keyword_agent", "Negative Keyword Agent", "Reviews wasted search terms and generates negative exact/phrase recommendations.", "decision", "negative_keyword_recommendations"),
-  definition("budget_reallocation_agent", "Budget Reallocation Agent", "Recommends budget shifts: out-of-budget profitable campaigns, spending-but-unprofitable, no impressions.", "decision", "budget_recommendations"),
+  definition("budget_reallocation_agent", "Budget Reallocation Agent", "Budget Allocation Agent recommendations for out-of-budget profitable campaigns, spending-but-unprofitable campaigns, and no-impression campaigns.", "decision", "budget_recommendations"),
   definition("campaign_structure_agent", "Campaign Structure Agent", "Recommends moving converting terms to exact, separating branded/non-branded, isolating hero terms.", "decision", "campaign_structure_recommendations"),
   definition("risk_policy_validator_agent", "Risk & Policy Validator Agent", "Rejects unsafe actions: bid increase above max, pause with little data, recommendations without evidence.", "validation", "validation_report"),
   definition("human_approval_agent", "Human Approval Agent", "Routes recommendations to humans and prevents automatic approval.", "approval", "approval_queue"),
@@ -763,6 +763,7 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
               <button
                 className={`flex-1 inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-3 py-1.5 text-center text-xs font-semibold leading-snug outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 sm:text-sm ${viewMode === "pipeline" ? "bg-indigo-600 text-white shadow-sm dark:bg-indigo-300 dark:text-indigo-950" : "bg-transparent text-slate-700 hover:bg-white dark:text-slate-200 dark:hover:bg-white/10"}`}
                 onClick={() => onViewModeChange("pipeline")}
+                aria-label="Simple Mode"
                 role="tab"
                 aria-selected={viewMode === "pipeline"}
                 type="button"
@@ -773,6 +774,7 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
               <button
                 className={`flex-1 inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-3 py-1.5 text-center text-xs font-semibold leading-snug outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 sm:text-sm ${viewMode === "canvas" ? "bg-indigo-600 text-white shadow-sm dark:bg-indigo-300 dark:text-indigo-950" : "bg-transparent text-slate-700 hover:bg-white dark:text-slate-200 dark:hover:bg-white/10"}`}
                 onClick={() => onViewModeChange("canvas")}
+                aria-label="Advanced Mode"
                 role="tab"
                 aria-selected={viewMode === "canvas"}
                 type="button"
@@ -946,6 +948,7 @@ function ApprovalCheckpointSummary({ pendingApprovals, highPriorityCount, danger
         <div className="flex flex-wrap gap-2">
           <Badge>{highPriorityCount} high priority</Badge>
           <Badge>{dangerousCount} risky actions</Badge>
+          <Badge>Requires human approval</Badge>
           <Badge>AI confidence visible</Badge>
         </div>
       </div>
@@ -1074,16 +1077,16 @@ function ApprovalCard({ recommendation, onDecision }: { recommendation: Recommen
           <div className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-slate-950/70">
             {/* Internal IDs */}
             <div className="grid gap-2 text-[11px] sm:grid-cols-2">
-              {recommendation.evidence_json?.campaign_id && (
+              {Boolean(recommendation.evidence_json?.campaign_id) && (
                 <AgentFact label="Campaign ID" value={String(recommendation.evidence_json.campaign_id)} />
               )}
-              {recommendation.evidence_json?.portfolio_id && (
+              {Boolean(recommendation.evidence_json?.portfolio_id) && (
                 <AgentFact label="Portfolio ID" value={String(recommendation.evidence_json.portfolio_id)} />
               )}
-              {recommendation.evidence_json?.ad_group_id && (
+              {Boolean(recommendation.evidence_json?.ad_group_id) && (
                 <AgentFact label="Ad Group ID" value={String(recommendation.evidence_json.ad_group_id)} />
               )}
-              {recommendation.evidence_json?.target_id && (
+              {Boolean(recommendation.evidence_json?.target_id) && (
                 <AgentFact label="Target ID" value={String(recommendation.evidence_json.target_id)} />
               )}
               {recommendation.id && (
@@ -1103,7 +1106,7 @@ function ApprovalCard({ recommendation, onDecision }: { recommendation: Recommen
             </div>
 
             {/* Thresholds */}
-            {recommendation.evidence_json?.thresholds && Object.keys(recommendation.evidence_json.thresholds as object).length > 0 && (
+            {Boolean(recommendation.evidence_json?.thresholds) && Object.keys(recommendation.evidence_json.thresholds as object).length > 0 && (
               <div>
                 <p className="mb-1 text-[11px] font-semibold text-slate-500 dark:text-slate-400">Thresholds</p>
                 <div className="flex flex-wrap gap-1.5">
