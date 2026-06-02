@@ -25,6 +25,11 @@ build/
 
 # Local data and generated artifacts
 uploads/
+!apps/web/src/components/uploads/
+apps/web/src/components/uploads/*
+!apps/web/src/components/uploads/column-mapping-workspace.tsx
+!apps/web/src/components/uploads/upload-initialization-form.tsx
+!apps/web/src/components/uploads/upload-list.tsx
 exports/
 local-exports/
 generated-bulk-sheets/

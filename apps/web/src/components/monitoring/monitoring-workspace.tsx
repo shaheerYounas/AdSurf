@@ -66,15 +66,15 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
         <LoadingSpinner message="Loading monitoring workspace" subtext="Fetching uploads and monitoring summary" />
       ) : (
         <>
-      <div className="rounded-md border border-slate-200 bg-white p-5">
+      <div className="rounded-md border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-          <label className="space-y-2 text-sm font-medium text-slate-700">
+          <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
             Workspace ID
-            <input className="block w-full rounded-md border border-slate-300 px-3 py-2 font-mono text-sm" onChange={(event) => setWorkspaceId(event.target.value)} value={workspaceId} />
+            <input className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setWorkspaceId(event.target.value)} value={workspaceId} />
           </label>
-          <label className="space-y-2 text-sm font-medium text-slate-700">
+          <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
             Processed SP Search Term upload
-            <select className={`block w-full rounded-md border border-slate-300 px-3 py-2 text-sm ${selectClasses}`} onChange={(event) => setSelectedUploadId(event.target.value)} value={selectedUploadId}>
+            <select className={`block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white ${selectClasses}`} onChange={(event) => setSelectedUploadId(event.target.value)} value={selectedUploadId}>
               <option value="">Choose processed upload</option>
               {processedUploads.map((upload) => (
                 <option key={upload.id} value={upload.id}>
@@ -93,11 +93,11 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
             </Button>
           </div>
         </div>
-        {message ? <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{message}</p> : null}
+        {message ? <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-300/10 dark:text-red-100">{message}</p> : null}
       </div>
 
       {summary?.agent_summary ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900">
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-5 text-sm text-emerald-900 dark:border-emerald-300/25 dark:bg-emerald-300/10 dark:text-emerald-100">
           <p className="font-semibold">{summary.agent_summary.headline}</p>
           {summary.agent_summary.dashboard_summary ? <p className="mt-1">{summary.agent_summary.dashboard_summary}</p> : null}
           <p className="mt-1">{summary.agent_summary.stakeholder_note}</p>
@@ -119,28 +119,28 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
         <Metric label="Budget reviews" value={summary?.recommendation_counts.budget_review ?? 0} />
       </div>
 
-      <div className="rounded-md border border-slate-200 bg-white">
-        <div className="border-b border-slate-200 px-5 py-4">
-          <p className="text-sm font-medium text-slate-900">Monitoring imports</p>
+      <div className="rounded-md border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950/70">
+        <div className="border-b border-slate-200 px-5 py-4 dark:border-white/10">
+          <p className="text-sm font-medium text-slate-900 dark:text-white">Monitoring imports</p>
         </div>
         {summary?.imports.length ? (
-          <ul className="divide-y divide-slate-200">
+          <ul className="divide-y divide-slate-200 dark:divide-white/10">
             {summary.imports.map((item) => (
               <li className="px-5 py-4" key={item.id}>
-                <p className="font-medium text-slate-950">{item.report_type} / {item.status}</p>
-                <p className="mt-1 text-sm text-slate-600">
+                <p className="font-medium text-slate-950 dark:text-white">{item.report_type} / {item.status}</p>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                   {item.processed_rows} processed rows / {item.error_rows} warnings / {item.date_range_start ?? "unknown"} to {item.date_range_end ?? "unknown"}
                 </p>
-                {item.error_message ? <p className="mt-1 text-sm text-red-700">{item.error_message}</p> : null}
-                {!item.error_message && item.data_quality_warnings_json.length ? <p className="mt-1 text-sm text-amber-700">{String(item.data_quality_warnings_json[0].message ?? item.data_quality_warnings_json[0].code ?? "Data quality warning")}</p> : null}
-                <Link className="mt-2 inline-block text-sm font-medium text-slate-950 underline" href={`/products/${productId}/monitoring/${item.id}/agents`}>
+                {item.error_message ? <p className="mt-1 text-sm text-red-700 dark:text-red-300">{item.error_message}</p> : null}
+                {!item.error_message && item.data_quality_warnings_json.length ? <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">{String(item.data_quality_warnings_json[0].message ?? item.data_quality_warnings_json[0].code ?? "Data quality warning")}</p> : null}
+                <Link className="mt-2 inline-block text-sm font-medium text-slate-950 underline dark:text-white" href={`/products/${productId}/monitoring/${item.id}/agents`}>
                   Open Agent Control Center
                 </Link>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="px-5 py-8 text-sm text-slate-600">No monitoring imports yet.</p>
+          <p className="px-5 py-8 text-sm text-slate-600 dark:text-slate-300">No monitoring imports yet.</p>
         )}
       </div>
 
@@ -153,33 +153,33 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
 
 function Metric({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-white p-5">
-      <p className="text-sm text-slate-500">{label}</p>
-      <p className="mt-2 text-2xl font-semibold text-slate-950">{value}</p>
+    <div className="rounded-md border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
+      <p className="text-sm text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-2 text-2xl font-semibold text-slate-950 dark:text-white">{value}</p>
     </div>
   );
 }
 
 function RecommendationPreview({ recommendations }: { recommendations: MonitoringSummary["top_recommendations"] }) {
   return (
-    <div className="rounded-md border border-slate-200 bg-white">
-      <div className="border-b border-slate-200 px-5 py-4">
-        <p className="text-sm font-medium text-slate-900">Top recommendations</p>
+    <div className="rounded-md border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950/70">
+      <div className="border-b border-slate-200 px-5 py-4 dark:border-white/10">
+        <p className="text-sm font-medium text-slate-900 dark:text-white">Top recommendations</p>
       </div>
       {recommendations.length ? (
-        <ul className="divide-y divide-slate-200">
+        <ul className="divide-y divide-slate-200 dark:divide-white/10">
           {recommendations.map((recommendation) => (
             <li className="px-5 py-4" key={recommendation.id}>
-              <p className="font-medium text-slate-950">{recommendation.recommendation_type} / {recommendation.priority}</p>
-              <p className="mt-1 text-sm text-slate-600">{recommendation.campaign_name} / {recommendation.ad_group_name} / {recommendation.customer_search_term}</p>
-              <p className="mt-1 text-sm text-slate-600">{recommendation.evidence_json.decision_source === "deepseek_ai" ? "DeepSeek AI" : "Fallback rules"} / {recommendation.rule_name}</p>
-              <p className="mt-1 text-sm text-slate-700">{recommendation.explanation_json.summary}</p>
-              <p className="mt-1 text-xs text-slate-500">Requires human approval / No live Amazon Ads change executed</p>
+              <p className="font-medium text-slate-950 dark:text-white">{recommendation.recommendation_type} / {recommendation.priority}</p>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{recommendation.campaign_name} / {recommendation.ad_group_name} / {recommendation.customer_search_term}</p>
+              <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{recommendation.evidence_json.decision_source === "deepseek_ai" ? "DeepSeek AI" : "Fallback rules"} / {recommendation.rule_name}</p>
+              <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{recommendation.explanation_json.summary}</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Requires human approval / No live Amazon Ads change executed</p>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="px-5 py-8 text-sm text-slate-600">No recommendations have been generated.</p>
+        <p className="px-5 py-8 text-sm text-slate-600 dark:text-slate-300">No recommendations have been generated.</p>
       )}
     </div>
   );

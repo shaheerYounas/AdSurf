@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppSidebar } from "@/components/app-sidebar";
+import { BackNavigationButton } from "@/components/navigation/back-navigation-button";
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
 import { ThemeProvider, themeBootstrapScript } from "@/components/theme/theme-provider";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
                 <ThemeToggle compact />
               </div>
               <div className="mx-auto max-w-[1800px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
+                <BackNavigationButton />
                 {children}
                 <footer className="mt-10 flex justify-center border-t border-slate-200 pt-5 dark:border-white/10">
                   <SafetyNotice variant="compact" />

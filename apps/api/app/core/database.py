@@ -18,7 +18,12 @@ def get_database_engine() -> Engine:
             message="DATABASE_URL is required for database-backed operations.",
             status_code=503,
         )
-    return create_engine(settings.database_url, pool_pre_ping=True, poolclass=NullPool)
+    return create_engine(
+        settings.database_url,
+        pool_pre_ping=True,
+        poolclass=NullPool,
+        connect_args={"connect_timeout": 10},
+    )
 
 
 def run_database_operation(operation):

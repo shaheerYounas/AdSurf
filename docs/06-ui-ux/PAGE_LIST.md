@@ -18,6 +18,27 @@
 | `/settings/team` | Team Settings | Manage workspace members and roles. |
 | `/settings/billing` | Billing Settings | Later scope placeholder for billing and plan management. |
 
+## Implemented App Page Inventory
+The current Next.js app contains 12 `page.tsx` files: 11 user-facing pages plus `/`, which redirects to `/dashboard`.
+
+| Implemented route | Previous-page fallback |
+| --- | --- |
+| `/` | Redirects to `/dashboard`. |
+| `/dashboard` | Workspace home. |
+| `/agents` | `/dashboard`. |
+| `/agent-builder` | `/agents`. |
+| `/products` | `/dashboard`. |
+| `/products/new` | `/products`. |
+| `/products/[productId]` | `/products`. |
+| `/products/[productId]/uploads` | `/products/[productId]`. |
+| `/products/[productId]/uploads/[uploadId]/mapping` | `/products/[productId]/uploads`. |
+| `/products/[productId]/monitoring` | `/products/[productId]`. |
+| `/products/[productId]/monitoring/[importId]/agents` | `/products/[productId]/monitoring`. |
+| `/recommendations` | `/dashboard`. |
+
+## Global Previous-Page Control
+Every implemented page receives the shared previous-page control from the root app layout. The control first returns users to their last internal app page stored in session history, then falls back to the deterministic route map above for direct deep links or refreshed pages.
+
 ## Role Permissions
 | Role | UI access |
 | --- | --- |

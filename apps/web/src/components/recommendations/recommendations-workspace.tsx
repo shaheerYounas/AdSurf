@@ -8,6 +8,38 @@ import { Select } from "@/components/ui/select";
 import { defaultWorkspaceId } from "@/lib/api/client";
 import { decideRecommendation, getRecommendations, type Recommendation } from "@/lib/api/monitoring";
 
+const statusOptions = [
+  { value: "pending_approval", label: "Pending approval" },
+  { value: "approved", label: "Approved" },
+  { value: "rejected", label: "Rejected" },
+];
+
+const sourceOptions = [
+  { value: "deepseek_ai", label: "DeepSeek AI" },
+  { value: "fallback_rules", label: "Fallback rules" },
+  { value: "deterministic_rules", label: "Deterministic rules" },
+];
+
+const priorityOptions = [
+  { value: "critical", label: "Critical" },
+  { value: "high", label: "High" },
+  { value: "medium", label: "Medium" },
+  { value: "low", label: "Low" },
+];
+
+const recommendationTypeOptions = [
+  { value: "keep_running", label: "Keep running" },
+  { value: "increase_bid", label: "Increase bid" },
+  { value: "decrease_bid", label: "Decrease bid" },
+  { value: "pause_review", label: "Pause review" },
+  { value: "add_negative_exact", label: "Negative exact" },
+  { value: "add_negative_phrase", label: "Negative phrase" },
+  { value: "move_to_exact", label: "Move to exact" },
+  { value: "watch_lock", label: "Watch lock" },
+  { value: "data_quality_review", label: "Data quality review" },
+  { value: "budget_review", label: "Budget review" },
+];
+
 export function RecommendationsWorkspace() {
   const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
@@ -65,12 +97,15 @@ export function RecommendationsWorkspace() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
+      <div
+        aria-label="Does not change Amazon Ads account. No live Amazon Ads change executed."
+        className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70"
+      >
         <div className="flex flex-wrap items-end gap-3">
-          <Select label="Status" onChange={setStatusFilter} options={["pending_approval", "approved", "rejected"]} value={statusFilter} placeholder="All" />
-          <Select label="Source" onChange={setSourceFilter} options={["deepseek_ai", "fallback_rules", "deterministic_rules"]} value={sourceFilter} placeholder="All" />
-          <Select label="Priority" onChange={setPriorityFilter} options={["critical", "high", "medium", "low"]} value={priorityFilter} placeholder="All" />
-          <Select label="Type" onChange={setTypeFilter} options={["keep_running", "increase_bid", "decrease_bid", "pause_review", "add_negative_exact", "add_negative_phrase", "move_to_exact", "watch_lock", "data_quality_review", "budget_review"]} value={typeFilter} placeholder="All" />
+          <Select className="w-[11rem]" label="Status" onChange={setStatusFilter} options={statusOptions} value={statusFilter} placeholder="All" />
+          <Select className="w-[12rem]" label="Source" onChange={setSourceFilter} options={sourceOptions} value={sourceFilter} placeholder="All" />
+          <Select className="w-[10.5rem]" label="Priority" onChange={setPriorityFilter} options={priorityOptions} value={priorityFilter} placeholder="All" />
+          <Select className="w-[13rem]" label="Type" onChange={setTypeFilter} options={recommendationTypeOptions} value={typeFilter} placeholder="All" />
           <Button disabled={isLoading} onClick={load} size="sm" type="button" variant="secondary">
             Refresh
           </Button>
@@ -197,4 +232,3 @@ function proposedActionLabel(recommendation: Recommendation) {
   const negativeMatch = recommendation.proposed_action_json.negative_match_type;
   return [action, `level ${level}`, multiplier ? `bid x${multiplier}` : null, negativeMatch ? `negative ${negativeMatch}` : null].filter(Boolean).join(" / ");
 }
-

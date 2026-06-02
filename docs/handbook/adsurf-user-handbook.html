@@ -1,0 +1,1161 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AdSurf AI Control Center User Handbook</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 14mm 18mm;
+    }
+
+    :root {
+      --ink: #101827;
+      --muted: #526177;
+      --paper: #f6f8fc;
+      --panel: #ffffff;
+      --line: #d9e1ef;
+      --navy: #08111f;
+      --slate: #101728;
+      --indigo: #5b5cf6;
+      --violet: #8b5cf6;
+      --cyan: #22d3ee;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #ef4444;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.55;
+    }
+
+    .page {
+      page-break-after: always;
+      min-height: 260mm;
+      position: relative;
+    }
+
+    .cover {
+      min-height: 265mm;
+      overflow: hidden;
+      border-radius: 22px;
+      padding: 28mm 18mm 18mm;
+      color: white;
+      background:
+        radial-gradient(circle at 18% 10%, rgba(139,92,246,.44), transparent 36%),
+        radial-gradient(circle at 82% 20%, rgba(34,211,238,.28), transparent 34%),
+        linear-gradient(135deg, #050816 0%, #101728 48%, #172554 100%);
+    }
+
+    .cover-grid {
+      position: absolute;
+      inset: 0;
+      opacity: .18;
+      background-image:
+        linear-gradient(rgba(255,255,255,.18) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.16) 1px, transparent 1px);
+      background-size: 26px 26px;
+    }
+
+    .cover-content { position: relative; z-index: 1; }
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      border: 1px solid rgba(255,255,255,.26);
+      background: rgba(255,255,255,.09);
+      border-radius: 999px;
+      padding: 7px 12px;
+      color: #dbeafe;
+      font-size: 8pt;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3, h4 { margin: 0; line-height: 1.08; letter-spacing: 0; }
+    h1 {
+      margin-top: 18mm;
+      max-width: 720px;
+      font-size: 42pt;
+      font-weight: 850;
+    }
+    .subtitle {
+      max-width: 680px;
+      margin-top: 8mm;
+      color: #d9e7ff;
+      font-size: 15pt;
+      line-height: 1.55;
+    }
+    .cover-meta {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 22mm;
+    }
+    .cover-card {
+      min-height: 34mm;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 18px;
+      padding: 14px;
+      background: rgba(255,255,255,.07);
+      backdrop-filter: blur(12px);
+    }
+    .cover-card strong {
+      display: block;
+      margin-top: 7px;
+      color: #ffffff;
+      font-size: 16pt;
+    }
+    .cover-card span {
+      color: #bfdbfe;
+      font-size: 8pt;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .safety-strip {
+      margin-top: 18mm;
+      border: 1px solid rgba(16,185,129,.32);
+      border-radius: 18px;
+      padding: 14px 16px;
+      color: #d1fae5;
+      background: rgba(16,185,129,.12);
+      font-weight: 750;
+    }
+
+    .doc-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 10mm;
+      padding-bottom: 6mm;
+      border-bottom: 1px solid var(--line);
+    }
+    .doc-header .mark {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      color: var(--muted);
+      font-size: 8pt;
+      font-weight: 800;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .dot {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--indigo), var(--cyan));
+    }
+    .page-title {
+      margin-bottom: 6mm;
+      font-size: 25pt;
+      color: #0f172a;
+    }
+    .section-title {
+      margin: 9mm 0 4mm;
+      font-size: 18pt;
+      color: #111827;
+    }
+    .small-title {
+      margin: 6mm 0 2mm;
+      color: #172554;
+      font-size: 12pt;
+    }
+    p { margin: 0 0 3.6mm; color: var(--muted); }
+    strong { color: #111827; }
+
+    .toc {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 9px;
+    }
+    .toc-item {
+      display: grid;
+      grid-template-columns: 30px 1fr;
+      gap: 10px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--panel);
+      break-inside: avoid;
+    }
+    .toc-num {
+      display: grid;
+      place-items: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 10px;
+      color: white;
+      background: linear-gradient(135deg, var(--indigo), var(--violet));
+      font-weight: 850;
+    }
+    .toc-item b { display: block; color: var(--ink); }
+    .toc-item span { color: var(--muted); font-size: 9pt; }
+
+    .callout {
+      margin: 5mm 0;
+      padding: 13px 15px;
+      border: 1px solid rgba(91,92,246,.22);
+      border-left: 5px solid var(--indigo);
+      border-radius: 16px;
+      background: #eef2ff;
+      color: #25335d;
+      break-inside: avoid;
+    }
+    .callout.safety {
+      border-color: rgba(16,185,129,.26);
+      border-left-color: var(--emerald);
+      background: #ecfdf5;
+      color: #064e3b;
+    }
+    .callout.warning {
+      border-color: rgba(245,158,11,.26);
+      border-left-color: var(--amber);
+      background: #fffbeb;
+      color: #78350f;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      background: var(--panel);
+      break-inside: avoid;
+    }
+    .card h3 { margin-bottom: 6px; font-size: 12pt; color: #111827; }
+    .card p, .card li { font-size: 9.4pt; }
+
+    table {
+      width: 100%;
+      margin: 4mm 0 6mm;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: white;
+      break-inside: avoid;
+    }
+    th, td {
+      padding: 9px 10px;
+      border-bottom: 1px solid #e5ecf6;
+      vertical-align: top;
+      text-align: left;
+    }
+    th {
+      color: #1d4ed8;
+      background: #eff6ff;
+      font-size: 8pt;
+      font-weight: 850;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    tr:last-child td { border-bottom: 0; }
+    td { color: #334155; font-size: 9.2pt; }
+
+    ol, ul { margin: 2mm 0 5mm 5mm; padding-left: 15px; color: var(--muted); }
+    li { margin-bottom: 2mm; }
+    .steps {
+      counter-reset: step;
+      list-style: none;
+      padding-left: 0;
+      margin-left: 0;
+    }
+    .steps li {
+      counter-increment: step;
+      position: relative;
+      padding: 10px 10px 10px 44px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: white;
+      break-inside: avoid;
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 10px;
+      top: 10px;
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      color: white;
+      background: var(--indigo);
+      font-weight: 800;
+    }
+
+    .screenshot {
+      margin: 5mm 0 8mm;
+      border: 1px solid #1e293b;
+      border-radius: 18px;
+      padding: 6px;
+      background: #050816;
+      box-shadow: 0 18px 50px rgba(15,23,42,.18);
+      break-inside: avoid;
+    }
+    .screenshot img {
+      display: block;
+      width: 100%;
+      border-radius: 13px;
+    }
+    .caption {
+      margin-top: 7px;
+      color: #64748b;
+      font-size: 8.7pt;
+      font-weight: 650;
+    }
+
+    .recipe {
+      margin: 5mm 0 8mm;
+      border-radius: 18px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      background: white;
+      break-inside: avoid;
+    }
+    .recipe-head {
+      padding: 13px 15px;
+      color: white;
+      background: linear-gradient(135deg, #172554, #4f46e5);
+    }
+    .recipe-head h3 { font-size: 14pt; }
+    .recipe-body { padding: 14px 16px; }
+
+    .badge-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 3mm 0 5mm; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 5px 9px;
+      color: #1e3a8a;
+      background: #dbeafe;
+      font-size: 8.2pt;
+      font-weight: 760;
+    }
+    .badge.green { color: #065f46; background: #d1fae5; }
+    .badge.amber { color: #78350f; background: #fef3c7; }
+    .badge.red { color: #7f1d1d; background: #fee2e2; }
+
+    code {
+      border-radius: 6px;
+      padding: 1px 5px;
+      background: #e2e8f0;
+      color: #0f172a;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 9pt;
+    }
+
+    .footer-note {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      color: #94a3b8;
+      font-size: 8pt;
+      text-align: center;
+    }
+
+    .mentor-band {
+      margin: 5mm 0 7mm;
+      border: 1px solid #c7d2fe;
+      border-radius: 20px;
+      padding: 16px;
+      background:
+        radial-gradient(circle at 4% 12%, rgba(91,92,246,.16), transparent 28%),
+        linear-gradient(135deg, #ffffff, #eef2ff);
+      break-inside: avoid;
+    }
+    .mentor-band h3 { margin-bottom: 5px; color: #1e1b4b; font-size: 15pt; }
+    .mentor-band p { color: #334155; }
+
+    .flow-map {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      align-items: stretch;
+      margin: 6mm 0;
+    }
+    .flow-node {
+      position: relative;
+      min-height: 28mm;
+      border: 1px solid #cbd5e1;
+      border-radius: 16px;
+      padding: 11px;
+      background: white;
+      break-inside: avoid;
+    }
+    .flow-node::after {
+      content: "→";
+      position: absolute;
+      right: -13px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 999px;
+      color: white;
+      background: var(--indigo);
+      font-weight: 900;
+      z-index: 2;
+    }
+    .flow-node:last-child::after { content: ""; display: none; }
+    .flow-node b { display: block; color: #0f172a; font-size: 10pt; }
+    .flow-node span { color: #64748b; font-size: 8.2pt; }
+    .flow-node small { display: block; margin-top: 6px; color: #1d4ed8; font-weight: 800; }
+
+    .why-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      margin: 4mm 0 7mm;
+    }
+    .why-card {
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px;
+      background: white;
+      break-inside: avoid;
+    }
+    .why-card b {
+      display: block;
+      margin-bottom: 4px;
+      color: #312e81;
+      font-size: 8.5pt;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .why-card span { color: #475569; font-size: 8.6pt; }
+
+    .quality-table td:first-child {
+      font-weight: 850;
+      color: #111827;
+    }
+    .quality-best { border-left: 5px solid var(--emerald); }
+    .quality-good { border-left: 5px solid var(--indigo); }
+    .quality-fair { border-left: 5px solid var(--amber); }
+    .quality-failed { border-left: 5px solid var(--rose); }
+
+    .annotated {
+      position: relative;
+      margin: 5mm 0 8mm;
+      border: 1px solid #1e293b;
+      border-radius: 18px;
+      padding: 6px;
+      background: #050816;
+      box-shadow: 0 18px 50px rgba(15,23,42,.18);
+      break-inside: avoid;
+    }
+    .annotated img {
+      display: block;
+      width: 100%;
+      border-radius: 13px;
+    }
+    .pin {
+      position: absolute;
+      max-width: 205px;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 12px;
+      padding: 8px 10px;
+      color: white;
+      background: rgba(15,23,42,.86);
+      box-shadow: 0 10px 28px rgba(0,0,0,.28);
+      font-size: 8.2pt;
+      font-weight: 760;
+    }
+    .pin::before {
+      content: "";
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 0 5px rgba(34,211,238,.18);
+    }
+    .pin.right::before { left: -18px; top: 13px; }
+    .pin.left::before { right: -18px; top: 13px; }
+    .pin.bottom::before { left: 14px; top: -18px; }
+
+    .scenario {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      overflow: hidden;
+      background: white;
+      break-inside: avoid;
+      margin-bottom: 10px;
+    }
+    .scenario h3 {
+      padding: 12px 14px;
+      color: white;
+      background: linear-gradient(135deg, #0f172a, #3730a3);
+      font-size: 12pt;
+    }
+    .scenario .body { padding: 13px 14px; }
+    .pros-cons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 9px;
+    }
+    .pros, .cons {
+      border-radius: 14px;
+      padding: 10px;
+      border: 1px solid #d9e1ef;
+    }
+    .pros { background: #ecfdf5; }
+    .cons { background: #fff7ed; }
+    .pros b { color: #065f46; }
+    .cons b { color: #9a3412; }
+
+    .micro-row {
+      display: grid;
+      grid-template-columns: 24px 1fr;
+      gap: 10px;
+      padding: 10px 0;
+      border-bottom: 1px solid #e5ecf6;
+    }
+    .micro-row:last-child { border-bottom: 0; }
+    .micro-dot {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 9px;
+      color: white;
+      background: linear-gradient(135deg, var(--indigo), var(--cyan));
+      font-size: 8pt;
+      font-weight: 900;
+    }
+    .micro-row b { color: #111827; }
+    .micro-row p { margin: 2px 0 0; font-size: 9pt; }
+
+    .decision-tree {
+      border-radius: 18px;
+      padding: 14px;
+      background: #0f172a;
+      color: white;
+      break-inside: avoid;
+    }
+    .decision-tree .branch {
+      margin-top: 9px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 14px;
+      padding: 10px;
+      background: rgba(255,255,255,.06);
+    }
+    .decision-tree b { color: white; }
+    .decision-tree span { color: #cbd5e1; }
+  </style>
+</head>
+<body>
+  <section class="page cover">
+    <div class="cover-grid"></div>
+    <div class="cover-content">
+      <span class="eyebrow">AdSurf AI Control Center</span>
+      <h1>Amazon Ads AI Automation Cookbook</h1>
+      <p class="subtitle">A mentor-style practical handbook for sellers, agencies, analysts, and approvers. Learn what to do, why it matters, when to use each path, where to click, and how every screen connects from first setup to approval-controlled export.</p>
+      <div class="cover-meta">
+        <div class="cover-card"><span>Execution mode</span><strong>Bulk Sheet First</strong></div>
+        <div class="cover-card"><span>Decision model</span><strong>Rules + AI</strong></div>
+        <div class="cover-card"><span>Safety boundary</span><strong>Human Approval</strong></div>
+      </div>
+      <div class="safety-strip">Prime directive: AI recommends, explains, maps, and organizes. Rules calculate. Humans approve. The MVP does not silently mutate Amazon Ads accounts.</div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> Handbook Map</div><div>Practical Guide PDF</div></div>
+    <h2 class="page-title">Table Of Contents</h2>
+    <div class="toc">
+      <div class="toc-item"><div class="toc-num">1</div><div><b>Product Promise</b><span>What AdSurf does, who uses it, and what it will not do automatically.</span></div></div>
+      <div class="toc-item"><div class="toc-num">2</div><div><b>Quick Start</b><span>The fastest safe path from blank workspace to approved export.</span></div></div>
+      <div class="toc-item"><div class="toc-num">3</div><div><b>Mentor Workflow</b><span>How every screen connects, with arrows and quality examples.</span></div></div>
+      <div class="toc-item"><div class="toc-num">4</div><div><b>Reading The UI</b><span>Where to look first, what to inspect, and how to choose the next step.</span></div></div>
+      <div class="toc-item"><div class="toc-num">5</div><div><b>Product Micro-Steps</b><span>Every product field explained with what, why, when, where, and how.</span></div></div>
+      <div class="toc-item"><div class="toc-num">6</div><div><b>Upload Micro-Steps</b><span>Before, during, and after file intake, with quality examples.</span></div></div>
+      <div class="toc-item"><div class="toc-num">7</div><div><b>Mapping Micro-Steps</b><span>Column profiles, manual mapping, deterministic scoring, and overrides.</span></div></div>
+      <div class="toc-item"><div class="toc-num">8</div><div><b>Recommendation Mentoring</b><span>How to filter, read evidence, reason, decide, and audit safely.</span></div></div>
+      <div class="toc-item"><div class="toc-num">9</div><div><b>Scenarios</b><span>Different paths, pros, cons, and best route for each situation.</span></div></div>
+      <div class="toc-item"><div class="toc-num">10</div><div><b>Navigation & Pages</b><span>Every implemented page, where it fits, and when to use it.</span></div></div>
+      <div class="toc-item"><div class="toc-num">11</div><div><b>Campaigns & Monitoring</b><span>Campaign planning, bulk exports, report imports, and recommendations.</span></div></div>
+      <div class="toc-item"><div class="toc-num">12</div><div><b>Agents & Builder</b><span>Run analysis, inspect agents, trace workflow, and configure options.</span></div></div>
+      <div class="toc-item"><div class="toc-num">13</div><div><b>Cookbook Recipes</b><span>Step-by-step workflows for common seller and agency jobs.</span></div></div>
+      <div class="toc-item"><div class="toc-num">14</div><div><b>Option Reference</b><span>Roles, modes, statuses, filters, recommendation types, and events.</span></div></div>
+      <div class="toc-item"><div class="toc-num">15</div><div><b>Troubleshooting</b><span>What to check when uploads, mapping, recommendations, or approvals are blocked.</span></div></div>
+    </div>
+    <div class="callout safety"><strong>Use this handbook like a runbook.</strong> Start with Quick Start for a first workflow, then use each recipe when you need a specific outcome. Every approval or export step should leave an audit trail.</div>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 01 Product Promise</div><div>Operating Model</div></div>
+    <h2 class="page-title">What AdSurf Is Built To Do</h2>
+    <p>AdSurf is an Amazon Ads AI Automation Control Center for sellers and agencies. It helps a user move from competitor keyword files and Amazon Ads performance reports into reviewed keyword lists, campaign plans, bulk sheet exports, monitoring insights, and approval-controlled recommendations.</p>
+    <div class="grid-3">
+      <div class="card"><h3>Rules Calculate</h3><p>Deterministic rule services score keywords, group campaigns, calculate metrics, and generate fallback recommendations.</p></div>
+      <div class="card"><h3>AI Explains</h3><p>AI can recommend, summarize, map, and explain evidence. AI output is bounded by structured schemas and validation.</p></div>
+      <div class="card"><h3>Humans Approve</h3><p>Human approval is required before customer-impacting actions, exports, recommendation decisions, or future live execution.</p></div>
+    </div>
+    <h3 class="section-title">Who Should Use It</h3>
+    <table>
+      <thead><tr><th>Role</th><th>Best Use</th><th>Typical Actions</th></tr></thead>
+      <tbody>
+        <tr><td>Owner</td><td>Workspace governance</td><td>Manage access, approvals, audit posture, product defaults.</td></tr>
+        <tr><td>Admin</td><td>End-to-end operations</td><td>Create products, upload files, generate plans, approve exports.</td></tr>
+        <tr><td>Analyst</td><td>Preparation and review</td><td>Map columns, score keywords, draft campaign plans, inspect evidence.</td></tr>
+        <tr><td>Approver</td><td>Decision control</td><td>Approve/reject keyword sets, campaign plans, recommendations, and exports.</td></tr>
+        <tr><td>Viewer</td><td>Read-only visibility</td><td>Inspect dashboards, reports, recommendations, monitoring, and audit evidence.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout warning"><strong>What the MVP does not do:</strong> it does not launch campaigns, change bids, pause campaigns, add negatives, lock campaigns, or call Amazon Ads live mutation APIs without explicit approval records. First execution mode is Amazon bulk sheet export.</div>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 02 Quick Start</div><div>First 30 Minutes</div></div>
+    <h2 class="page-title">Fastest Safe Path From Setup To Review</h2>
+    <ol class="steps">
+      <li><strong>Open Dashboard.</strong> Confirm the workspace loads and use the launch checklist to see missing pieces.</li>
+      <li><strong>Create a product.</strong> Add product name, marketplace, currency, target ACOS, default daily budget, and default bid.</li>
+      <li><strong>Upload a research file.</strong> Use CSV, XLS, or XLSX. Confirm upload so the file enters the parsing queue.</li>
+      <li><strong>Open mapping.</strong> Generate a column profile, inspect sample values, and map required fields.</li>
+      <li><strong>Approve the mapping.</strong> The approved mapping snapshot becomes the input for scoring.</li>
+      <li><strong>Run keyword relevance scoring.</strong> Review approved/rejected candidates and override only with a reason.</li>
+      <li><strong>Create an approved keyword set.</strong> This freezes the reviewed terms for campaign planning.</li>
+      <li><strong>Generate and approve a campaign plan.</strong> Review Hero, Exact, Phrase, Broad, negatives, bids, and budget.</li>
+      <li><strong>Generate the bulk sheet export.</strong> Export only after an explicit approval note is saved.</li>
+      <li><strong>Import performance reports later.</strong> Use monitoring and recommendations to review post-launch account performance.</li>
+    </ol>
+    <div class="screenshot"><img src="screenshots/dashboard.png" alt="Dashboard screenshot" /><div class="caption">Dashboard gives the workspace overview, safety boundary, product continuation links, and launch checklist.</div></div>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> Mentor Layer</div><div>How The Whole App Connects</div></div>
+    <h2 class="page-title">The One Story Behind Every Screen</h2>
+    <div class="mentor-band">
+      <h3>Think of AdSurf as a supervised assembly line.</h3>
+      <p>A spreadsheet enters on the left. Each station makes the data more trustworthy. The final output is not a secret AI action; it is a reviewed recommendation, campaign plan, or bulk sheet that a human can approve with confidence.</p>
+    </div>
+    <div class="flow-map">
+      <div class="flow-node"><b>Product</b><span>Define the business context.</span><small>Where: Products</small></div>
+      <div class="flow-node"><b>Upload</b><span>Bring in source evidence.</span><small>Where: Uploads or Agents</small></div>
+      <div class="flow-node"><b>Map</b><span>Tell AdSurf what each column means.</span><small>Where: Mapping</small></div>
+      <div class="flow-node"><b>Decide</b><span>Rules score; AI explains; humans review.</span><small>Where: Mapping / Recommendations</small></div>
+      <div class="flow-node"><b>Export</b><span>Prepare approved Amazon bulk sheet output.</span><small>Where: Mapping export step</small></div>
+    </div>
+    <h3 class="section-title">What, Why, When, Where, How</h3>
+    <div class="why-grid">
+      <div class="why-card"><b>What</b><span>A control center for turning ad files into reviewed keyword, campaign, monitoring, and recommendation decisions.</span></div>
+      <div class="why-card"><b>Why</b><span>So sellers and agencies can move faster without letting AI silently change Amazon Ads.</span></div>
+      <div class="why-card"><b>When</b><span>Use before launch for keyword research, and after launch for search term report optimization.</span></div>
+      <div class="why-card"><b>Where</b><span>Product workflows live under Products. Account-level AI workflows live under Agents.</span></div>
+      <div class="why-card"><b>How</b><span>Follow the arrows: create context, upload evidence, map fields, run rules, review, approve, export.</span></div>
+    </div>
+    <div class="callout safety"><strong>Mentor rule:</strong> never jump ahead just because a button is visible. Ask, “Do I trust the input to this step?” If the answer is no, go back one station.</div>
+    <table class="quality-table">
+      <thead><tr><th>Quality</th><th>What It Looks Like</th><th>What The User Should Do</th></tr></thead>
+      <tbody>
+        <tr class="quality-best"><td>Best</td><td>Product profile complete, processed file, approved mapping, low parse errors, clear evidence, approval note saved.</td><td>Continue to campaign plan, recommendations, or export.</td></tr>
+        <tr class="quality-good"><td>Good</td><td>Most fields are clear, a few optional columns missing, deterministic fallback still works.</td><td>Continue, but document assumptions in approval notes.</td></tr>
+        <tr class="quality-fair"><td>Fair</td><td>File parses but column meaning is unclear or data quality warnings appear.</td><td>Slow down, inspect samples, remap, or upload cleaner data.</td></tr>
+        <tr class="quality-failed"><td>Failed</td><td>Upload failed, required mappings missing, no approved keywords, or recommendation evidence is incomplete.</td><td>Do not approve. Fix the earlier station first.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> Mentor Layer</div><div>Reading The UI</div></div>
+    <h2 class="page-title">How To Read Any AdSurf Page</h2>
+    <p>Every page follows the same pattern: orientation at the top, action controls near the workflow area, evidence in panels or tables, and safety reminders before decisions. Once you learn this pattern, every page becomes easier.</p>
+    <div class="annotated">
+      <img src="screenshots/recommendations.png" alt="Annotated recommendations page" />
+      <div class="pin right" style="left: 23%; top: 7%;">1. Page header tells you the job: what this screen is for and what safety boundary applies.</div>
+      <div class="pin right" style="left: 23%; top: 29%;">2. Filter controls narrow the evidence. Start broad, then filter by status, source, priority, or type.</div>
+      <div class="pin left" style="right: 9%; top: 43%;">3. The table is the decision surface: evidence, reasoning, proposed action, status, and approval controls.</div>
+      <div class="pin bottom" style="left: 44%; bottom: 38%;">4. Safety strip repeats the rule: recommendation only, human approval, no live Amazon Ads change.</div>
+    </div>
+    <div class="grid-2">
+      <div class="card"><h3>Where To Look First</h3><p>Start at the page header, then look for the primary workflow control. Do not begin in the table until you know which workflow state you are in.</p></div>
+      <div class="card"><h3>Where To Look Before Approving</h3><p>Look for source file, mapping, metrics, reasoning, proposed action, status, and safety copy. If one is missing, approval is premature.</p></div>
+    </div>
+    <div class="decision-tree">
+      <b>Decision Tree: “What should I do next?”</b>
+      <div class="branch"><b>No product yet?</b> <span>Go to Products → New product.</span></div>
+      <div class="branch"><b>Product exists but no file?</b> <span>Go to Product detail → Uploads.</span></div>
+      <div class="branch"><b>File processed but no scoring?</b> <span>Go to Mapping → generate profile → approve mapping → run scoring.</span></div>
+      <div class="branch"><b>Recommendations exist?</b> <span>Go to Recommendations → filter pending approval → approve/reject with notes.</span></div>
+      <div class="branch"><b>Ready for export?</b> <span>Confirm plan approval and export approval before downloading the bulk sheet.</span></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> Micro-Steps</div><div>Product Setup Mentoring</div></div>
+    <h2 class="page-title">Product Setup: Every Field Explained</h2>
+    <p>The product is the anchor. If the product context is weak, later recommendations become harder to trust. Treat product setup like writing the label on every future upload, keyword, campaign plan, and recommendation.</p>
+    <div class="annotated">
+      <img src="screenshots/new-product.png" alt="Annotated new product form" />
+      <div class="pin right" style="left: 21%; top: 30%;">Product name is the human label. Make it recognizable to sellers and approvers.</div>
+      <div class="pin left" style="right: 8%; top: 31%;">ASIN/SKU connect product reports and agency naming conventions.</div>
+      <div class="pin right" style="left: 23%; top: 53%;">Marketplace and currency tell AdSurf how to interpret budgets and report values.</div>
+      <div class="pin left" style="right: 10%; top: 62%;">Target ACOS, budget, and bid become the default planning assumptions.</div>
+    </div>
+    <table>
+      <thead><tr><th>Micro-Step</th><th>What You Do</th><th>Why It Matters</th><th>Common Mistake</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Enter a clear product name.</td><td>Approvers need to recognize the product without opening raw files.</td><td>Using “test” or vague names like “product 1”.</td></tr>
+        <tr><td>2</td><td>Add ASIN when known.</td><td>Helps future product resolution and account-level report matching.</td><td>Mixing parent and child ASINs without a naming note.</td></tr>
+        <tr><td>3</td><td>Add SKU when useful.</td><td>Agencies often work from SKU lists rather than ASIN-only workflows.</td><td>Leaving SKU blank when internal reports depend on it.</td></tr>
+        <tr><td>4</td><td>Set marketplace and currency.</td><td>Metrics, budgets, and exports must match the ad account context.</td><td>Using USD defaults for a non-US account without documenting it.</td></tr>
+        <tr><td>5</td><td>Set target ACOS.</td><td>Recommendations use profitability context when evaluating performance.</td><td>Entering “50” instead of “0.50”.</td></tr>
+        <tr><td>6</td><td>Set default budget and bid.</td><td>Campaign plans need safe starting values.</td><td>Leaving unrealistic default bids that would make export review harder.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> Micro-Steps</div><div>Upload Mentoring</div></div>
+    <h2 class="page-title">Upload: What Happens Before, During, And After</h2>
+    <p>An upload is not a decision. It is evidence intake. Your job is to get the right file into the right product, confirm parsing, and then wait until AdSurf can show row counts and column evidence.</p>
+    <div class="flow-map">
+      <div class="flow-node"><b>Choose File</b><span>Select CSV/XLS/XLSX.</span><small>How: file picker</small></div>
+      <div class="flow-node"><b>Init Upload</b><span>Create upload metadata.</span><small>Why: auditability</small></div>
+      <div class="flow-node"><b>Confirm</b><span>Queue parser job.</span><small>When: file selected</small></div>
+      <div class="flow-node"><b>Parse</b><span>Normalize rows.</span><small>Where: worker/API</small></div>
+      <div class="flow-node"><b>Open Mapping</b><span>Use processed data.</span><small>Only after processed</small></div>
+    </div>
+    <div class="annotated">
+      <img src="screenshots/uploads.png" alt="Annotated uploads page" />
+      <div class="pin right" style="left: 22%; top: 22%;">Use Workspace ID only when operating local/dev or multi-workspace test data.</div>
+      <div class="pin left" style="right: 9%; top: 41%;">File picker is evidence intake. Pick the source file that belongs to this product.</div>
+      <div class="pin left" style="right: 9%; top: 59%;">Init upload creates metadata. Confirm upload queues the parser.</div>
+      <div class="pin bottom" style="left: 27%; bottom: 16%;">Parse status tells you whether mapping is safe to begin.</div>
+    </div>
+    <table class="quality-table">
+      <thead><tr><th>Quality</th><th>Upload Example</th><th>Mentor Guidance</th></tr></thead>
+      <tbody>
+        <tr class="quality-best"><td>Best</td><td>Correct product, clear filename, supported file type, processed status, expected row count.</td><td>Proceed to mapping.</td></tr>
+        <tr class="quality-good"><td>Good</td><td>Extra columns are present, but required keyword/report fields exist.</td><td>Proceed, then map carefully.</td></tr>
+        <tr class="quality-fair"><td>Fair</td><td>File parses but row errors or data-quality warnings appear.</td><td>Inspect before approving mapping.</td></tr>
+        <tr class="quality-failed"><td>Failed</td><td>Wrong file type, wrong product, failed parsing, missing required report columns.</td><td>Stop and re-upload a clean file.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> Micro-Steps</div><div>Mapping & Scoring Mentoring</div></div>
+    <h2 class="page-title">Mapping: Teach AdSurf What The File Means</h2>
+    <p>Mapping is where users often move too fast. Slow down here. A beautiful campaign plan from a wrong mapping is still wrong. Use the column profile like a teacher uses examples: source column name, normalized name, inferred type, and sample values.</p>
+    <div class="grid-2">
+      <div class="card">
+        <h3>Before You Click Save Mapping</h3>
+        <div class="micro-row"><div class="micro-dot">1</div><div><b>Read sample values.</b><p>Column names can be misleading. Sample values reveal whether a column is a keyword, rank, sales metric, or campaign label.</p></div></div>
+        <div class="micro-row"><div class="micro-dot">2</div><div><b>Check required fields.</b><p>Search term and search volume are required for keyword scoring; performance fields are required for monitoring recommendations.</p></div></div>
+        <div class="micro-row"><div class="micro-dot">3</div><div><b>Approve only a valid snapshot.</b><p>Approval freezes the meaning of the source file for later scoring.</p></div></div>
+      </div>
+      <div class="card">
+        <h3>After Scoring Runs</h3>
+        <div class="micro-row"><div class="micro-dot">4</div><div><b>Review effective status.</b><p>The effective status includes rule output plus any justified human override.</p></div></div>
+        <div class="micro-row"><div class="micro-dot">5</div><div><b>Override carefully.</b><p>Only override when you can explain why the rule result is not appropriate for this product.</p></div></div>
+        <div class="micro-row"><div class="micro-dot">6</div><div><b>Create keyword set.</b><p>The locked set is the reviewed input for campaign plans.</p></div></div>
+      </div>
+    </div>
+    <table>
+      <thead><tr><th>If You See</th><th>It Means</th><th>Do This</th></tr></thead>
+      <tbody>
+        <tr><td>No profile</td><td>AdSurf has not summarized columns yet.</td><td>Generate profile before mapping.</td></tr>
+        <tr><td>Mapping invalid</td><td>A required canonical field is missing or inconsistent.</td><td>Fix field choices and save again.</td></tr>
+        <tr><td>Scoring unavailable</td><td>Mapping is not approved yet.</td><td>Approve valid mapping snapshot.</td></tr>
+        <tr><td>No approved candidates</td><td>Rules rejected all candidates or mapping is wrong.</td><td>Inspect mapping and candidate evidence before overriding.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> Micro-Steps</div><div>Recommendations Mentoring</div></div>
+    <h2 class="page-title">Recommendations: How To Decide Like An Approver</h2>
+    <p>Approving a recommendation is not clicking “yes.” It is saying, “I understand the evidence, I accept the risk, and I want this recommendation recorded as a human decision.”</p>
+    <div class="flow-map">
+      <div class="flow-node"><b>Filter</b><span>Find the right queue slice.</span><small>Status / source / priority</small></div>
+      <div class="flow-node"><b>Read Evidence</b><span>Metrics and report context.</span><small>Spend, sales, ACOS</small></div>
+      <div class="flow-node"><b>Read Reasoning</b><span>AI or fallback explanation.</span><small>Check confidence</small></div>
+      <div class="flow-node"><b>Decide</b><span>Approve or reject.</span><small>Human note required</small></div>
+      <div class="flow-node"><b>Audit</b><span>Decision is recorded.</span><small>No live mutation</small></div>
+    </div>
+    <table>
+      <thead><tr><th>Recommendation Type</th><th>When It Appears</th><th>What To Check Before Approval</th></tr></thead>
+      <tbody>
+        <tr><td>Increase bid</td><td>Efficient traffic shows cautious scaling potential.</td><td>Sales, orders, ACOS, ROAS, confidence, budget pressure.</td></tr>
+        <tr><td>Decrease bid</td><td>Spend exists, sales exist, but efficiency is weak.</td><td>Whether lower bid is better than pause or watch lock.</td></tr>
+        <tr><td>Pause review</td><td>High-risk spend without enough return.</td><td>Learning period, conversion lag, product launch context.</td></tr>
+        <tr><td>Negative exact/phrase</td><td>Search term waste or broad pattern waste is detected.</td><td>Term relevance, match type, future discovery value.</td></tr>
+        <tr><td>Move to exact</td><td>Non-exact search term performs well.</td><td>Volume, conversion reliability, duplication risk.</td></tr>
+        <tr><td>Data quality review</td><td>Evidence is incomplete or inconsistent.</td><td>Do not approve optimization until report quality improves.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> Scenarios</div><div>Pros, Cons, And Best Paths</div></div>
+    <h2 class="page-title">Choose The Right Path For The Situation</h2>
+    <div class="scenario">
+      <h3>Scenario 1: New product launch from competitor keyword research</h3>
+      <div class="body">
+        <p><strong>Best path:</strong> Product → Upload competitor file → Mapping → Scoring → Approved keyword set → Campaign plan → Export.</p>
+        <div class="pros-cons">
+          <div class="pros"><b>Pros</b><p>Fast launch structure, deterministic scoring, clear approval trail, bulk sheet ready.</p></div>
+          <div class="cons"><b>Cons</b><p>Competitor data may not reflect your conversion performance yet. Review relevance carefully.</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="scenario">
+      <h3>Scenario 2: Running ads are spending but sales are weak</h3>
+      <div class="body">
+        <p><strong>Best path:</strong> Upload Sponsored Products report → Monitoring → Recommendations → filter high/critical → review evidence → approve/reject.</p>
+        <div class="pros-cons">
+          <div class="pros"><b>Pros</b><p>Uses actual account evidence, supports negative keyword and pause-review decisions.</p></div>
+          <div class="cons"><b>Cons</b><p>Bad date ranges or missing columns can create misleading recommendations.</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="scenario">
+      <h3>Scenario 3: Agency wants account-level triage</h3>
+      <div class="body">
+        <p><strong>Best path:</strong> Agents → Upload account report → Hybrid mode → Run analysis → inspect workflow → send recommendations to approval.</p>
+        <div class="pros-cons">
+          <div class="pros"><b>Pros</b><p>Best for many campaigns/products, gives trace events and agent-stage visibility.</p></div>
+          <div class="cons"><b>Cons</b><p>Needs disciplined review because account-level uploads can span many entities.</p></div>
+        </div>
+      </div>
+    </div>
+    <div class="scenario">
+      <h3>Scenario 4: A user is unsure whether to approve</h3>
+      <div class="body">
+        <p><strong>Best path:</strong> Do not approve yet. Check source file, mapping, evidence, rule/AI source, confidence, and business context. Reject or request better data if evidence is weak.</p>
+        <div class="pros-cons">
+          <div class="pros"><b>Pros</b><p>Protects account quality and audit trust.</p></div>
+          <div class="cons"><b>Cons</b><p>Slower than blindly approving, but safer and aligned with the product mission.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 03 Navigation</div><div>Pages And Controls</div></div>
+    <h2 class="page-title">Main Navigation And Page Purposes</h2>
+    <table>
+      <thead><tr><th>Page</th><th>Purpose</th><th>Use When</th></tr></thead>
+      <tbody>
+        <tr><td>Dashboard</td><td>Workspace command center</td><td>You want the current health, product counts, uploads, recommendations, and checklist.</td></tr>
+        <tr><td>Agents</td><td>Agent workflow control</td><td>You want to upload an account report, run analysis, inspect agent status, or view trace events.</td></tr>
+        <tr><td>Products</td><td>Product profile list</td><td>You want to create or open product-level workflows.</td></tr>
+        <tr><td>New product</td><td>Product setup</td><td>You are onboarding a new ASIN/SKU or product line.</td></tr>
+        <tr><td>Product detail</td><td>Product status and next actions</td><td>You want to move to uploads, mapping, monitoring, or campaign planning.</td></tr>
+        <tr><td>Uploads</td><td>File intake and parse status</td><td>You have competitor research or Amazon Ads report files to process.</td></tr>
+        <tr><td>Mapping</td><td>Column mapping, scoring, campaign generation, export</td><td>You need to turn parsed files into reviewed keywords and bulk sheets.</td></tr>
+        <tr><td>Monitoring</td><td>Performance report imports</td><td>You need recommendations from Sponsored Products Search Term reports.</td></tr>
+        <tr><td>Recommendations</td><td>Approval queue</td><td>You need to approve/reject AI or deterministic recommendations with evidence.</td></tr>
+        <tr><td>Agent Builder</td><td>Custom agent configuration</td><td>You need to create or configure reusable agent templates and tools.</td></tr>
+      </tbody>
+    </table>
+    <h3 class="small-title">Universal Controls</h3>
+    <div class="grid-2">
+      <div class="card"><h3>Previous Page</h3><p>Every app page includes a professional previous-page button. It uses internal session history first and deterministic route fallback for direct deep links.</p></div>
+      <div class="card"><h3>Theme Toggle</h3><p>Use light, dark, or system theme. The app is optimized for a dark SaaS control-room style that matches the Agent Control Center.</p></div>
+    </div>
+    <div class="screenshot"><img src="screenshots/products.png" alt="Products page screenshot" /><div class="caption">Products is the main starting point for product-level setup, upload, and monitoring workflows.</div></div>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 04 Product Setup</div><div>Profile Recipe</div></div>
+    <h2 class="page-title">Create A Product Profile</h2>
+    <p>Product profiles store the default context used later by scoring, campaign planning, and export generation. Create one profile per Amazon product or product strategy unit.</p>
+    <div class="screenshot"><img src="screenshots/new-product.png" alt="New product screenshot" /><div class="caption">The product setup form captures marketplace, currency, ACOS target, default budget, and default bid.</div></div>
+    <table>
+      <thead><tr><th>Field</th><th>What To Enter</th><th>Practical Guidance</th></tr></thead>
+      <tbody>
+        <tr><td>Product name</td><td>Human-readable product label</td><td>Use a name sellers and approvers recognize instantly.</td></tr>
+        <tr><td>ASIN</td><td>Amazon ASIN when available</td><td>Useful for matching reports and product resolution.</td></tr>
+        <tr><td>SKU</td><td>Internal SKU when available</td><td>Helpful for agency or multi-product operations.</td></tr>
+        <tr><td>Marketplace</td><td>Default is <code>US</code></td><td>MVP assumes Amazon US unless configured otherwise.</td></tr>
+        <tr><td>Currency</td><td>Default is <code>USD</code></td><td>Use the same currency as uploaded ad reports.</td></tr>
+        <tr><td>Target ACOS</td><td>Example <code>0.50</code></td><td>Used to evaluate performance and recommendations.</td></tr>
+        <tr><td>Default budget</td><td>Daily campaign budget</td><td>Used as a starting point for generated campaign plans.</td></tr>
+        <tr><td>Default bid</td><td>Starting keyword bid</td><td>Used when generating manual Sponsored Products campaign rows.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout"><strong>Cookbook tip:</strong> Create product profiles before uploading reports. Product-first organization keeps uploads, mappings, keyword sets, monitoring imports, and approvals scoped to the correct workspace-owned product.</div>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 05 Uploads</div><div>File Intake</div></div>
+    <h2 class="page-title">Upload Research Files And Reports</h2>
+    <p>Uploads are the first operational step after product setup. The app accepts CSV, XLS, and XLSX files, preserves upload metadata, stores file bytes, and queues parsing.</p>
+    <div class="screenshot"><img src="screenshots/uploads.png" alt="Uploads screenshot" /><div class="caption">The Uploads page initializes files, confirms processing, and shows parse-run status.</div></div>
+    <h3 class="small-title">Upload Statuses</h3>
+    <table>
+      <thead><tr><th>Status</th><th>Meaning</th><th>User Action</th></tr></thead>
+      <tbody>
+        <tr><td>initialized</td><td>Metadata exists but file is not confirmed</td><td>Confirm upload after selecting the file.</td></tr>
+        <tr><td>queued_for_processing</td><td>File is waiting for parser worker</td><td>Wait or run the local worker in development.</td></tr>
+        <tr><td>processing</td><td>Parser is reading rows and normalizing data</td><td>Do not remap yet; wait for completion.</td></tr>
+        <tr><td>processed</td><td>Rows are parsed and ready for mapping</td><td>Open the mapping workflow.</td></tr>
+        <tr><td>failed</td><td>Parser could not complete</td><td>Review file type, file size, missing sheets, or row errors.</td></tr>
+      </tbody>
+    </table>
+    <div class="grid-2">
+      <div class="card"><h3>Competitor Keyword Research</h3><p>Use when preparing campaigns from keyword or competitor rank files. Requires search term, search volume, and competitor rank style columns for scoring.</p></div>
+      <div class="card"><h3>Sponsored Products Search Term Report</h3><p>Use when monitoring running ads. Best reports include campaign, ad group, targeting, customer search term, spend, sales, orders, clicks, impressions, ACOS, ROAS, CTR, CPC, and CVR.</p></div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 06 Mapping</div><div>Columns To Canonical Fields</div></div>
+    <h2 class="page-title">Map Columns, Score Keywords, And Review Candidates</h2>
+    <p>The mapping page is the operational bridge between raw spreadsheets and rule-backed keyword decisions. Nothing should be scored until a user has reviewed and approved the mapping snapshot.</p>
+    <div class="screenshot"><img src="screenshots/mapping.png" alt="Mapping screenshot" /><div class="caption">Mapping combines column profile generation, manual mapping, scoring, keyword review, campaign plan generation, and export approval controls.</div></div>
+    <div class="recipe">
+      <div class="recipe-head"><h3>Recipe: Turn A Parsed File Into Reviewed Keywords</h3></div>
+      <div class="recipe-body">
+        <ol class="steps">
+          <li>Open a processed upload and choose the mapping page.</li>
+          <li>Generate or load the column profile.</li>
+          <li>Inspect source column names, normalized names, inferred types, and sample values.</li>
+          <li>Map the search term column, search volume column, and competitor rank columns.</li>
+          <li>Save the manual mapping and fix validation errors.</li>
+          <li>Approve the valid mapping snapshot.</li>
+          <li>Run deterministic keyword relevance scoring.</li>
+          <li>Filter candidates by status, score, and override state.</li>
+          <li>Approve or reject candidates. Manual overrides require a reason.</li>
+          <li>Create a locked approved keyword set snapshot.</li>
+        </ol>
+      </div>
+    </div>
+    <h3 class="small-title">Scoring And Override Rules</h3>
+    <table>
+      <thead><tr><th>Concept</th><th>How It Works</th><th>Why It Matters</th></tr></thead>
+      <tbody>
+        <tr><td>Deterministic scoring</td><td>Rules assign relevance status and score from mapped source fields.</td><td>Reliable fallback and auditable decisions.</td></tr>
+        <tr><td>Rejected scores</td><td>Scores 0, 1, and 2 are rejected by default.</td><td>Prevents weak terms from entering campaign plans.</td></tr>
+        <tr><td>Manual override</td><td>User can approve or reject with a required reason.</td><td>Captures expert judgment without hiding rule output.</td></tr>
+        <tr><td>Approved keyword set</td><td>Frozen snapshot of effective approved candidates.</td><td>Campaign plans must use reviewed inputs, not mutable draft rows.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 07 Campaigns & Exports</div><div>Bulk Sheet First</div></div>
+    <h2 class="page-title">Generate Campaign Plans And Bulk Exports</h2>
+    <p>Campaign generation turns locked approved keyword sets into Sponsored Products manual campaign structures. The plan must be approved before export. The export must be explicitly approved before download.</p>
+    <div class="grid-2">
+      <div class="card"><h3>Campaign Structure</h3><ul><li>Hero campaign from strongest keyword.</li><li>Exact, Phrase, and Broad group campaigns.</li><li>Negative Exact and Negative Phrase structures from rules.</li><li>Default bid and budget from product profile.</li></ul></div>
+      <div class="card"><h3>Export Boundary</h3><ul><li>Bulk sheet export is MVP execution mode.</li><li>Export generation requires approval evidence.</li><li>Downloaded files are manually uploaded to Amazon Ads.</li><li>No live Amazon Ads mutation occurs.</li></ul></div>
+    </div>
+    <table>
+      <thead><tr><th>Approved Keyword Count</th><th>Campaign Behavior</th><th>Recovery If Blocked</th></tr></thead>
+      <tbody>
+        <tr><td>0</td><td>Campaign generation is blocked</td><td>Review rejected terms, adjust mapping, upload better research, or add justified overrides.</td></tr>
+        <tr><td>1</td><td>Hero-only plan</td><td>Use for minimal launch or collect more terms before export.</td></tr>
+        <tr><td>2-7</td><td>Hero plus one group from remaining terms</td><td>Review grouping and negatives before approval.</td></tr>
+        <tr><td>8+</td><td>Hero plus grouped campaigns of 5-7 terms</td><td>Inspect all grouped campaigns and negative rows.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout safety"><strong>Approval checklist before export:</strong> mapping approved, scoring complete, overrides justified, keyword set locked, campaign plan generated, plan approval note saved, export validation passed, export approval note saved.</div>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 08 Monitoring</div><div>Performance To Recommendations</div></div>
+    <h2 class="page-title">Import Performance Reports For Monitoring</h2>
+    <p>Monitoring is for post-launch performance review. Upload a Sponsored Products Search Term report, process it, and create a monitoring import from a product's monitoring page.</p>
+    <div class="screenshot"><img src="screenshots/monitoring.png" alt="Monitoring screenshot" /><div class="caption">Monitoring imports processed Sponsored Products reports and summarizes recommendation counts, import history, and top recommendations.</div></div>
+    <h3 class="small-title">Recommended Report Columns</h3>
+    <div class="badge-row">
+      <span class="badge">Campaign Name</span><span class="badge">Ad Group Name</span><span class="badge">Targeting</span><span class="badge">Customer Search Term</span><span class="badge">Impressions</span><span class="badge">Clicks</span><span class="badge">Spend</span><span class="badge">Sales</span><span class="badge">Orders</span><span class="badge">ACOS</span><span class="badge">ROAS</span><span class="badge">CTR</span><span class="badge">CPC</span><span class="badge">CVR</span>
+    </div>
+    <table>
+      <thead><tr><th>Monitoring Output</th><th>Meaning</th><th>What To Do</th></tr></thead>
+      <tbody>
+        <tr><td>Pending approval</td><td>Recommendations are ready for human decision</td><td>Open Recommendations and review evidence.</td></tr>
+        <tr><td>Keep running</td><td>No stronger action is warranted</td><td>Approve if evidence supports learning or stability.</td></tr>
+        <tr><td>Bid recommendations</td><td>Increase/decrease bid suggestions</td><td>Check spend, sales, orders, ACOS, and confidence before deciding.</td></tr>
+        <tr><td>Negative recommendations</td><td>Exact or phrase wasted-spend suggestions</td><td>Review search term evidence before approving.</td></tr>
+        <tr><td>Data quality review</td><td>Missing, inconsistent, or limited report data</td><td>Fix report columns or upload a cleaner report.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 09 Recommendations</div><div>Approval Queue</div></div>
+    <h2 class="page-title">Review AI And Deterministic Recommendations</h2>
+    <p>The Recommendations page is where approvers inspect evidence, filter the queue, and approve or reject each recommendation with a note. Approval records the decision in the app; it does not execute live Amazon Ads changes.</p>
+    <div class="screenshot"><img src="screenshots/recommendations.png" alt="Recommendations screenshot" /><div class="caption">Recommendation filters support status, source, priority, and type. Dropdown labels are readable and designed for dark mode.</div></div>
+    <h3 class="small-title">Available Filters</h3>
+    <table>
+      <thead><tr><th>Filter</th><th>Options</th><th>Use It To</th></tr></thead>
+      <tbody>
+        <tr><td>Status</td><td>Pending approval, Approved, Rejected</td><td>Separate open decisions from history.</td></tr>
+        <tr><td>Source</td><td>DeepSeek AI, Fallback rules, Deterministic rules</td><td>Understand whether AI or deterministic logic produced the recommendation.</td></tr>
+        <tr><td>Priority</td><td>Critical, High, Medium, Low</td><td>Work urgent risk or opportunity first.</td></tr>
+        <tr><td>Type</td><td>Keep running, Increase bid, Decrease bid, Pause review, Negative exact, Negative phrase, Move to exact, Watch lock, Data quality review, Budget review</td><td>Focus on a specific optimization class.</td></tr>
+      </tbody>
+    </table>
+    <h3 class="small-title">Recommendation Evidence</h3>
+    <ul>
+      <li>Priority and confidence.</li>
+      <li>Campaign, ad group, target, or customer search term.</li>
+      <li>Metric evidence: spend, clicks, orders, sales, ACOS, ROAS, CTR, CVR.</li>
+      <li>Decision source and AI provider/model when available.</li>
+      <li>Proposed action and reasoning summary.</li>
+      <li>Safety flags: recommendation only, requires human approval, no live Amazon Ads change executed.</li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 10 Agent Control Center</div><div>AI Workflow Ops</div></div>
+    <h2 class="page-title">Run And Inspect Agent Workflows</h2>
+    <p>The Agent Control Center is the account-level operations view. It can upload Amazon Ads reports or bulk sheets, detect report types, group entities, create workflow runs, and show agent status, trace events, templates, approvals, and recommendations.</p>
+    <div class="screenshot"><img src="screenshots/agents.png" alt="Agent Control Center screenshot" /><div class="caption">Agents page: upload report, choose hybrid/deterministic/AI mode, run analysis, inspect agent pipeline, and review approval checkpoints.</div></div>
+    <div class="grid-2">
+      <div class="card"><h3>Modes</h3><ul><li><strong>Deterministic:</strong> rules only, safest fallback.</li><li><strong>AI:</strong> AI reasoning where configured and validated.</li><li><strong>Hybrid:</strong> AI plus deterministic fallback and rule validation.</li></ul></div>
+      <div class="card"><h3>Views</h3><ul><li><strong>Simple Pipeline:</strong> everyday step-by-step workflow.</li><li><strong>Visual Canvas:</strong> operator-friendly graph of agent stages.</li><li><strong>Inspector:</strong> configuration, input, output, recommendations, permissions, trace, and safety.</li></ul></div>
+    </div>
+    <h3 class="small-title">Agent Workflow Stages</h3>
+    <div class="badge-row">
+      <span class="badge">Report Upload</span><span class="badge">Report Detection</span><span class="badge">Product Resolution</span><span class="badge">Metrics Analysis</span><span class="badge">AI Recommendation Brain</span><span class="badge">Bid Optimization</span><span class="badge">Negative Keywords</span><span class="badge">Budget Allocation</span><span class="badge">Pause Review</span><span class="badge">Stakeholder Reporting</span><span class="badge green">Human Approval</span>
+    </div>
+    <div class="callout safety"><strong>Agent permissions:</strong> agents can recommend, explain, validate, and prepare review artifacts. They cannot approve, reject, mutate live Amazon Ads, or bypass the approval queue.</div>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 11 Agent Builder</div><div>Custom Automation</div></div>
+    <h2 class="page-title">Create And Configure Custom Agents</h2>
+    <p>The Agent Builder is for reusable agent configurations. It supports agent templates, tools, knowledge bases, sub-agent teams, memory settings, test prompts, permissions, and human approval controls.</p>
+    <div class="screenshot"><img src="screenshots/agent-builder.png" alt="Agent Builder screenshot" /><div class="caption">Agent Builder helps operators clone templates, configure tools/actions, link knowledge bases, create sub-agents, and test behavior.</div></div>
+    <table>
+      <thead><tr><th>Area</th><th>Available Options</th><th>Good Practice</th></tr></thead>
+      <tbody>
+        <tr><td>Templates</td><td>Conservative profitability, growth scaling, wasted spend cleanup, launch review, agency audit</td><td>Clone a close template before creating a blank agent.</td></tr>
+        <tr><td>Tools & Actions</td><td>Data lookup, report analysis, recommendation creation, approval checkpoint creation</td><td>Mark risky tools as dangerous and require approval by default.</td></tr>
+        <tr><td>Knowledge Bases</td><td>Docs, rules, product context, playbooks</td><td>Keep rule ownership in code; use knowledge for context and explanation.</td></tr>
+        <tr><td>Sub-agents</td><td>Research, monitoring, critic, reporting, approval helper</td><td>Use sub-agents only when work naturally splits into roles.</td></tr>
+        <tr><td>Memory</td><td>Context limit, retention, scope</td><td>Keep workspace isolation and avoid storing secrets.</td></tr>
+        <tr><td>Safety</td><td>Approval requirement, no-live-execution boundary, permission review</td><td>Never grant an agent authority to silently act.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 12 Cookbook Recipes</div><div>Repeatable Workflows</div></div>
+    <h2 class="page-title">Practical Recipes</h2>
+    <div class="recipe">
+      <div class="recipe-head"><h3>Recipe A: Launch From Competitor Keyword Research</h3></div>
+      <div class="recipe-body">
+        <ol class="steps">
+          <li>Create a product profile with default bid, budget, marketplace, currency, and target ACOS.</li>
+          <li>Upload the competitor keyword file on the product Uploads page.</li>
+          <li>Confirm upload and wait for processed status.</li>
+          <li>Generate a column profile and map required keyword fields.</li>
+          <li>Approve mapping, run scoring, review candidates, and override with reasons where needed.</li>
+          <li>Create an approved keyword set and generate a campaign plan.</li>
+          <li>Review Hero, groups, negatives, bids, and budget.</li>
+          <li>Approve plan, approve export, download the bulk sheet, and manually upload it to Amazon Ads.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="recipe">
+      <div class="recipe-head"><h3>Recipe B: Review Running Ads After 14 Days</h3></div>
+      <div class="recipe-body">
+        <ol class="steps">
+          <li>Export a Sponsored Products Search Term report from Amazon Ads.</li>
+          <li>Upload it to the correct product and wait for processed status.</li>
+          <li>Open Monitoring and select the processed report upload.</li>
+          <li>Create the monitoring import and run local processing in development if needed.</li>
+          <li>Open Recommendations and filter by pending approval, priority, or type.</li>
+          <li>Approve or reject each recommendation only after reviewing metric evidence and reasoning.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="recipe">
+      <div class="recipe-head"><h3>Recipe C: Agency Account-Level Triage</h3></div>
+      <div class="recipe-body">
+        <ol class="steps">
+          <li>Open Agents and upload an account-level Amazon Ads report or bulk sheet.</li>
+          <li>Choose Hybrid mode for AI-assisted reasoning with deterministic fallback.</li>
+          <li>Run analysis and inspect detection, product resolution, metric analysis, and recommendation stages.</li>
+          <li>Use the Agent Inspector to review input, output, permissions, trace, and safety.</li>
+          <li>Send actionable recommendations into the approval queue.</li>
+          <li>Review decisions with notes. Do not treat approval as live account execution.</li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 13 Option Reference</div><div>States, Filters, Decisions</div></div>
+    <h2 class="page-title">Range Of Available Options</h2>
+    <table>
+      <thead><tr><th>Category</th><th>Options</th></tr></thead>
+      <tbody>
+        <tr><td>Canonical roles</td><td>owner, admin, analyst, approver, viewer</td></tr>
+        <tr><td>Decision modes</td><td>deterministic, ai, hybrid</td></tr>
+        <tr><td>Upload file types</td><td>CSV, XLS, XLSX</td></tr>
+        <tr><td>Upload statuses</td><td>initialized, queued_for_processing, processing, processed, failed</td></tr>
+        <tr><td>Recommendation statuses</td><td>pending_approval, approved, rejected, superseded</td></tr>
+        <tr><td>Recommendation priorities</td><td>critical, high, medium, low</td></tr>
+        <tr><td>Recommendation types</td><td>keep_running, increase_bid, decrease_bid, pause_review, add_negative_exact, add_negative_phrase, move_to_exact, watch_lock, data_quality_review, budget_review</td></tr>
+        <tr><td>Agent events</td><td>queued, started, input prepared, model called, output received, validation passed, fallback used, waiting for human, succeeded, failed, paused, stopped</td></tr>
+        <tr><td>Campaign output</td><td>Hero, Exact, Phrase, Broad, Negative Exact, Negative Phrase, bulk sheet rows</td></tr>
+      </tbody>
+    </table>
+    <h3 class="small-title">Human Approval Notes Should Include</h3>
+    <ul>
+      <li>What object is being approved or rejected.</li>
+      <li>Which source file, mapping, keyword set, campaign plan, recommendation, or export it relates to.</li>
+      <li>Why the evidence supports the decision.</li>
+      <li>Any risk, exception, or manual follow-up needed before using the export.</li>
+    </ul>
+  </section>
+
+  <section class="page">
+    <div class="doc-header"><div class="mark"><span class="dot"></span> 14 Troubleshooting</div><div>Recovery Guide</div></div>
+    <h2 class="page-title">When Something Is Blocked</h2>
+    <table>
+      <thead><tr><th>Symptom</th><th>Likely Cause</th><th>Fix</th></tr></thead>
+      <tbody>
+        <tr><td>Product list is empty</td><td>API, database, workspace access, or migrations</td><td>Check API health, database URL, migrations, and workspace membership.</td></tr>
+        <tr><td>Upload stays queued</td><td>Worker not running</td><td>Run the file-processing worker or local dev processing endpoint.</td></tr>
+        <tr><td>Upload fails</td><td>Unsupported file, large file, bad sheet, invalid rows</td><td>Use CSV/XLS/XLSX, keep within upload limit, and inspect parser errors.</td></tr>
+        <tr><td>Scoring unavailable</td><td>No approved mapping</td><td>Generate profile, map required fields, save, and approve mapping snapshot.</td></tr>
+        <tr><td>Campaign generation blocked</td><td>No approved keyword set</td><td>Run scoring, review candidates, and create a locked approved keyword set.</td></tr>
+        <tr><td>Export blocked</td><td>Plan/export lacks approval</td><td>Approve campaign plan and export with explicit notes.</td></tr>
+        <tr><td>Monitoring import fails</td><td>Wrong report type or missing required report columns</td><td>Upload a processed Sponsored Products Search Term report with campaign, ad group, target/search term, spend, clicks, sales, and orders.</td></tr>
+        <tr><td>Recommendations empty</td><td>Monitoring worker did not run or evidence invalid</td><td>Run monitoring processing and check data-quality warnings.</td></tr>
+        <tr><td>Approval blocked</td><td>Missing note or insufficient role</td><td>Use owner/admin/analyst/approver role and enter a meaningful decision note.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout safety"><strong>Final safety reminder:</strong> The MVP prepares reviewable plans, recommendations, and bulk sheets. The human operator remains responsible for approving and manually applying changes in Amazon Ads.</div>
+    <div class="footer-note">AdSurf AI Control Center Handbook - Generated for local app workspace</div>
+  </section>
+</body>
+</html>

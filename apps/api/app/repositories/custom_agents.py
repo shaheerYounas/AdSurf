@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import text
 
 from apps.api.app.core.database import get_database_engine, run_database_operation
+from apps.api.app.schemas.agent_control import AgentTemplateResponse
 from apps.api.app.schemas.custom_agents import (
     AgentMemoryCreate,
     AgentMemoryResponse,
@@ -33,7 +34,21 @@ from apps.api.app.schemas.custom_agents import (
     SubAgentResponse,
     SubAgentUpdate,
 )
-from apps.api.app.schemas.agent_control import AgentTemplateResponse
+
+
+def _execute_read(text_obj, params=None, *, mappings=False):
+    """Execute a read query using a fresh connection (SQLAlchemy 2.0 compatible).
+
+    Uses engine.begin() so the implicit BEGIN is paired with a COMMIT on exit,
+    preventing connections from being returned to the Supabase pooler in
+    IDLE-IN-TRANSACTION state (which would hold relation locks indefinitely).
+    """
+    engine = get_database_engine()
+    with engine.begin() as connection:
+        result = connection.execute(text_obj, params or {})
+        if mappings:
+            return result.mappings().all()
+        return result.all()
 
 
 class CustomAgentRepository:
@@ -77,41 +92,41 @@ class CustomAgentRepository:
             return self.get_by_id(agent_id, conn=conn)
 
     def list_by_workspace(self, workspace_id: UUID, *, conn=None) -> list[CustomAgentSummary]:
-        engine = get_database_engine()
-        executor = conn or engine
-        rows = executor.execute(
-            text("""
-                SELECT
-                    ca.id, ca.workspace_id, ca.name, ca.description,
-                    ca.model_provider, ca.model_name, ca.memory_enabled, ca.status,
-                    ca.created_at, ca.updated_at,
-                    COALESCE(t.tool_count, 0) AS tool_count,
-                    COALESCE(sa.sub_agent_count, 0) AS sub_agent_count,
-                    COALESCE(th.thread_count, 0) AS thread_count
-                FROM custom_agents ca
-                LEFT JOIN LATERAL (
-                    SELECT COUNT(*) AS tool_count FROM agent_tools WHERE agent_id = ca.id
-                ) t ON true
-                LEFT JOIN LATERAL (
-                    SELECT COUNT(*) AS sub_agent_count FROM sub_agents WHERE parent_agent_id = ca.id
-                ) sa ON true
-                LEFT JOIN LATERAL (
-                    SELECT COUNT(*) AS thread_count FROM agent_threads WHERE agent_id = ca.id
-                ) th ON true
-                WHERE ca.workspace_id = :workspace_id
-                ORDER BY ca.updated_at DESC
-            """),
-            dict(workspace_id=workspace_id),
-        ).mappings().all()
+        query = text("""
+            SELECT
+                ca.id, ca.workspace_id, ca.name, ca.description,
+                ca.model_provider, ca.model_name, ca.memory_enabled, ca.status,
+                ca.created_at, ca.updated_at,
+                COALESCE(t.tool_count, 0) AS tool_count,
+                COALESCE(sa.sub_agent_count, 0) AS sub_agent_count,
+                COALESCE(th.thread_count, 0) AS thread_count
+            FROM custom_agents ca
+            LEFT JOIN LATERAL (
+                SELECT COUNT(*) AS tool_count FROM agent_tools WHERE agent_id = ca.id
+            ) t ON true
+            LEFT JOIN LATERAL (
+                SELECT COUNT(*) AS sub_agent_count FROM sub_agents WHERE parent_agent_id = ca.id
+            ) sa ON true
+            LEFT JOIN LATERAL (
+                SELECT COUNT(*) AS thread_count FROM agent_threads WHERE agent_id = ca.id
+            ) th ON true
+            WHERE ca.workspace_id = :workspace_id
+            ORDER BY ca.updated_at DESC
+        """)
+        params = dict(workspace_id=workspace_id)
+        if conn is not None:
+            rows = conn.execute(query, params).mappings().all()
+        else:
+            rows = _execute_read(query, params, mappings=True)
         return [_summary_row(row) for row in rows]
 
     def get_by_id(self, agent_id: UUID, *, conn=None) -> CustomAgentResponse | None:
-        engine = get_database_engine()
-        executor = conn or engine
-        rows = executor.execute(
-            text("SELECT * FROM custom_agents WHERE id = :id"),
-            dict(id=agent_id),
-        ).mappings().all()
+        query = text("SELECT * FROM custom_agents WHERE id = :id")
+        params = dict(id=agent_id)
+        if conn is not None:
+            rows = conn.execute(query, params).mappings().all()
+        else:
+            rows = _execute_read(query, params, mappings=True)
         if not rows:
             return None
         return self._enrich_response(_agent_row(rows[0]))
@@ -150,15 +165,15 @@ class CustomAgentRepository:
             return result.rowcount > 0
 
     def _enrich_response(self, agent: dict, *, conn=None) -> CustomAgentResponse:
-        engine = get_database_engine()
-        executor = conn or engine
         agent_id = agent["id"]
         tools = ToolRepository().list_by_agent(agent_id)
         sub_agents = SubAgentRepository().list_by_agent(agent_id)
-        kb_rows = executor.execute(
-            text("SELECT knowledge_base_id FROM agent_knowledge_bases WHERE agent_id = :agent_id"),
-            dict(agent_id=agent_id),
-        ).mappings().all()
+        kb_query = text("SELECT knowledge_base_id FROM agent_knowledge_bases WHERE agent_id = :agent_id")
+        kb_params = dict(agent_id=agent_id)
+        if conn is not None:
+            kb_rows = conn.execute(kb_query, kb_params).mappings().all()
+        else:
+            kb_rows = _execute_read(kb_query, kb_params, mappings=True)
         kb_ids = [row["knowledge_base_id"] for row in kb_rows]
         return CustomAgentResponse(
             id=agent["id"], workspace_id=agent["workspace_id"], name=agent["name"],
@@ -183,11 +198,11 @@ class ToolRepository:
     """Data access for agent_tools table."""
 
     def list_by_agent(self, agent_id: UUID) -> list[AgentToolResponse]:
-        engine = get_database_engine()
-        rows = engine.execute(
+        rows = _execute_read(
             text("SELECT * FROM agent_tools WHERE agent_id = :agent_id ORDER BY tool_name"),
             dict(agent_id=agent_id),
-        ).mappings().all()
+            mappings=True,
+        )
         return [_tool_row(row) for row in rows]
 
     def create(self, payload: AgentToolCreate) -> AgentToolResponse:
@@ -225,9 +240,6 @@ class ToolRepository:
                 if isinstance(value, dict) or isinstance(value, list):
                     sets.append(f"{field} = :{field}")
                     params[field] = _jsonb(value)
-                elif isinstance(value, (ToolPermissionLevel,)):
-                    sets.append(f"{field} = :{field}")
-                    params[field] = value.value if hasattr(value, 'value') else value
                 else:
                     sets.append(f"{field} = :{field}")
                     params[field] = value
@@ -240,18 +252,19 @@ class ToolRepository:
         return self.get_by_id(tool_id)
 
     def get_by_id(self, tool_id: UUID) -> AgentToolResponse | None:
-        engine = get_database_engine()
-        rows = engine.execute(
-            text("SELECT * FROM agent_tools WHERE id = :id"), dict(id=tool_id)
-        ).mappings().all()
+        rows = _execute_read(
+            text("SELECT * FROM agent_tools WHERE id = :id"),
+            dict(id=tool_id),
+            mappings=True,
+        )
         return _tool_row(rows[0]) if rows else None
 
     def get_by_agent_and_name(self, agent_id: UUID, tool_name: str) -> AgentToolResponse | None:
-        engine = get_database_engine()
-        rows = engine.execute(
+        rows = _execute_read(
             text("SELECT * FROM agent_tools WHERE agent_id = :agent_id AND tool_name = :tool_name"),
             dict(agent_id=agent_id, tool_name=tool_name),
-        ).mappings().all()
+            mappings=True,
+        )
         return _tool_row(rows[0]) if rows else None
 
     def delete(self, tool_id: UUID) -> bool:
@@ -288,26 +301,28 @@ class KnowledgeBaseRepository:
         return self.get_by_id(kb_id)
 
     def list_by_workspace(self, workspace_id: UUID) -> list[KnowledgeBaseResponse]:
-        engine = get_database_engine()
-        rows = engine.execute(
+        rows = _execute_read(
             text("SELECT * FROM knowledge_bases WHERE workspace_id = :workspace_id ORDER BY updated_at DESC"),
             dict(workspace_id=workspace_id),
-        ).mappings().all()
+            mappings=True,
+        )
         return [_kb_row(row) for row in rows]
 
     def get_by_id(self, kb_id: UUID) -> KnowledgeBaseResponse | None:
-        engine = get_database_engine()
-        rows = engine.execute(
-            text("SELECT * FROM knowledge_bases WHERE id = :id"), dict(id=kb_id)
-        ).mappings().all()
+        rows = _execute_read(
+            text("SELECT * FROM knowledge_bases WHERE id = :id"),
+            dict(id=kb_id),
+            mappings=True,
+        )
         if not rows:
             return None
         kb = _kb_row(rows[0])
         # enrich with files
-        file_rows = engine.execute(
+        file_rows = _execute_read(
             text("SELECT * FROM knowledge_base_files WHERE knowledge_base_id = :kb_id ORDER BY created_at DESC"),
             dict(kb_id=kb_id),
-        ).mappings().all()
+            mappings=True,
+        )
         kb.files = [_kbf_row(row) for row in file_rows]
         return kb
 
@@ -391,11 +406,11 @@ class SubAgentRepository:
     """Data access for sub_agents table."""
 
     def list_by_agent(self, parent_agent_id: UUID) -> list[SubAgentResponse]:
-        engine = get_database_engine()
-        rows = engine.execute(
+        rows = _execute_read(
             text("SELECT * FROM sub_agents WHERE parent_agent_id = :parent_agent_id ORDER BY execution_order"),
             dict(parent_agent_id=parent_agent_id),
-        ).mappings().all()
+            mappings=True,
+        )
         return [_sub_row(row) for row in rows]
 
     def create(self, payload: SubAgentCreate) -> SubAgentResponse:
@@ -451,10 +466,11 @@ class SubAgentRepository:
         return self.get_by_id(sub_agent_id)
 
     def get_by_id(self, sa_id: UUID) -> SubAgentResponse | None:
-        engine = get_database_engine()
-        rows = engine.execute(
-            text("SELECT * FROM sub_agents WHERE id = :id"), dict(id=sa_id)
-        ).mappings().all()
+        rows = _execute_read(
+            text("SELECT * FROM sub_agents WHERE id = :id"),
+            dict(id=sa_id),
+            mappings=True,
+        )
         return _sub_row(rows[0]) if rows else None
 
     def delete(self, sa_id: UUID) -> bool:
@@ -488,8 +504,7 @@ class ThreadRepository:
         return self.get_thread(thread_id)
 
     def list_threads(self, workspace_id: UUID) -> list[AgentThreadResponse]:
-        engine = get_database_engine()
-        rows = engine.execute(
+        rows = _execute_read(
             text("""
                 SELECT t.*, COUNT(m.id) as message_count, MAX(m.created_at) as last_message_at
                 FROM agent_threads t
@@ -499,12 +514,12 @@ class ThreadRepository:
                 ORDER BY t.updated_at DESC
             """),
             dict(workspace_id=workspace_id),
-        ).mappings().all()
+            mappings=True,
+        )
         return [_thread_row(row) for row in rows]
 
     def list_threads_by_agent(self, agent_id: UUID) -> list[AgentThreadResponse]:
-        engine = get_database_engine()
-        rows = engine.execute(
+        rows = _execute_read(
             text("""
                 SELECT t.*, COUNT(m.id) as message_count, MAX(m.created_at) as last_message_at
                 FROM agent_threads t
@@ -514,12 +529,12 @@ class ThreadRepository:
                 ORDER BY t.updated_at DESC
             """),
             dict(agent_id=agent_id),
-        ).mappings().all()
+            mappings=True,
+        )
         return [_thread_row(row) for row in rows]
 
     def get_thread(self, thread_id: UUID) -> AgentThreadResponse | None:
-        engine = get_database_engine()
-        rows = engine.execute(
+        rows = _execute_read(
             text("""
                 SELECT t.*, COUNT(m.id) as message_count, MAX(m.created_at) as last_message_at
                 FROM agent_threads t
@@ -528,7 +543,8 @@ class ThreadRepository:
                 GROUP BY t.id
             """),
             dict(id=thread_id),
-        ).mappings().all()
+            mappings=True,
+        )
         return _thread_row(rows[0]) if rows else None
 
     def create_message(self, payload: AgentMessageCreate) -> AgentMessageResponse:
@@ -559,8 +575,7 @@ class ThreadRepository:
         return self.get_message(msg_id)
 
     def list_messages(self, thread_id: UUID, limit: int = 50) -> list[AgentMessageResponse]:
-        engine = get_database_engine()
-        rows = engine.execute(
+        rows = _execute_read(
             text("""
                 SELECT * FROM agent_messages
                 WHERE thread_id = :thread_id
@@ -568,14 +583,16 @@ class ThreadRepository:
                 LIMIT :limit
             """),
             dict(thread_id=thread_id, limit=limit),
-        ).mappings().all()
+            mappings=True,
+        )
         return [_msg_row(row) for row in rows]
 
     def get_message(self, msg_id: UUID) -> AgentMessageResponse | None:
-        engine = get_database_engine()
-        rows = engine.execute(
-            text("SELECT * FROM agent_messages WHERE id = :id"), dict(id=msg_id)
-        ).mappings().all()
+        rows = _execute_read(
+            text("SELECT * FROM agent_messages WHERE id = :id"),
+            dict(id=msg_id),
+            mappings=True,
+        )
         return _msg_row(rows[0]) if rows else None
 
     def update_thread(self, thread_id: UUID, title: str | None = None, status: str | None = None):
@@ -621,23 +638,23 @@ class MemoryRepository:
         return self.get_by_id(mem_id)
 
     def list_by_agent(self, agent_id: UUID, memory_type: MemoryType | None = None) -> list[AgentMemoryResponse]:
-        engine = get_database_engine()
         query = "SELECT * FROM agent_memories WHERE agent_id = :agent_id"
         params: dict = {"agent_id": agent_id}
         if memory_type:
             query += " AND memory_type = :memory_type"
             params["memory_type"] = memory_type.value
         query += " ORDER BY importance DESC, updated_at DESC"
-        rows = engine.execute(text(query), params).mappings().all()
+        rows = _execute_read(text(query), params, mappings=True)
         return [_mem_row(row) for row in rows]
 
     def get_by_id(self, mem_id: UUID) -> AgentMemoryResponse | None:
-        engine = get_database_engine()
-        rows = engine.execute(
-            text("SELECT * FROM agent_memories WHERE id = :id"), dict(id=mem_id)
-        ).mappings().all()
+        rows = _execute_read(
+            text("SELECT * FROM agent_memories WHERE id = :id"),
+            dict(id=mem_id),
+            mappings=True,
+        )
         if rows:
-            # increment access count
+            engine = get_database_engine()
             with engine.begin() as conn:
                 conn.execute(
                     text("UPDATE agent_memories SET access_count = access_count + 1, last_accessed_at = :now WHERE id = :id"),
@@ -742,17 +759,19 @@ class CustomAgentRunRepository:
             )
 
     def get_run(self, run_id: UUID) -> CustomAgentRunResponse | None:
-        engine = get_database_engine()
-        rows = engine.execute(
-            text("SELECT * FROM custom_agent_runs WHERE id = :id"), dict(id=run_id)
-        ).mappings().all()
+        rows = _execute_read(
+            text("SELECT * FROM custom_agent_runs WHERE id = :id"),
+            dict(id=run_id),
+            mappings=True,
+        )
         if not rows:
             return None
         row = rows[0]
-        step_rows = engine.execute(
+        step_rows = _execute_read(
             text("SELECT * FROM custom_agent_run_steps WHERE run_id = :run_id ORDER BY step_order"),
             dict(run_id=run_id),
-        ).mappings().all()
+            mappings=True,
+        )
         steps = [_run_step_row(s) for s in step_rows]
         return CustomAgentRunResponse(
             id=row["id"], workspace_id=row["workspace_id"], agent_id=row["agent_id"],
@@ -780,21 +799,21 @@ class AgentTemplateRepository:
     """Data access for agent_templates table."""
 
     def list_templates(self, category: str | None = None) -> list[AgentTemplateResponse]:
-        engine = get_database_engine()
         query = "SELECT * FROM agent_templates WHERE is_public = true"
         params: dict = {}
         if category:
             query += " AND category = :category"
             params["category"] = category
         query += " ORDER BY usage_count DESC"
-        rows = engine.execute(text(query), params).mappings().all()
+        rows = _execute_read(text(query), params, mappings=True)
         return [_template_row(row) for row in rows]
 
     def get_template(self, template_id: UUID) -> AgentTemplateResponse | None:
-        engine = get_database_engine()
-        rows = engine.execute(
-            text("SELECT * FROM agent_templates WHERE id = :id"), dict(id=template_id)
-        ).mappings().all()
+        rows = _execute_read(
+            text("SELECT * FROM agent_templates WHERE id = :id"),
+            dict(id=template_id),
+            mappings=True,
+        )
         return _template_row(rows[0]) if rows else None
 
 

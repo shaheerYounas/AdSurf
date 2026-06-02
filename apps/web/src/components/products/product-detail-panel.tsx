@@ -54,7 +54,7 @@ export function ProductDetailPanel({ productId }: { productId: string }) {
 
   if (error || !product) {
     return (
-      <div className="space-y-3 rounded-md border border-red-200 bg-red-50 p-5 text-sm text-red-800">
+      <div className="space-y-3 rounded-md border border-red-200 bg-red-50 p-5 text-sm text-red-800 dark:border-red-300/25 dark:bg-red-300/10 dark:text-red-100">
         <div className="flex items-center gap-2 font-medium">
           <AlertCircle aria-hidden="true" size={18} />
           Product could not be loaded
@@ -73,12 +73,12 @@ export function ProductDetailPanel({ productId }: { productId: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-md border border-slate-200 bg-white p-5">
+      <div className="rounded-md border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-medium uppercase tracking-wide text-slate-500">Product profile</p>
-            <h3 className="heading-fluid mt-1 font-semibold tracking-normal text-slate-950">{product.product_name}</h3>
-            <p className="mt-2 font-mono text-xs text-slate-500">{product.id}</p>
+            <p className="text-sm font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">Product profile</p>
+            <h3 className="heading-fluid mt-1 font-semibold tracking-normal text-slate-950 dark:text-white">{product.product_name}</h3>
+            <p className="mt-2 font-mono text-xs text-slate-500 dark:text-slate-400">{product.id}</p>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <WorkspaceInput onChange={setWorkspaceId} value={workspaceId} />
@@ -131,11 +131,11 @@ export function ProductDetailPanel({ productId }: { productId: string }) {
         />
       </div>
 
-      <div className="rounded-md border border-slate-200 bg-white p-5">
+      <div className="rounded-md border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-sm font-medium text-slate-900">Upload status</p>
-            <p className="mt-1 text-sm text-slate-600">Processed uploads can be opened for mapping, scoring, campaign generation, and export.</p>
+            <p className="text-sm font-medium text-slate-900 dark:text-white">Upload status</p>
+            <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Processed uploads can be opened for mapping, scoring, campaign generation, and export.</p>
           </div>
           <Link className="rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white" href={`/products/${productId}/uploads`}>
             Manage uploads
@@ -154,18 +154,18 @@ export function ProductDetailPanel({ productId }: { productId: string }) {
 
 function WorkspaceInput({ onChange, value }: { onChange: (value: string) => void; value: string }) {
   return (
-    <label className="space-y-1 text-sm font-medium text-slate-700">
+    <label className="space-y-1 text-sm font-medium text-slate-700 dark:text-slate-200">
       Workspace ID
-      <input className="block w-72 rounded-md border border-slate-300 px-3 py-2 font-mono text-sm" onChange={(event) => onChange(event.target.value)} value={value} />
+      <input className="block w-72 rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => onChange(event.target.value)} value={value} />
     </label>
   );
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-slate-200 p-3">
-      <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className="mt-1 break-words text-sm font-semibold text-slate-950">{value}</dd>
+    <div className="rounded-md border border-slate-200 p-3 dark:border-white/10 dark:bg-white/5">
+      <dt className="text-xs text-slate-500 dark:text-slate-400">{label}</dt>
+      <dd className="mt-1 break-words text-sm font-semibold text-slate-950 dark:text-white">{value}</dd>
     </div>
   );
 }
@@ -184,13 +184,13 @@ function WorkflowCard({
   status: string;
 }) {
   return (
-    <Link className="block rounded-md border border-slate-200 bg-white p-5 hover:border-slate-300 hover:bg-slate-50" href={href}>
-      <div className="flex items-center gap-2 text-sm font-medium text-slate-900">
+    <Link className="block rounded-md border border-slate-200 bg-white p-5 hover:border-slate-300 hover:bg-slate-50 dark:border-white/10 dark:bg-slate-950/70 dark:hover:border-white/20 dark:hover:bg-white/5" href={href}>
+      <div className="flex items-center gap-2 text-sm font-medium text-slate-900 dark:text-slate-200">
         {icon}
         {label}
       </div>
-      <p className="mt-3 text-lg font-semibold text-slate-950">{status}</p>
-      <p className="mt-1 text-sm text-slate-600">{meta}</p>
+      <p className="mt-3 text-lg font-semibold text-slate-950 dark:text-white">{status}</p>
+      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{meta}</p>
     </Link>
   );
 }
