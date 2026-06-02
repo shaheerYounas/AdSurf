@@ -18,7 +18,7 @@ Amazon Ads AI Automation Control Center helps Amazon sellers and agencies conver
 3. System cleans the file and maps columns.
 4. Rule engine calculates relevance score.
 5. System filters bad search terms.
-6. Competitor presence verification is recorded from manual Amazon top-result evidence.
+6. Competitor presence verification is recorded from agentic Amazon browser evidence, including top-result titles/ASINs that rules match automatically to original competitors.
 7. Customer approves keyword list.
 8. System generates Hero, Exact, Phrase, Broad, and negative keyword plan.
 9. System generates Amazon bulk sheet export.
@@ -27,6 +27,8 @@ Amazon Ads AI Automation Control Center helps Amazon sellers and agencies conver
 12. System recommends bid increases, pauses, negatives, and locks.
 13. Customer controls recommendations through approval queue.
 14. Later version connects to Amazon Ads API.
+
+Operators may run the competitor workflow as Full Flow or isolate Phase 1, Phase 2, or Phase 3 when they only need research verification, campaign preparation, or monitoring simulation.
 
 ## Acceptance Criteria
 | Area | Acceptance |

@@ -119,7 +119,28 @@ class CompetitorVerificationEvidenceRow(BaseModel):
     results: list[CompetitorVerificationEvidenceResult] = []
 
 
+class CompetitorVerificationTextEvidenceRow(BaseModel):
+    search_term: str
+    pasted_results: str = Field(default="", max_length=20000)
+
+
 class CompetitorVerificationRequest(BaseModel):
     competitors: list[str | CompetitorReference]
     evidence_rows: list[CompetitorVerificationEvidenceRow] = []
+    evidence_text_rows: list[CompetitorVerificationTextEvidenceRow] = []
     required_match_count: int = Field(default=3, ge=3, le=5)
+    verification_method: str = "manual_amazon_search"
+
+
+class CompetitorAgenticVerificationRequest(BaseModel):
+    competitors: list[str | CompetitorReference]
+    required_match_count: int = Field(default=3, ge=3, le=5)
+    max_keywords: int = Field(default=25, ge=1, le=100)
+    marketplace: str = "US"
+    headless: bool = True
+    timeout_ms: int = Field(default=15000, ge=5000, le=60000)
+
+
+class CompetitorAgenticVerificationResponse(CompetitorVerificationResponse):
+    evidence_rows: list[CompetitorVerificationEvidenceRow] = []
+    verification_method: str = "agentic_browser_search"

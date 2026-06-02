@@ -181,6 +181,15 @@ Campaign generation follows deterministic rules:
 - Rejected terms are excluded.
 - Negative Exact and Negative Phrase rows are created where rules require them.
 
+## Competitor Direct Phases
+The competitor workflow can be run as Full Flow or as a single phase.
+
+Phase 1 uploads, cleans, scores, and verifies competitor research. After scoring, run the Amazon browser verification agent. The agent opens Amazon result pages, captures visible top-result titles/ASINs, and AdSurf automatically checks whether at least three original competitors appear in the top 15 results. The agent does not log in, bypass browser challenges, use stealth scraping, call PAAPI, or execute Amazon Ads changes.
+
+Phase 2 prepares campaign rows only when the upload already has rows that are both `scoring_status=approved` and `verification_status=verified`.
+
+Phase 3 runs the deterministic 14-day monitoring simulation from a campaign name. Any bid or lock output remains a pending recommendation or watch status until reviewed.
+
 ## Approve A Campaign Plan
 Approvers should inspect:
 

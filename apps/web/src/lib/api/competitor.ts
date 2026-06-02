@@ -63,6 +63,11 @@ export type CompetitorVerificationEvidenceRow = {
   }[];
 };
 
+export type CompetitorVerificationTextEvidenceRow = {
+  search_term: string;
+  pasted_results: string;
+};
+
 export type CompetitorUploadResponse = {
   upload: CompetitorUploadRecord;
   cleaned_rows: CompetitorCleanedRow[];
@@ -82,6 +87,11 @@ export type CompetitorVerificationResponse = {
   unverified_count: number;
   total_count: number;
   preview_rows: CompetitorCleanedRow[];
+};
+
+export type CompetitorAgenticVerificationResponse = CompetitorVerificationResponse & {
+  evidence_rows: CompetitorVerificationEvidenceRow[];
+  verification_method: "agentic_browser_search";
 };
 
 export type CampaignGenerationResponse = {
@@ -180,7 +190,13 @@ export async function scoreCompetitorUpload(
 
 export async function verifyCompetitorKeywords(
   uploadId: string,
-  payload: CompetitorReference[] | { competitors: CompetitorReference[]; evidence_rows?: CompetitorVerificationEvidenceRow[]; required_match_count?: number },
+  payload: CompetitorReference[] | {
+    competitors: CompetitorReference[];
+    evidence_rows?: CompetitorVerificationEvidenceRow[];
+    evidence_text_rows?: CompetitorVerificationTextEvidenceRow[];
+    required_match_count?: number;
+    verification_method?: "manual_amazon_search" | "manual_evidence";
+  },
   workspaceId = defaultWorkspaceId,
 ): Promise<CompetitorVerificationResponse> {
   const body = Array.isArray(payload) ? { competitors: payload } : payload;
@@ -190,6 +206,26 @@ export async function verifyCompetitorKeywords(
     body: JSON.stringify(body),
   });
   return readApiData<CompetitorVerificationResponse>(response, "Verification failed.");
+}
+
+export async function verifyCompetitorKeywordsAgentic(
+  uploadId: string,
+  payload: {
+    competitors: CompetitorReference[];
+    required_match_count?: number;
+    max_keywords?: number;
+    marketplace?: string;
+    headless?: boolean;
+    timeout_ms?: number;
+  },
+  workspaceId = defaultWorkspaceId,
+): Promise<CompetitorAgenticVerificationResponse> {
+  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/competitor-uploads/${uploadId}/verify-agentic`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...localAuthHeaders(workspaceId) },
+    body: JSON.stringify(payload),
+  });
+  return readApiData<CompetitorAgenticVerificationResponse>(response, "Agentic browser verification failed.");
 }
 
 export async function generateCampaignsFromVerified(

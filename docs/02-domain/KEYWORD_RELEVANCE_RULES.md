@@ -3,7 +3,7 @@
 ## Definition
 Relevance Score equals `count(top_10_competitors where organic_rank < 15)`.
 
-Batch 6 calculates Relevance Score deterministically from an approved manual column mapping snapshot that identifies `search_term`, `search_volume`, and 1-10 competitor rank columns. Batch 7 adds manual keyword review, override reasons, and immutable approved keyword set snapshots. Competitor-direct workflows add a separate manual Amazon top-result evidence check before campaign generation. The scoring rule itself does not use AI, semantic relevance judgment, campaign generation, exports, monitoring, recommendations, or Amazon Ads API execution.
+Batch 6 calculates Relevance Score deterministically from an approved manual column mapping snapshot that identifies `search_term`, `search_volume`, and 1-10 competitor rank columns. Batch 7 adds manual keyword review, override reasons, and immutable approved keyword set snapshots. Competitor-direct workflows add a separate Amazon top-result evidence check before campaign generation. In that check, a bounded browser verification agent opens Amazon result pages and captures visible top-result titles/ASINs; rules automatically match those results to the original competitors by name or ASIN. The scoring and verification rules do not use semantic relevance judgment, PAAPI, campaign generation, exports, monitoring, recommendations, Amazon Ads API execution, login, CAPTCHA bypass, or stealth scraping.
 
 ## Required Input Shape
 | Field | Required | Notes |

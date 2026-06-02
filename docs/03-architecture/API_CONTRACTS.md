@@ -139,6 +139,57 @@ Account import endpoints:
 
 Account import creation creates a durable workflow and schedules recommendation-only graph analysis. It does not run live Amazon Ads actions, approve/reject recommendations, or generate exports.
 
+Competitor-direct phase endpoints:
+
+| Phase | Route | Purpose |
+| --- | --- | --- |
+| Phase 1 | `POST /v1/workspaces/{workspace_id}/competitor-uploads` | Upload and clean competitor research CSV. |
+| Phase 1 | `POST /v1/workspaces/{workspace_id}/competitor-uploads/{upload_id}/score` | Deterministically score competitor rank columns. |
+| Phase 1 | `POST /v1/workspaces/{workspace_id}/competitor-uploads/{upload_id}/verify-agentic` | Verify approved terms with the Amazon browser evidence agent. |
+| Phase 1 fallback | `POST /v1/workspaces/{workspace_id}/competitor-uploads/{upload_id}/verify` | Verify approved terms from provided structured or pasted evidence. |
+| Phase 2 | `POST /v1/workspaces/{workspace_id}/competitor-uploads/{upload_id}/generate-campaigns` | Prepare campaign rows from `approved + verified` terms only. |
+| Phase 3 | `POST /v1/workspaces/{workspace_id}/monitoring/14day-simulation` | Preview deterministic 14-day monitoring recommendations. |
+
+Primary competitor verification request:
+
+```json
+{
+  "competitors": [
+    { "name": "Acme Coffee", "asin": "B0ACME1111" },
+    "Bean Lab"
+  ],
+  "required_match_count": 3,
+  "max_keywords": 25,
+  "marketplace": "US",
+  "headless": true
+}
+```
+
+`verify-agentic` opens Amazon search result pages through a bounded browser automation agent, extracts visible title/ASIN evidence for the top 15 results, stores that evidence, and then uses deterministic verification. It does not log in, bypass CAPTCHA/browser challenges, use stealth plugins, call PAAPI, mutate Amazon Ads, approve an export, or bypass human approval. If browser automation is unavailable or Amazon returns a challenge, the endpoint fails with an auditable error instead of bypassing it.
+
+Local operation requires Python Playwright and a Chromium browser install: `python -m pip install playwright` and `python -m playwright install chromium`.
+
+The fallback verification endpoint accepts either structured evidence rows or pasted evidence rows:
+
+```json
+{
+  "competitors": [
+    { "name": "Acme Coffee", "asin": "B0ACME1111" },
+    "Bean Lab"
+  ],
+  "evidence_text_rows": [
+    {
+      "search_term": "coffee beans",
+      "pasted_results": "1. Acme Coffee organic whole beans B0ACME1111\n2. Bean Lab medium roast B0BEAN2222"
+    }
+  ],
+  "required_match_count": 3,
+  "verification_method": "manual_amazon_search"
+}
+```
+
+`manual_amazon_search` is a fallback mode for externally provided evidence. The service parses at most the top 15 lines per term, matches original competitors by ASIN or name inside titles, stores the evidence, and returns `verified` only when the required distinct competitor count is met.
+
 Workflow endpoints:
 
 | Method | Route | Purpose |

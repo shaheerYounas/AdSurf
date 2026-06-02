@@ -354,7 +354,7 @@ class TestBulkOperationsWorkbook:
             evidence_json={},
             proposed_action_json={"action": "increase_bid", "action_level": "targeting"},
             explanation_json={"summary": "Test increase bid recommendation."},
-            created_at=rec_created_at := None,  # type: ignore[arg-type]
+            created_at=(rec_created_at := None),  # type: ignore[arg-type]
             updated_at=rec_created_at,
         )
 
@@ -378,4 +378,3 @@ class TestBulkOperationsWorkbook:
         original_stat = BULK_FILE.stat()
         original_size = original_stat.st_size
         original_mtime = original_stat.st_mtime
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, FileSearch, Loader2, Play, ShieldCheck, UploadCloud } from "lucide-react";
+import { Activity, Bot, CheckCircle2, FileSearch, Loader2, Play, UploadCloud } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
@@ -8,13 +8,16 @@ import { defaultWorkspaceId } from "@/lib/api/client";
 import {
   generateCampaignsFromVerified,
   getCompetitorCleanedRows,
+  getCompetitorUpload,
   scoreCompetitorUpload,
+  simulate14DayMonitoring,
   uploadCompetitorCsv,
-  verifyCompetitorKeywords,
+  verifyCompetitorKeywordsAgentic,
   type CampaignGenerationResponse,
   type CompetitorCleanedRow,
   type CompetitorUploadRecord,
   type CompetitorVerificationEvidenceRow,
+  type MonitoringDayResult,
 } from "@/lib/api/competitor";
 import { getProductProfile } from "@/lib/api/products";
 
@@ -22,26 +25,23 @@ type CompetitorWorkflowProps = {
   productId: string;
 };
 
-const sampleEvidence = `[
-  {
-    "search_term": "coffee beans",
-    "results": [
-      { "position": 1, "title": "Competitor A beans", "asin": "B0AAA", "matched_competitor_name": "Competitor A" },
-      { "position": 4, "title": "Competitor B beans", "asin": "B0BBB", "matched_competitor_name": "Competitor B" },
-      { "position": 9, "title": "Competitor C beans", "asin": "B0CCC", "matched_competitor_name": "Competitor C" }
-    ]
-  }
-]`;
+type WorkflowPhase = "full" | "phase1" | "phase2" | "phase3";
 
 export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
   const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId);
+  const [phase, setPhase] = useState<WorkflowPhase>("full");
   const [productName, setProductName] = useState("Product");
   const [file, setFile] = useState<File | null>(null);
   const [upload, setUpload] = useState<CompetitorUploadRecord | null>(null);
+  const [existingUploadId, setExistingUploadId] = useState("");
   const [rows, setRows] = useState<CompetitorCleanedRow[]>([]);
   const [competitorsText, setCompetitorsText] = useState("");
-  const [evidenceText, setEvidenceText] = useState(sampleEvidence);
+  const [marketplace, setMarketplace] = useState("US");
+  const [maxKeywords, setMaxKeywords] = useState(25);
+  const [agentEvidenceRows, setAgentEvidenceRows] = useState<CompetitorVerificationEvidenceRow[]>([]);
   const [campaignPlan, setCampaignPlan] = useState<CampaignGenerationResponse | null>(null);
+  const [monitoringCampaignName, setMonitoringCampaignName] = useState("");
+  const [monitoringDays, setMonitoringDays] = useState<MonitoringDayResult[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isWorking, setIsWorking] = useState(false);
@@ -62,6 +62,10 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
       { approved: 0, verified: 0, unverified: 0 },
     );
   }, [rows]);
+  const approvedRows = useMemo(() => rows.filter((row) => row.scoring_status === "approved" && row.search_term), [rows]);
+  const showPhase1 = phase === "full" || phase === "phase1";
+  const showPhase2 = phase === "full" || phase === "phase2";
+  const showPhase3 = phase === "full" || phase === "phase3";
 
   async function loadProduct() {
     setIsLoading(true);
@@ -82,6 +86,26 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
     setRows(response.rows);
   }
 
+  async function handleLoadExistingUpload() {
+    if (!existingUploadId.trim()) {
+      setMessage("Enter an existing competitor upload ID.");
+      return;
+    }
+    setIsWorking(true);
+    setMessage(null);
+    try {
+      const loadedUpload = await getCompetitorUpload(existingUploadId.trim(), workspaceId);
+      setUpload(loadedUpload);
+      await refreshRows(loadedUpload.id);
+      setCampaignPlan(null);
+      setMessage("Loaded existing competitor upload. You can continue the selected phase.");
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "Existing upload could not be loaded.");
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
   async function handleUpload() {
     if (!file) {
       setMessage("Choose a competitor CSV first.");
@@ -92,6 +116,7 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
     try {
       const response = await uploadCompetitorCsv(file, workspaceId);
       setUpload(response.upload);
+      setExistingUploadId(response.upload.id);
       setRows(response.cleaned_rows);
       setCampaignPlan(null);
       setMessage(`Uploaded and cleaned ${response.total_rows} rows.`);
@@ -120,7 +145,7 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
     }
   }
 
-  async function handleVerify() {
+  async function handleAgenticVerify() {
     if (!upload) {
       setMessage("Upload and score a competitor file first.");
       return;
@@ -133,12 +158,18 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
     setIsWorking(true);
     setMessage(null);
     try {
-      const evidenceRows = JSON.parse(evidenceText || "[]") as CompetitorVerificationEvidenceRow[];
-      const response = await verifyCompetitorKeywords(upload.id, { competitors, evidence_rows: evidenceRows, required_match_count: 3 }, workspaceId);
+      const response = await verifyCompetitorKeywordsAgentic(upload.id, {
+        competitors,
+        required_match_count: 3,
+        max_keywords: maxKeywords,
+        marketplace,
+        headless: true,
+      }, workspaceId);
       setRows(response.preview_rows);
-      setMessage(`Verified ${response.verified_count} rows. ${response.unverified_count} rows remain unverified.`);
+      setAgentEvidenceRows(response.evidence_rows);
+      setMessage(`Verification agent checked ${response.evidence_rows.length} Amazon searches and verified ${response.verified_count} rows. ${response.unverified_count} rows remain unverified.`);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Verification failed.");
+      setMessage(caught instanceof Error ? caught.message : "Agentic browser verification failed.");
     } finally {
       setIsWorking(false);
     }
@@ -154,9 +185,29 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
     try {
       const response = await generateCampaignsFromVerified(upload.id, { product_id: productId, product_name: productName, batch_size: 7, daily_budget: 10, default_bid: 1 }, workspaceId);
       setCampaignPlan(response);
+      setMonitoringCampaignName(response.hero_campaign_name);
       setMessage(`Generated ${response.campaign_count} approval-controlled campaigns.`);
     } catch (caught) {
       setMessage(caught instanceof Error ? caught.message : "Campaign generation failed.");
+    } finally {
+      setIsWorking(false);
+    }
+  }
+
+  async function handleSimulateMonitoring() {
+    const campaignName = monitoringCampaignName.trim() || campaignPlan?.hero_campaign_name;
+    if (!campaignName) {
+      setMessage("Enter a campaign name or generate campaigns first.");
+      return;
+    }
+    setIsWorking(true);
+    setMessage(null);
+    try {
+      const response = await simulate14DayMonitoring({ product_id: productId, campaign_name: campaignName, daily_budget: 10, starting_bid: 1 }, workspaceId);
+      setMonitoringDays(response);
+      setMessage(`Simulated ${response.length} monitoring days. Recommendations remain approval-gated.`);
+    } catch (caught) {
+      setMessage(caught instanceof Error ? caught.message : "14-day monitoring simulation failed.");
     } finally {
       setIsWorking(false);
     }
@@ -166,6 +217,22 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
 
   return (
     <div className="space-y-5">
+      <div className="rounded-md border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
+        <div className="mb-4 flex flex-wrap gap-2" role="tablist" aria-label="Workflow phase">
+          <PhaseButton current={phase} value="full" label="Full flow" onChange={setPhase} />
+          <PhaseButton current={phase} value="phase1" label="Phase 1" onChange={setPhase} />
+          <PhaseButton current={phase} value="phase2" label="Phase 2" onChange={setPhase} />
+          <PhaseButton current={phase} value="phase3" label="Phase 3" onChange={setPhase} />
+        </div>
+        <p className="mb-4 text-sm text-slate-600 dark:text-slate-300">
+          {phase === "phase1" ? "Phase 1 cleans, scores, and verifies competitor keywords with the Amazon browser verification agent." : null}
+          {phase === "phase2" ? "Phase 2 prepares campaign rows only from approved and verified keywords." : null}
+          {phase === "phase3" ? "Phase 3 runs the deterministic 14-day monitoring loop for a campaign name." : null}
+          {phase === "full" ? "Full flow runs competitor research, campaign preparation, and 14-day monitoring preparation behind approval boundaries." : null}
+        </p>
+      </div>
+
+      {showPhase1 ? (
       <div className="rounded-md border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
           <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -193,7 +260,24 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
           </Button>
         </div>
       </div>
+      ) : null}
 
+      {showPhase2 ? (
+      <div className="rounded-md border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
+        <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+            Existing upload ID for phase 2
+            <input className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setExistingUploadId(event.target.value)} placeholder="Paste competitor upload ID" value={existingUploadId} />
+          </label>
+          <Button className="mt-7 inline-flex items-center gap-2" disabled={isWorking} onClick={handleLoadExistingUpload} type="button" variant="secondary">
+            <FileSearch aria-hidden="true" size={16} />
+            Load upload
+          </Button>
+        </div>
+      </div>
+      ) : null}
+
+      {showPhase1 ? (
       <div className="rounded-md border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
         <div className="grid gap-4 lg:grid-cols-2">
           <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
@@ -201,21 +285,66 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
             <textarea className="min-h-28 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setCompetitorsText(event.target.value)} placeholder="Competitor A, Competitor B, Competitor C" value={competitorsText} />
           </label>
           <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-            Top-result evidence JSON
-            <textarea className="min-h-28 w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-xs text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setEvidenceText(event.target.value)} value={evidenceText} />
+            Marketplace
+            <select className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setMarketplace(event.target.value)} value={marketplace}>
+              <option value="US">Amazon US</option>
+              <option value="CA">Amazon CA</option>
+              <option value="UK">Amazon UK</option>
+              <option value="DE">Amazon DE</option>
+              <option value="FR">Amazon FR</option>
+              <option value="IT">Amazon IT</option>
+              <option value="ES">Amazon ES</option>
+            </select>
           </label>
         </div>
+        <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-slate-950 dark:text-white">Agentic Amazon browser verification</p>
+              <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
+                The agent opens Amazon search pages, reads the visible top 15 results, stores the extracted evidence, and rules verify competitor matches. It does not log in, bypass challenges, scrape with stealth, or execute Amazon Ads changes.
+              </p>
+            </div>
+            <label className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
+              Max keywords
+              <input className="block w-24 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" max={100} min={1} onChange={(event) => setMaxKeywords(Number(event.target.value))} type="number" value={maxKeywords} />
+            </label>
+          </div>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <Metric label="Approved to search" value={String(Math.min(approvedRows.length, maxKeywords))} />
+            <Metric label="Top results per term" value="15" />
+            <Metric label="Required matches" value="3" />
+          </div>
+          {agentEvidenceRows.length ? (
+            <div className="mt-4 rounded-md border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-slate-950/70">
+              <p className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Evidence extracted</p>
+              <p className="mt-1 text-sm text-slate-700 dark:text-slate-200">{agentEvidenceRows.length} search pages checked by the browser agent.</p>
+            </div>
+          ) : null}
+        </div>
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button className="inline-flex items-center gap-2" disabled={!upload || isWorking} onClick={handleVerify} type="button" variant="accent">
-            <ShieldCheck aria-hidden="true" size={16} />
-            Verify
+          <Button className="inline-flex items-center gap-2" disabled={!upload || isWorking} onClick={handleAgenticVerify} type="button" variant="accent">
+            {isWorking ? <Loader2 aria-hidden="true" className="animate-spin" size={16} /> : <Bot aria-hidden="true" size={16} />}
+            Run verification agent
           </Button>
+        </div>
+      </div>
+      ) : null}
+
+      {showPhase2 ? (
+      <div className="rounded-md border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-slate-950 dark:text-white">Phase 2 campaign preparation</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Uses only rows with approved scoring and verified browser-agent evidence.</p>
+          </div>
           <Button className="inline-flex items-center gap-2" disabled={!upload || rowCounts.verified === 0 || isWorking} onClick={handleGenerateCampaigns} type="button" variant="success">
             <Play aria-hidden="true" size={16} />
             Generate campaigns
           </Button>
         </div>
       </div>
+      ) : null}
 
       {message ? <p className="rounded-md bg-slate-100 px-3 py-2 text-sm text-slate-800 dark:bg-white/10 dark:text-slate-100">{message}</p> : null}
 
@@ -279,7 +408,62 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
           </div>
         </div>
       ) : null}
+
+      {showPhase3 ? (
+        <div className="rounded-md border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+            <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+              Campaign name for phase 3
+              <input className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setMonitoringCampaignName(event.target.value)} placeholder="Product / SP / Manual / Exact / keyword / Jun 2" value={monitoringCampaignName} />
+            </label>
+            <Button className="mt-7 inline-flex items-center gap-2" disabled={isWorking} onClick={handleSimulateMonitoring} type="button" variant="secondary">
+              <Activity aria-hidden="true" size={16} />
+              Simulate 14 days
+            </Button>
+          </div>
+          {monitoringDays.length ? (
+            <div className="mt-4 overflow-x-auto">
+              <table className="min-w-full text-left text-xs">
+                <thead className="uppercase text-slate-500 dark:text-slate-400">
+                  <tr>
+                    <th className="px-3 py-2">Day</th>
+                    <th className="px-3 py-2">Spend</th>
+                    <th className="px-3 py-2">Action</th>
+                    <th className="px-3 py-2">Suggested bid</th>
+                    <th className="px-3 py-2">Locked</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-white/10">
+                  {monitoringDays.map((day) => (
+                    <tr key={day.day}>
+                      <td className="px-3 py-2">{day.day}</td>
+                      <td className="px-3 py-2">${day.spend}</td>
+                      <td className="px-3 py-2">{day.action}</td>
+                      <td className="px-3 py-2">${day.suggested_bid}</td>
+                      <td className="px-3 py-2">{day.locked ? "yes" : "no"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function PhaseButton({ current, value, label, onChange }: { current: WorkflowPhase; value: WorkflowPhase; label: string; onChange: (value: WorkflowPhase) => void }) {
+  return (
+    <button
+      aria-selected={current === value}
+      className={`rounded-md border px-3 py-2 text-sm font-semibold transition ${current === value ? "border-slate-950 bg-slate-950 text-white dark:border-white dark:bg-white dark:text-slate-950" : "border-slate-200 bg-white text-slate-700 hover:border-slate-400 dark:border-white/10 dark:bg-white/5 dark:text-slate-200"}`}
+      onClick={() => onChange(value)}
+      role="tab"
+      type="button"
+    >
+      {label}
+    </button>
   );
 }
 

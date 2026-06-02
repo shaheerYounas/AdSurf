@@ -14,7 +14,7 @@ from apps.api.app.core.errors import ApiError
 from apps.api.app.domain.uploads import build_upload_storage_path, sanitize_upload_filename
 from apps.api.app.repositories.audit_logs import AuditLogRepository, get_audit_log_repository
 from apps.api.app.repositories.competitor_cleaned import CompetitorCleanedRepository, get_competitor_cleaned_repository
-from apps.api.app.schemas.competitor_cleaned import CompetitorCleanedRowsResponse, CampaignGenerationResponse, CompetitorScoringResponse, CompetitorUpload, CompetitorUploadResponse, CompetitorVerificationRequest, CompetitorVerificationResponse
+from apps.api.app.schemas.competitor_cleaned import CompetitorAgenticVerificationRequest, CompetitorAgenticVerificationResponse, CompetitorCleanedRowsResponse, CampaignGenerationResponse, CompetitorScoringResponse, CompetitorUpload, CompetitorUploadResponse, CompetitorVerificationRequest, CompetitorVerificationResponse
 from apps.api.app.schemas.envelope import success_response
 from apps.api.app.services.competitor_campaign_gen import CompetitorCampaignGenerationService
 from apps.api.app.services.competitor_cleaner import CompetitorCleanerService
@@ -153,7 +153,9 @@ def verify_competitor_keywords(
         upload_id=upload_id,
         competitors=payload.competitors,
         evidence_rows=payload.evidence_rows,
+        evidence_text_rows=payload.evidence_text_rows,
         required_match_count=payload.required_match_count,
+        verification_method=payload.verification_method,
     )
     audit_repository.record(
         workspace_id=workspace_id, actor_user_id=principal.user_id,
@@ -161,7 +163,7 @@ def verify_competitor_keywords(
         details={
             "verified_count": result.verified_count,
             "unverified_count": result.unverified_count,
-            "verification_method": "manual_evidence",
+            "verification_method": payload.verification_method,
             "required_match_count": payload.required_match_count,
         },
     )
@@ -172,6 +174,56 @@ def verify_competitor_keywords(
         unverified_count=result.unverified_count,
         total_count=result.total_count,
         preview_rows=result.preview_rows,
+    ).model_dump(mode="json"))
+
+
+@router.post("/workspaces/{workspace_id}/competitor-uploads/{upload_id}/verify-agentic")
+def verify_competitor_keywords_agentic(
+    workspace_id: UUID,
+    upload_id: UUID,
+    payload: CompetitorAgenticVerificationRequest = Body(...),
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    repository: CompetitorCleanedRepository = Depends(get_competitor_cleaned_repository),
+    audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
+    verifier = CompetitorVerificationService(repository=repository)
+    result, evidence_rows = verifier.verify_with_browser_agent(
+        workspace_id=workspace_id,
+        upload_id=upload_id,
+        competitors=payload.competitors,
+        required_match_count=payload.required_match_count,
+        max_keywords=payload.max_keywords,
+        marketplace=payload.marketplace,
+        headless=payload.headless,
+        timeout_ms=payload.timeout_ms,
+    )
+    audit_repository.record(
+        workspace_id=workspace_id,
+        actor_user_id=principal.user_id,
+        action="competitor_upload.agentic_verified",
+        entity_type="competitor_upload",
+        entity_id=upload_id,
+        details={
+            "verified_count": result.verified_count,
+            "unverified_count": result.unverified_count,
+            "verification_method": "agentic_browser_search",
+            "required_match_count": payload.required_match_count,
+            "max_keywords": payload.max_keywords,
+            "marketplace": payload.marketplace,
+            "evidence_row_count": len(evidence_rows),
+            "executes_live_amazon_change": False,
+        },
+    )
+    upload = repository.get_upload(workspace_id=workspace_id, upload_id=upload_id)
+    return success_response(data=CompetitorAgenticVerificationResponse(
+        upload=upload,
+        verified_count=result.verified_count,
+        unverified_count=result.unverified_count,
+        total_count=result.total_count,
+        preview_rows=result.preview_rows,
+        evidence_rows=evidence_rows,
     ).model_dump(mode="json"))
 
 

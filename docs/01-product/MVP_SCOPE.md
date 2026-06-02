@@ -33,10 +33,12 @@
 | Later scope | Multi-marketplace defaults, currency conversion, and marketplace-specific bulk sheet variations. |
 
 ## Competitor Verification
-- Competitor presence verification uses manual Amazon top-result evidence in MVP.
-- Evidence is accepted per search term as positions 1-15 with explicit matched competitor name or ASIN.
+- Competitor presence verification uses an agentic Amazon browser verification workflow in MVP.
+- Evidence is accepted per search term as positions 1-15 with browser-extracted title/ASIN evidence, explicit matched competitor name/ASIN, or fallback pasted result titles/ASINs.
+- In the agentic workflow, AdSurf opens Amazon search result pages through a bounded browser agent, reads visible top results, and automatically matches competitor names or ASINs against the original competitor list. AdSurf does not call PAAPI, log in, bypass browser challenges, use stealth scraping, or execute live Amazon Ads actions.
 - A keyword is verified when at least 3 distinct original competitors are present in the top 15 evidence rows.
 - Campaign generation from the competitor-direct workflow requires both `scoring_status=approved` and `verification_status=verified`.
+- The competitor workflow can be run as Full Flow or as a single selected phase: Phase 1 research/verification, Phase 2 campaign preparation, or Phase 3 14-day monitoring simulation.
 - Verification does not execute live Amazon Ads changes and remains auditable evidence for approval-controlled campaign export.
 
 ## Customer Override Policy
