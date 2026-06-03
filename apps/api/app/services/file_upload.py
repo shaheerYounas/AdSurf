@@ -9,8 +9,6 @@ from uuid import UUID, uuid4
 
 from apps.api.app.core.errors import ApiError
 from apps.api.app.domain.uploads import (
-    ACCEPTED_UPLOAD_EXTENSIONS,
-    ACCEPTED_UPLOAD_MIME_TYPES,
     MAX_UPLOAD_FILE_SIZE_BYTES,
     build_upload_storage_path,
     sanitize_upload_filename,
@@ -19,6 +17,13 @@ from apps.api.app.schemas.uploads import UploadInitRequest, UploadRecord, Upload
 from apps.api.app.repositories.uploads import UploadRepository
 from apps.api.app.services.storage import StorageService
 from apps.api.app.services.upload_parser import UploadParser
+
+UPLOAD_ONLY_ACCEPTED_EXTENSIONS = {".csv", ".xlsx"}
+UPLOAD_ONLY_ACCEPTED_MIME_TYPES = {
+    "text/csv",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
 
 
 @dataclass(frozen=True)
@@ -180,23 +185,23 @@ class FileUploadService:
             )
 
         # Type checks
-        if mime_type not in ACCEPTED_UPLOAD_MIME_TYPES:
+        if mime_type not in UPLOAD_ONLY_ACCEPTED_MIME_TYPES:
             raise ApiError(
                 code="UNSUPPORTED_UPLOAD_MIME_TYPE",
                 message="Upload MIME type is not supported.",
                 status_code=400,
-                details={"accepted_mime_types": sorted(ACCEPTED_UPLOAD_MIME_TYPES)},
+                details={"accepted_mime_types": sorted(UPLOAD_ONLY_ACCEPTED_MIME_TYPES)},
             )
 
         sanitized = sanitize_upload_filename(original_filename)
 
         extension = _extension_for(sanitized)
-        if extension not in ACCEPTED_UPLOAD_EXTENSIONS:
+        if extension not in UPLOAD_ONLY_ACCEPTED_EXTENSIONS:
             raise ApiError(
                 code="UNSUPPORTED_UPLOAD_EXTENSION",
                 message="Upload file extension is not supported.",
                 status_code=400,
-                details={"accepted_extensions": sorted(ACCEPTED_UPLOAD_EXTENSIONS)},
+                details={"accepted_extensions": sorted(UPLOAD_ONLY_ACCEPTED_EXTENSIONS)},
             )
 
         return sanitized

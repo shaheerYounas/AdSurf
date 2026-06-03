@@ -7,7 +7,7 @@ describe("dashboard page", () => {
 
     expect(source).toContain("getDashboardSummary");
     expect(source).toContain("Loader2");
-    expect(source).toContain("Loading dashboard data from Supabase");
+    expect(source).toContain("Gathering your workspace data");
     expect(source).toContain("formatApiError");
     expect(source).toContain("ErrorNotice");
     expect(source).toContain("Recommendation only");

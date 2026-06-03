@@ -34,13 +34,20 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
     }
 
     setIsRefreshing(true);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
     try {
-      const loadedSummary = await getDashboardSummary(workspaceId);
+      const loadedSummary = await getDashboardSummary(workspaceId, { signal: controller.signal });
       setCachedData("dashboard:summary", loadedSummary, 120_000);
       setSummary(loadedSummary);
     } catch (caught) {
-      setError(formatApiError(caught, "Dashboard could not be loaded."));
+      if (caught instanceof DOMException && caught.name === "AbortError") {
+        setError("The dashboard request timed out. The database may be under load — please try refreshing.");
+      } else {
+        setError(formatApiError(caught, "Dashboard could not be loaded."));
+      }
     } finally {
+      clearTimeout(timeout);
       setIsRefreshing(false);
     }
   }
@@ -73,7 +80,7 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
       {isSyncingInitialData ? (
         <div className="flex items-center gap-2 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-950 shadow-sm dark:border-sky-300/25 dark:bg-sky-300/10 dark:text-sky-100" role="status" aria-live="polite">
           <Loader2 aria-hidden="true" className="animate-spin" size={18} />
-          Loading dashboard data from Supabase. You can continue using the app while the numbers refresh.
+          Gathering your workspace data. Feel free to explore — numbers will appear shortly.
         </div>
       ) : null}
 

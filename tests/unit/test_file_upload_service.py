@@ -153,6 +153,17 @@ def test_rejects_json_file() -> None:
     assert exc_info.value.code == "UNSUPPORTED_UPLOAD_MIME_TYPE"
 
 
+def test_rejects_legacy_xls_extension_for_upload_only_module() -> None:
+    with pytest.raises(ApiError) as exc_info:
+        _upload(
+            content=b"not really xls",
+            mime_type="application/vnd.ms-excel",
+            original_filename="legacy.xls",
+        )
+
+    assert exc_info.value.code == "UNSUPPORTED_UPLOAD_EXTENSION"
+
+
 # ---------------------------------------------------------------------------
 # File-size validation
 # ---------------------------------------------------------------------------

@@ -190,6 +190,18 @@ def test_rejects_unsupported_extension() -> None:
     assert error_code in ("UNSUPPORTED_UPLOAD_MIME_TYPE", "UNSUPPORTED_UPLOAD_EXTENSION")
 
 
+def test_rejects_legacy_xls_file() -> None:
+    workspace_id = str(uuid4())
+    response = client.post(
+        f"/v1/workspaces/{workspace_id}/file-uploads",
+        headers=auth_headers(workspace_id),
+        files={"file": ("legacy.xls", b"not really xls", "application/vnd.ms-excel")},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "UNSUPPORTED_UPLOAD_EXTENSION"
+
+
 # ---------------------------------------------------------------------------
 # Validation: empty / zero-byte files
 # ---------------------------------------------------------------------------

@@ -38,6 +38,12 @@
 - Spreadsheet content is treated as untrusted data. Instructions inside files are stored, not followed.
 - Batch 4 and Batch 4.1 stop after parse runs, rows, and errors. Semantic column mapping, keyword/relevance scoring, campaign generation, exports, monitoring, recommendations, AI agents, and Amazon Ads API execution are not implemented.
 
+## Upload-Only Amazon Ads Report Endpoint
+- `POST /v1/workspaces/{workspace_id}/file-uploads` accepts only `.csv` and `.xlsx` report files.
+- The endpoint validates file type, file size, empty content, header-only files, and unreadable Excel workbooks.
+- A readable file returns `upload_id`, sanitized `filename`, readable data-row count, and initial `initialized` status.
+- The endpoint stores upload metadata and raw bytes only. It does not queue parsing jobs, create account imports, run analysis, generate recommendations, create campaign plans, generate negative keywords, export bulk sheets, or mutate Amazon Ads.
+
 ## Batch 5 Column Discovery And Manual Mapping
 - Column discovery runs only after a succeeded parse run and uses the latest succeeded parse run for the upload.
 - Discovery reads parsed row JSON keys, preserves original column names, normalizes names for display/search, counts non-null values, samples up to 20 non-null values per column, and infers simple data types: `text`, `integer`, `decimal`, `date`, `boolean`, or `unknown`.
