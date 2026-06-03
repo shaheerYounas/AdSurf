@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine, RowMapping
@@ -52,6 +52,10 @@ class UploadRepository(ABC):
 
     @abstractmethod
     def update_status(self, *, workspace_id: UUID, upload_id: UUID, status: UploadStatus) -> UploadRecord | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_upload(self, *, workspace_id: UUID, upload_id: UUID) -> UploadRecord | None:
         raise NotImplementedError
 
     @abstractmethod
@@ -141,8 +145,6 @@ class LocalUploadRepository(UploadRepository):
         current = self.get(workspace_id=workspace_id, upload_id=upload_id)
         if current is None:
             return None
-        if current.status != UploadStatus.INITIALIZED:
-            return current
         updated = current.model_copy(
             update={
                 "status": UploadStatus.QUEUED_FOR_PROCESSING,
@@ -160,6 +162,13 @@ class LocalUploadRepository(UploadRepository):
         updated = current.model_copy(update={"status": status, "updated_at": datetime.now(UTC)})
         self._uploads[workspace_id][upload_id] = updated
         return updated
+
+    def delete_upload(self, *, workspace_id: UUID, upload_id: UUID) -> UploadRecord | None:
+        current = self.get(workspace_id=workspace_id, upload_id=upload_id)
+        if current is None:
+            return None
+        self._uploads.get(workspace_id, {}).pop(upload_id, None)
+        return current
 
     def set_file_hash(self, *, workspace_id: UUID, upload_id: UUID, file_hash: str) -> UploadRecord | None:
         current = self.get(workspace_id=workspace_id, upload_id=upload_id)
@@ -309,8 +318,8 @@ class PostgresUploadRepository(UploadRepository):
                 text(
                     """
                     update uploads
-                    set status = case when status = 'initialized' then 'queued_for_processing' else status end,
-                        confirmed_at = case when status = 'initialized' then now() else confirmed_at end,
+                    set status = 'queued_for_processing',
+                        confirmed_at = coalesce(confirmed_at, now()),
                         updated_at = now()
                     where workspace_id = :workspace_id and id = :upload_id
                     returning id, workspace_id, product_id, uploaded_by, original_filename, storage_path,
@@ -337,6 +346,22 @@ class PostgresUploadRepository(UploadRepository):
                     """
                 ),
                 {"workspace_id": workspace_id, "upload_id": upload_id, "status": status.value},
+            ).mappings().first()
+        return _upload_from_row(row) if row else None
+
+    def delete_upload(self, *, workspace_id: UUID, upload_id: UUID) -> UploadRecord | None:
+        with self._engine.begin() as connection:
+            row = connection.execute(
+                text(
+                    """
+                    delete from uploads
+                    where workspace_id = :workspace_id and id = :upload_id
+                    returning id, workspace_id, product_id, uploaded_by, original_filename, storage_path,
+                        mime_type, file_size_bytes, status, source_type, idempotency_key, created_at,
+                        updated_at, confirmed_at
+                    """
+                ),
+                {"workspace_id": workspace_id, "upload_id": upload_id},
             ).mappings().first()
         return _upload_from_row(row) if row else None
 

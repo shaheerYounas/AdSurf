@@ -13,7 +13,8 @@ describe("reports page", () => {
     expect(componentSource).toContain("listAccountImports");
     expect(componentSource).toContain("getProductMonitoring");
     expect(componentSource).toContain("getRecommendations");
-    expect(componentSource).toContain("Read-only view");
+    expect(componentSource).toContain("Manage uploaded resources");
+    expect(componentSource).toContain("ResourceActionCard");
     expect(sidebarSource).toContain("/reports");
   });
 });

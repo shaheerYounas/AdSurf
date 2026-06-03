@@ -103,6 +103,10 @@ class MonitoringRepository(ABC):
     def list_ai_runs(self, *, workspace_id: UUID, product_id: UUID | None = None, agent_name: str | None = None, limit: int | None = None) -> list[AiRun]:
         raise NotImplementedError
 
+    @abstractmethod
+    def delete_by_upload(self, *, workspace_id: UUID, upload_id: UUID) -> None:
+        raise NotImplementedError
+
 
 class LocalMonitoringRepository(MonitoringRepository):
     def __init__(self) -> None:
@@ -199,6 +203,24 @@ class LocalMonitoringRepository(MonitoringRepository):
         ]
         sorted_runs = sorted(runs, key=lambda run: run.created_at, reverse=True)
         return sorted_runs[:limit] if limit is not None else sorted_runs
+
+    def delete_by_upload(self, *, workspace_id: UUID, upload_id: UUID) -> None:
+        import_ids = [item_id for item_id, item in self._imports.items() if item.workspace_id == workspace_id and item.upload_id == upload_id]
+        for import_id in import_ids:
+            self._imports.pop(import_id, None)
+            for snapshot_id, snapshot in list(self._snapshots.items()):
+                if snapshot.workspace_id == workspace_id and snapshot.monitoring_import_id == import_id:
+                    self._snapshots.pop(snapshot_id, None)
+            recommendation_ids = [
+                recommendation_id
+                for recommendation_id, recommendation in self._recommendations.items()
+                if recommendation.workspace_id == workspace_id and recommendation.monitoring_import_id == import_id
+            ]
+            for recommendation_id in recommendation_ids:
+                self._recommendations.pop(recommendation_id, None)
+                for decision_id, decision in list(self._decisions.items()):
+                    if decision.workspace_id == workspace_id and decision.recommendation_id == recommendation_id:
+                        self._decisions.pop(decision_id, None)
 
 
 class PostgresMonitoringRepository(MonitoringRepository):
@@ -419,6 +441,40 @@ class PostgresMonitoringRepository(MonitoringRepository):
         with self._engine.begin() as connection:
             rows = connection.execute(text(f"select * from ai_runs where {' and '.join(clauses)} order by created_at desc{limit_clause}"), params).mappings().all()
         return [_ai_run_from_row(row) for row in rows]
+
+    def delete_by_upload(self, *, workspace_id: UUID, upload_id: UUID) -> None:
+        with self._engine.begin() as connection:
+            recommendation_ids = [
+                row[0]
+                for row in connection.execute(
+                    text(
+                        """
+                        select r.id
+                        from recommendations r
+                        inner join monitoring_imports mi on mi.id = r.monitoring_import_id
+                        where mi.workspace_id = :workspace_id and mi.upload_id = :upload_id
+                        """
+                    ),
+                    {"workspace_id": workspace_id, "upload_id": upload_id},
+                ).all()
+            ]
+            for recommendation_id in recommendation_ids:
+                connection.execute(
+                    text("delete from recommendation_decisions where workspace_id = :workspace_id and recommendation_id = :recommendation_id"),
+                    {"workspace_id": workspace_id, "recommendation_id": recommendation_id},
+                )
+                connection.execute(
+                    text("delete from recommendations where workspace_id = :workspace_id and id = :recommendation_id"),
+                    {"workspace_id": workspace_id, "recommendation_id": recommendation_id},
+                )
+            connection.execute(
+                text("delete from monitoring_snapshots where workspace_id = :workspace_id and upload_id = :upload_id"),
+                {"workspace_id": workspace_id, "upload_id": upload_id},
+            )
+            connection.execute(
+                text("delete from monitoring_imports where workspace_id = :workspace_id and upload_id = :upload_id"),
+                {"workspace_id": workspace_id, "upload_id": upload_id},
+            )
 
 
 _local_repository = LocalMonitoringRepository()

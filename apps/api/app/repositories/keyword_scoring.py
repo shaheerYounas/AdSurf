@@ -58,6 +58,10 @@ class KeywordScoringRepository(ABC):
     ) -> tuple[list[KeywordCandidate], int]:
         raise NotImplementedError
 
+    @abstractmethod
+    def delete_by_upload(self, *, workspace_id: UUID, upload_id: UUID) -> None:
+        raise NotImplementedError
+
 
 class LocalKeywordScoringRepository(KeywordScoringRepository):
     def __init__(self) -> None:
@@ -164,6 +168,12 @@ class LocalKeywordScoringRepository(KeywordScoringRepository):
         total = len(candidates)
         start = (page - 1) * page_size
         return candidates[start : start + page_size], total
+
+    def delete_by_upload(self, *, workspace_id: UUID, upload_id: UUID) -> None:
+        runs_to_delete = [run_id for run_id, run in self._runs.items() if run.workspace_id == workspace_id and run.upload_id == upload_id]
+        for run_id in runs_to_delete:
+            self._runs.pop(run_id, None)
+            self._candidates.pop(run_id, None)
 
 
 class PostgresKeywordScoringRepository(KeywordScoringRepository):
@@ -341,6 +351,17 @@ class PostgresKeywordScoringRepository(KeywordScoringRepository):
                 params,
             ).mappings().all()
         return [_candidate_from_row(row) for row in rows], int(total)
+
+    def delete_by_upload(self, *, workspace_id: UUID, upload_id: UUID) -> None:
+        with self._engine.begin() as connection:
+            connection.execute(
+                text("delete from keyword_candidates where workspace_id = :workspace_id and upload_id = :upload_id"),
+                {"workspace_id": workspace_id, "upload_id": upload_id},
+            )
+            connection.execute(
+                text("delete from keyword_scoring_runs where workspace_id = :workspace_id and upload_id = :upload_id"),
+                {"workspace_id": workspace_id, "upload_id": upload_id},
+            )
 
 
 _local_repository = LocalKeywordScoringRepository()

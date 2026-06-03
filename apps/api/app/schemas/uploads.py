@@ -14,6 +14,7 @@ class UploadStatus(StrEnum):
     PROCESSED = "processed"
     FAILED = "failed"
     CANCELLED = "cancelled"
+    ARCHIVED = "archived"
 
 
 class UploadSourceType(StrEnum):

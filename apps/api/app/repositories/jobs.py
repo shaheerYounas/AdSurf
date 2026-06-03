@@ -46,6 +46,14 @@ class JobRepository(ABC):
     def update_status(self, *, workspace_id: UUID, job_id: UUID, status: JobStatus, last_error: str | None = None) -> JobRecord | None:
         raise NotImplementedError
 
+    @abstractmethod
+    def delete_upload_jobs(self, *, workspace_id: UUID, upload_id: UUID) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    def clear_queued_jobs(self, *, job_type: str | None = None) -> int:
+        raise NotImplementedError
+
 
 class LocalJobRepository(JobRepository):
     """Local/test repository used only when DATABASE_URL is absent in local/test."""
@@ -137,6 +145,25 @@ class LocalJobRepository(JobRepository):
         updated = current.model_copy(update={"status": status, "updated_at": datetime.now(UTC)})
         self._jobs[workspace_id][job_id] = updated
         return updated
+
+    def delete_upload_jobs(self, *, workspace_id: UUID, upload_id: UUID) -> int:
+        jobs = self._jobs.get(workspace_id, {})
+        job_ids = [job_id for job_id, job in jobs.items() if job.payload_json.get("upload_id") == str(upload_id)]
+        for job_id in job_ids:
+            jobs.pop(job_id, None)
+        return len(job_ids)
+
+    def clear_queued_jobs(self, *, job_type: str | None = None) -> int:
+        removed = 0
+        for _, jobs in list(self._jobs.items()):
+            for job_id, job in list(jobs.items()):
+                if job.status != JobStatus.QUEUED:
+                    continue
+                if job_type is not None and job.job_type != job_type:
+                    continue
+                jobs.pop(job_id, None)
+                removed += 1
+        return removed
 
 
 class PostgresJobRepository(JobRepository):
@@ -310,6 +337,30 @@ class PostgresJobRepository(JobRepository):
                 {"workspace_id": workspace_id, "job_id": job_id, "status": status.value, "last_error": last_error},
             ).mappings().first()
         return _job_from_row(row) if row else None
+
+    def delete_upload_jobs(self, *, workspace_id: UUID, upload_id: UUID) -> int:
+        with self._engine.begin() as connection:
+            deleted = connection.execute(
+                text(
+                    """
+                    delete from job_queue
+                    where workspace_id = :workspace_id
+                      and payload_json ->> 'upload_id' = :upload_id
+                    """
+                ),
+                {"workspace_id": workspace_id, "upload_id": str(upload_id)},
+            )
+        return int(deleted.rowcount or 0)
+
+    def clear_queued_jobs(self, *, job_type: str | None = None) -> int:
+        params: dict[str, object] = {}
+        clause = ["status = 'queued'"]
+        if job_type is not None:
+            clause.append("job_type = :job_type")
+            params["job_type"] = job_type
+        with self._engine.begin() as connection:
+            deleted = connection.execute(text(f"delete from job_queue where {' and '.join(clause)}"), params)
+        return int(deleted.rowcount or 0)
 
 
 _local_repository = LocalJobRepository()

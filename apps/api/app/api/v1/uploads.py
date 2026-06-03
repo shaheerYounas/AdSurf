@@ -1,4 +1,3 @@
-import logging
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, Query, Request, status
@@ -439,6 +438,124 @@ def confirm_upload(
         )
     response = UploadConfirmResponse(upload_id=updated_upload.id, status=updated_upload.status, job_id=job.id)
     return success_response(data=response.model_dump(mode="json"))
+
+
+@router.post("/workspaces/{workspace_id}/uploads/{upload_id}/archive")
+def archive_upload(
+    workspace_id: UUID,
+    upload_id: UUID,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    upload_repository: UploadRepository = Depends(get_upload_repository),
+    job_repository: JobRepository = Depends(get_job_repository),
+    audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
+    upload = upload_repository.get(workspace_id=workspace_id, upload_id=upload_id)
+    if upload is None:
+        raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
+    if upload.status == UploadStatus.PROCESSING:
+        raise ApiError(code="UPLOAD_ARCHIVE_CONFLICT", message="Processing uploads cannot be archived.", status_code=409)
+    job_repository.delete_upload_jobs(workspace_id=workspace_id, upload_id=upload_id)
+    archived_upload = upload_repository.update_status(workspace_id=workspace_id, upload_id=upload_id, status=UploadStatus.ARCHIVED)
+    if archived_upload is None:
+        raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
+    audit_repository.record(
+        workspace_id=workspace_id,
+        actor_user_id=principal.user_id,
+        action="upload.archived",
+        entity_type="upload",
+        entity_id=upload_id,
+        details={"previous_status": upload.status.value},
+    )
+    return success_response(data=archived_upload.model_dump(mode="json"))
+
+
+@router.post("/workspaces/{workspace_id}/uploads/{upload_id}/reprocess")
+def reprocess_upload(
+    workspace_id: UUID,
+    upload_id: UUID,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    upload_repository: UploadRepository = Depends(get_upload_repository),
+    parsing_repository: UploadParsingRepository = Depends(get_upload_parsing_repository),
+    account_import_repository: AccountImportRepository = Depends(get_account_import_repository),
+    monitoring_repository: MonitoringRepository = Depends(get_monitoring_repository),
+    keyword_scoring_repository: KeywordScoringRepository = Depends(get_keyword_scoring_repository),
+    job_repository: JobRepository = Depends(get_job_repository),
+    audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
+    upload = upload_repository.get(workspace_id=workspace_id, upload_id=upload_id)
+    if upload is None:
+        raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
+    if upload.status == UploadStatus.PROCESSING:
+        raise ApiError(code="UPLOAD_NOT_REPROCESSABLE", message="Processing uploads cannot be reprocessed.", status_code=409)
+    deleted_jobs = job_repository.delete_upload_jobs(workspace_id=workspace_id, upload_id=upload_id)
+    parsing_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    account_import_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    monitoring_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    keyword_scoring_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    if upload.status in {UploadStatus.ARCHIVED, UploadStatus.FAILED, UploadStatus.CANCELLED, UploadStatus.PROCESSED}:
+        upload_repository.update_status(workspace_id=workspace_id, upload_id=upload_id, status=UploadStatus.UPLOADED)
+    queued_upload = upload_repository.mark_queued_for_processing(workspace_id=workspace_id, upload_id=upload_id)
+    if queued_upload is None:
+        raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
+    job, job_created = job_repository.enqueue_process_upload(upload=queued_upload)
+    if not job_created:
+        raise ApiError(code="UPLOAD_JOB_CONFLICT", message="Upload already has a processing job.", status_code=409)
+    audit_repository.record(
+        workspace_id=workspace_id,
+        actor_user_id=principal.user_id,
+        action="upload.reprocess_requested",
+        entity_type="upload",
+        entity_id=upload_id,
+        details={"deleted_jobs": deleted_jobs, "job_id": str(job.id), "previous_status": upload.status.value},
+    )
+    return success_response(data={"upload": queued_upload.model_dump(mode="json"), "job_id": str(job.id)})
+
+
+@router.delete("/workspaces/{workspace_id}/uploads/{upload_id}")
+def delete_upload(
+    workspace_id: UUID,
+    upload_id: UUID,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    upload_repository: UploadRepository = Depends(get_upload_repository),
+    parsing_repository: UploadParsingRepository = Depends(get_upload_parsing_repository),
+    account_import_repository: AccountImportRepository = Depends(get_account_import_repository),
+    monitoring_repository: MonitoringRepository = Depends(get_monitoring_repository),
+    keyword_scoring_repository: KeywordScoringRepository = Depends(get_keyword_scoring_repository),
+    job_repository: JobRepository = Depends(get_job_repository),
+    storage_service: StorageService = Depends(get_storage_service),
+    audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
+    upload = upload_repository.get(workspace_id=workspace_id, upload_id=upload_id)
+    if upload is None:
+        raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
+    deleted_jobs = job_repository.delete_upload_jobs(workspace_id=workspace_id, upload_id=upload_id)
+    parsing_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    account_import_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    monitoring_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    keyword_scoring_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    try:
+        storage_service.delete_upload_object(storage_path=upload.storage_path)
+    except ApiError as exc:
+        if exc.status_code != 404:
+            raise
+    deleted_upload = upload_repository.delete_upload(workspace_id=workspace_id, upload_id=upload_id)
+    if deleted_upload is None:
+        raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
+    audit_repository.record(
+        workspace_id=workspace_id,
+        actor_user_id=principal.user_id,
+        action="upload.deleted",
+        entity_type="upload",
+        entity_id=upload_id,
+        details={"deleted_jobs": deleted_jobs, "storage_path": upload.storage_path},
+    )
+    return success_response(data={"deleted": True, "upload_id": str(upload_id)})
 
 
 @router.put("/workspaces/{workspace_id}/uploads/{upload_id}/object")

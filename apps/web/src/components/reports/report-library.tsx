@@ -151,6 +151,26 @@ export function ReportLibrary() {
         </div>
       </div>
 
+      <div className="rounded-2xl border border-indigo-200 bg-[linear-gradient(135deg,#eef2ff,#f8fafc_42%,#ecfeff)] p-5 shadow-sm dark:border-white/10 dark:bg-[linear-gradient(135deg,#020617,#0f172a_45%,#111827)]">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-indigo-700 dark:text-indigo-200">Manage uploaded resources</p>
+            <h2 className="mt-2 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">Open the right view for each uploaded file</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+              Use these entry points to inspect uploads, continue workflows, and jump into downstream analysis without losing workspace context.
+            </p>
+          </div>
+          <p className="text-sm text-slate-500 dark:text-slate-400">{rows.length} uploaded resources tracked in this workspace</p>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <ResourceActionCard href="/products" title="Product hubs" description="Review product profiles and upload status by catalog." />
+          <ResourceActionCard href="/reports" title="Report library" description="Search files, parse runs, and connected analysis records." />
+          <ResourceActionCard href="/recommendations" title="Recommendation queue" description="Review rule output generated from uploaded and monitored data." />
+          <ResourceActionCard href="/agents" title="Workflow console" description="Continue uploads, parsing, and campaign review in one place." />
+        </div>
+      </div>
+
       <div className="grid gap-3 md:grid-cols-4">
         <SummaryCard icon={<FileSpreadsheet size={16} />} label="Total files" value={rows.length} />
         <SummaryCard icon={<CheckCircle2 size={16} />} label="Processed" value={processedCount} />
@@ -214,8 +234,8 @@ export function ReportLibrary() {
 
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-300/20 dark:bg-emerald-300/10 dark:text-emerald-100">
         <ShieldCheck aria-hidden="true" size={17} />
-        <span className="font-semibold">Read-only view.</span>
-        <span>This screen does not approve recommendations, generate exports, or execute Amazon Ads changes.</span>
+        <span className="font-semibold">Review and routing hub.</span>
+        <span>This screen helps you manage uploaded resources and navigate to the right workflow without executing Amazon Ads changes.</span>
       </div>
     </section>
   );
@@ -267,6 +287,7 @@ function ReportRowItem({ row }: { row: ReportRow }) {
         {latestMonitoring ? <MetricLine label="Monitoring import" value={`${humanize(latestMonitoring.status)} / ${formatNumber(latestMonitoring.processed_rows)} rows`} /> : null}
         <MetricLine label="Recommendations" value={formatNumber(row.recommendations.length)} />
         <div className="flex flex-wrap gap-2 pt-1">
+          {upload.product_id ? <Link className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200" href={`/products/${upload.product_id}`}>Product</Link> : null}
           {upload.product_id ? <Link className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200" href={monitoringHref}>Monitoring</Link> : null}
           {row.recommendations.length ? <Link className="rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-300/15 dark:text-indigo-100" href="/recommendations">Recommendations</Link> : null}
         </div>
@@ -284,6 +305,15 @@ function SummaryCard({ icon, label, value }: { icon: React.ReactNode; label: str
       </div>
       <p className="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">{formatNumber(value)}</p>
     </div>
+  );
+}
+
+function ResourceActionCard({ href, title, description }: { href: string; title: string; description: string }) {
+  return (
+    <Link className="rounded-2xl border border-white/60 bg-white/90 p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-indigo-200 hover:shadow-md dark:border-white/10 dark:bg-slate-950/75 dark:hover:border-indigo-300/30" href={href}>
+      <p className="text-sm font-semibold text-slate-950 dark:text-white">{title}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</p>
+    </Link>
   );
 }
 

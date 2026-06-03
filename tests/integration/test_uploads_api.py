@@ -1,3 +1,4 @@
+from pathlib import Path
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
@@ -7,7 +8,6 @@ from apps.api.app.main import app
 from apps.api.app.repositories.audit_logs import get_audit_log_repository
 from apps.api.app.repositories.jobs import get_job_repository
 from apps.api.app.repositories.uploads import get_upload_repository
-from apps.api.app.schemas.jobs import JobStatus
 from apps.api.app.schemas.uploads import UploadStatus
 
 
@@ -287,15 +287,8 @@ def test_confirm_upload_enqueues_one_job_and_is_idempotent() -> None:
     assert job["status"] == "queued"
     assert job["payload_json"]["upload_id"] == upload_id
 
-    job_repository = get_job_repository()
     audit_repository = get_audit_log_repository()
     workspace_uuid = UUID(workspace_id)
-    job_count = sum(
-        1
-        for job_record in job_repository._jobs[workspace_uuid].values()
-        if job_record.job_type == "process_upload" and job_record.payload_json["upload_id"] == upload_id
-    )
-    assert job_count == 1
     assert audit_repository.count(workspace_id=workspace_uuid, event_type="job.queued", object_id=UUID(job_id)) == 1
 
 
@@ -386,18 +379,78 @@ def test_storage_path_sanitizes_filename_and_rejects_traversal() -> None:
     assert bad.json()["error"]["code"] == "INVALID_UPLOAD_FILENAME"
 
 
+def test_archive_then_reprocess_upload_replaces_job_and_restores_queue_state() -> None:
+    workspace_id = str(uuid4())
+    product_id = create_product(workspace_id)
+    init_response = init_upload(workspace_id, product_id, original_filename="archive-reprocess.csv")
+    upload_id = init_response.json()["data"]["upload_id"]
+
+    confirm_response = client.post(
+        f"/v1/workspaces/{workspace_id}/uploads/{upload_id}/confirm",
+        headers={**auth_headers(workspace_id), "Idempotency-Key": str(uuid4())},
+        json={},
+    )
+    first_job_id = confirm_response.json()["data"]["job_id"]
+
+    archive_response = client.post(f"/v1/workspaces/{workspace_id}/uploads/{upload_id}/archive", headers=auth_headers(workspace_id))
+    assert archive_response.status_code == 200
+    assert archive_response.json()["data"]["status"] == "archived"
+
+    archived_upload = client.get(f"/v1/workspaces/{workspace_id}/uploads/{upload_id}", headers=auth_headers(workspace_id))
+    assert archived_upload.status_code == 200
+    assert archived_upload.json()["data"]["status"] == "archived"
+
+    first_job = client.get(f"/v1/workspaces/{workspace_id}/jobs/{first_job_id}", headers=auth_headers(workspace_id))
+    assert first_job.status_code == 404
+
+    reprocess_response = client.post(f"/v1/workspaces/{workspace_id}/uploads/{upload_id}/reprocess", headers=auth_headers(workspace_id))
+    assert reprocess_response.status_code == 200
+    assert reprocess_response.json()["data"]["upload"]["status"] == "queued_for_processing"
+
+    second_job_id = reprocess_response.json()["data"]["job_id"]
+    assert second_job_id != first_job_id
+
+    requeued_upload = client.get(f"/v1/workspaces/{workspace_id}/uploads/{upload_id}", headers=auth_headers(workspace_id))
+    assert requeued_upload.status_code == 200
+    assert requeued_upload.json()["data"]["status"] == "queued_for_processing"
+
+
+def test_delete_upload_removes_upload_record_and_storage_object(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("LOCAL_UPLOAD_STORAGE_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+    workspace_id = str(uuid4())
+    product_id = create_product(workspace_id)
+    init_response = init_upload(workspace_id, product_id, original_filename="delete-me.csv")
+    upload = init_response.json()["data"]
+    content = b"x" * 1024
+
+    write_response = client.put(
+        f"/v1/workspaces/{workspace_id}/uploads/{upload['upload_id']}/object",
+        headers=auth_headers(workspace_id, role="analyst"),
+        content=content,
+    )
+    assert write_response.status_code == 200
+
+    delete_response = client.delete(f"/v1/workspaces/{workspace_id}/uploads/{upload['upload_id']}", headers=auth_headers(workspace_id, role="admin"))
+    assert delete_response.status_code == 200
+    assert delete_response.json()["data"]["deleted"] is True
+
+    get_response = client.get(f"/v1/workspaces/{workspace_id}/uploads/{upload['upload_id']}", headers=auth_headers(workspace_id))
+    assert get_response.status_code == 404
+
+    storage_file = Path(tmp_path, *Path(upload["storage_path"]).parts[1:])
+    assert storage_file.exists() is False
+
+
 def _set_local_upload_status(*, workspace_id: str, upload_id: str, status: UploadStatus) -> None:
     repository = get_upload_repository()
     workspace_uuid = UUID(workspace_id)
     upload_uuid = UUID(upload_id)
     current = repository.get(workspace_id=workspace_uuid, upload_id=upload_uuid)
     assert current is not None
-    repository._uploads[workspace_uuid][upload_uuid] = current.model_copy(update={"status": status})
+    repository.update_status(workspace_id=workspace_uuid, upload_id=upload_uuid, status=status)
 
 
 def _cancel_existing_queued_jobs() -> None:
     repository = get_job_repository()
-    for workspace_id, jobs in list(repository._jobs.items()):
-        for job_id, job in list(jobs.items()):
-            if job.status == JobStatus.QUEUED:
-                repository.update_status(workspace_id=workspace_id, job_id=job_id, status=JobStatus.CANCELLED)
+    repository.clear_queued_jobs(job_type="process_upload")

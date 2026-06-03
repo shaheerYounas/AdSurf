@@ -48,6 +48,10 @@ class AccountImportRepository(ABC):
     def list_mapping_suggestions(self, *, workspace_id: UUID, account_import_id: UUID) -> list[ProductMappingSuggestion]:
         raise NotImplementedError
 
+    @abstractmethod
+    def delete_by_upload(self, *, workspace_id: UUID, upload_id: UUID) -> None:
+        raise NotImplementedError
+
 
 class LocalAccountImportRepository(AccountImportRepository):
     def __init__(self) -> None:
@@ -79,6 +83,13 @@ class LocalAccountImportRepository(AccountImportRepository):
 
     def list_mapping_suggestions(self, *, workspace_id: UUID, account_import_id: UUID) -> list[ProductMappingSuggestion]:
         return [item for item in self._suggestions.get(account_import_id, []) if item.workspace_id == workspace_id]
+
+    def delete_by_upload(self, *, workspace_id: UUID, upload_id: UUID) -> None:
+        import_ids = [item_id for item_id, item in self._imports.items() if item.workspace_id == workspace_id and item.upload_id == upload_id]
+        for import_id in import_ids:
+            self._imports.pop(import_id, None)
+            self._entities.pop(import_id, None)
+            self._suggestions.pop(import_id, None)
 
 
 class PostgresAccountImportRepository(AccountImportRepository):
@@ -170,6 +181,29 @@ class PostgresAccountImportRepository(AccountImportRepository):
                 {"workspace_id": workspace_id, "account_import_id": account_import_id},
             ).mappings().all()
         return [_suggestion_from_row(row) for row in rows]
+
+    def delete_by_upload(self, *, workspace_id: UUID, upload_id: UUID) -> None:
+        with self._engine.begin() as connection:
+            import_ids = [
+                row[0]
+                for row in connection.execute(
+                    text("select id from account_imports where workspace_id = :workspace_id and upload_id = :upload_id"),
+                    {"workspace_id": workspace_id, "upload_id": upload_id},
+                ).all()
+            ]
+            for import_id in import_ids:
+                connection.execute(
+                    text("delete from account_import_entities where workspace_id = :workspace_id and account_import_id = :account_import_id"),
+                    {"workspace_id": workspace_id, "account_import_id": import_id},
+                )
+                connection.execute(
+                    text("delete from product_mapping_suggestions where workspace_id = :workspace_id and account_import_id = :account_import_id"),
+                    {"workspace_id": workspace_id, "account_import_id": import_id},
+                )
+            connection.execute(
+                text("delete from account_imports where workspace_id = :workspace_id and upload_id = :upload_id"),
+                {"workspace_id": workspace_id, "upload_id": upload_id},
+            )
 
 
 _local_repository = LocalAccountImportRepository()

@@ -32,6 +32,10 @@ class StorageService(ABC):
     def write_upload_object(self, *, storage_path: str, content: bytes) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    def delete_upload_object(self, *, storage_path: str) -> None:
+        raise NotImplementedError
+
 
 class LocalFakeStorageService(StorageService):
     def __init__(self, root: str | None = None) -> None:
@@ -59,6 +63,13 @@ class LocalFakeStorageService(StorageService):
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(_windows_extended_path(path), "wb") as handle:
             handle.write(content)
+
+    def delete_upload_object(self, *, storage_path: str) -> None:
+        path = self._local_path(storage_path)
+        try:
+            path.unlink()
+        except FileNotFoundError:
+            return
 
     def _local_path(self, storage_path: str) -> Path:
         parts = [part for part in PurePosixPath(storage_path.lstrip("/")).parts if part not in {"", "."}]
@@ -107,6 +118,12 @@ class SupabaseStorageService(StorageService):
             path=f"/storage/v1/object/{quote(self._bucket(), safe='')}/{quote(self._object_path(storage_path), safe='/')}",
             body=content,
             headers={"Content-Type": "application/octet-stream", "x-upsert": "true"},
+        )
+
+    def delete_upload_object(self, *, storage_path: str) -> None:
+        self._request_bytes(
+            method="DELETE",
+            path=f"/storage/v1/object/{quote(self._bucket(), safe='')}/{quote(self._object_path(storage_path), safe='/')}",
         )
 
     def _request_json(self, *, method: str, path: str, body: dict | None = None) -> dict:

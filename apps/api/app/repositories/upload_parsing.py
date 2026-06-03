@@ -64,6 +64,10 @@ class UploadParsingRepository(ABC):
     def list_errors(self, *, workspace_id: UUID, parse_run_id: UUID, page: int, page_size: int) -> tuple[list[UploadParseError], int]:
         raise NotImplementedError
 
+    @abstractmethod
+    def delete_by_upload(self, *, workspace_id: UUID, upload_id: UUID) -> None:
+        raise NotImplementedError
+
 
 class LocalUploadParsingRepository(UploadParsingRepository):
     def __init__(self) -> None:
@@ -184,6 +188,14 @@ class LocalUploadParsingRepository(UploadParsingRepository):
         run = self._runs.get(workspace_id, {}).get(parse_run_id)
         errors = self._errors.get(parse_run_id, []) if run else []
         return _paginate(errors, page, page_size)
+
+    def delete_by_upload(self, *, workspace_id: UUID, upload_id: UUID) -> None:
+        runs = self._runs.get(workspace_id, {})
+        parse_run_ids = [run_id for run_id, run in runs.items() if run.upload_id == upload_id]
+        for parse_run_id in parse_run_ids:
+            self._rows.pop(parse_run_id, None)
+            self._errors.pop(parse_run_id, None)
+            runs.pop(parse_run_id, None)
 
     def _find_run(self, parse_run_id: UUID) -> UploadParseRun:
         for runs in self._runs.values():
@@ -353,6 +365,21 @@ class PostgresUploadParsingRepository(UploadParsingRepository):
             page=page,
             page_size=page_size,
         )
+
+    def delete_by_upload(self, *, workspace_id: UUID, upload_id: UUID) -> None:
+        with self._engine.begin() as connection:
+            connection.execute(
+                text("delete from upload_parsed_rows where workspace_id = :workspace_id and upload_id = :upload_id"),
+                {"workspace_id": workspace_id, "upload_id": upload_id},
+            )
+            connection.execute(
+                text("delete from upload_parse_errors where workspace_id = :workspace_id and upload_id = :upload_id"),
+                {"workspace_id": workspace_id, "upload_id": upload_id},
+            )
+            connection.execute(
+                text("delete from upload_parse_runs where workspace_id = :workspace_id and upload_id = :upload_id"),
+                {"workspace_id": workspace_id, "upload_id": upload_id},
+            )
 
     def _list_child_records(self, *, table: str, mapper, workspace_id: UUID, parse_run_id: UUID, page: int, page_size: int):
         params = {"workspace_id": workspace_id, "parse_run_id": parse_run_id, "limit": page_size, "offset": (page - 1) * page_size}
