@@ -265,6 +265,27 @@ def test_dashboard_performance_indexes_migration_exists() -> None:
         assert f"create index if not exists {index}" in sql
 
 
+def test_phase3_token_usage_view_uses_security_invoker() -> None:
+    migration = Path("supabase/migrations/202606010001_phase3_monitoring_backbone.sql")
+    hardening_migration = Path("supabase/migrations/20260603062722_harden_token_usage_view_security.sql")
+
+    assert migration.exists()
+    assert hardening_migration.exists()
+
+    sql = migration.read_text(encoding="utf-8").lower()
+    hardening_sql = hardening_migration.read_text(encoding="utf-8").lower()
+
+    assert "create or replace view token_usage_by_workspace" in sql
+    assert "with (security_invoker = true)" in sql
+    assert "from ai_runs" in sql
+    assert "output_json->'usage'->>'total_tokens'" in sql
+    assert "alter table ai_runs add column workspace_id uuid" in sql
+    assert sql.index("alter table ai_runs add column workspace_id uuid") < sql.index("create or replace view token_usage_by_workspace")
+
+    assert "alter view public.token_usage_by_workspace" in hardening_sql
+    assert "set (security_invoker = true)" in hardening_sql
+
+
 def test_account_bulk_import_migration_adds_upload_modes_and_recommendation_scope() -> None:
     migration = Path("supabase/migrations/202605270002_account_bulk_imports.sql")
 

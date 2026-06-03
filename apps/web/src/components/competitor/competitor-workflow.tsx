@@ -4,7 +4,7 @@ import { Activity, Bot, CheckCircle2, FileSearch, Loader2, Play, UploadCloud } f
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { defaultWorkspaceId } from "@/lib/api/client";
+import { defaultWorkspaceId, formatApiError } from "@/lib/api/client";
 import {
   generateCampaignsFromVerified,
   getCompetitorCleanedRows,
@@ -74,7 +74,7 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
       const product = await getProductProfile(productId, workspaceId);
       setProductName(product.product_name);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Product could not be loaded.");
+      setMessage(formatApiError(caught, "Product could not be loaded."));
     } finally {
       setIsLoading(false);
     }
@@ -100,7 +100,7 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
       setCampaignPlan(null);
       setMessage("Loaded existing competitor upload. You can continue the selected phase.");
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Existing upload could not be loaded.");
+      setMessage(formatApiError(caught, "Existing upload could not be loaded."));
     } finally {
       setIsWorking(false);
     }
@@ -121,7 +121,7 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
       setCampaignPlan(null);
       setMessage(`Uploaded and cleaned ${response.total_rows} rows.`);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Competitor upload failed.");
+      setMessage(formatApiError(caught, "Competitor upload failed."));
     } finally {
       setIsWorking(false);
     }
@@ -139,7 +139,7 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
       setRows(response.preview_rows);
       setMessage(`Scored ${response.scored_rows} rows: ${response.approved_count} approved, ${response.rejected_count} rejected.`);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Scoring failed.");
+      setMessage(formatApiError(caught, "Scoring failed."));
     } finally {
       setIsWorking(false);
     }
@@ -169,7 +169,7 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
       setAgentEvidenceRows(response.evidence_rows);
       setMessage(`Verification agent checked ${response.evidence_rows.length} Amazon searches and verified ${response.verified_count} rows. ${response.unverified_count} rows remain unverified.`);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Agentic browser verification failed.");
+      setMessage(formatApiError(caught, "Agentic browser verification failed."));
     } finally {
       setIsWorking(false);
     }
@@ -188,7 +188,7 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
       setMonitoringCampaignName(response.hero_campaign_name);
       setMessage(`Generated ${response.campaign_count} approval-controlled campaigns.`);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Campaign generation failed.");
+      setMessage(formatApiError(caught, "Campaign generation failed."));
     } finally {
       setIsWorking(false);
     }
@@ -207,7 +207,7 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
       setMonitoringDays(response);
       setMessage(`Simulated ${response.length} monitoring days. Recommendations remain approval-gated.`);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "14-day monitoring simulation failed.");
+      setMessage(formatApiError(caught, "14-day monitoring simulation failed."));
     } finally {
       setIsWorking(false);
     }

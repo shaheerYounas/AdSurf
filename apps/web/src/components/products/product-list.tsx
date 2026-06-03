@@ -1,34 +1,19 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import type { ProductProfile } from "@adsurf/types";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { getProductProfiles } from "@/lib/api/products";
+import { usePrefetchedData } from "@/lib/prefetch/use-prefetched-data";
 
 export function ProductList() {
-  const [products, setProducts] = useState<ProductProfile[]>([]);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { data: products, isLoading, error } = usePrefetchedData<ProductProfile[]>(
+    "products:list",
+    () => getProductProfiles(),
+    120_000,
+  );
 
-  useEffect(() => {
-    let active = true;
-    getProductProfiles()
-      .then((loadedProducts) => {
-        if (active) setProducts(loadedProducts);
-      })
-      .catch((caught) => {
-        if (active) setError(caught instanceof Error ? caught.message : "Product profiles could not be loaded.");
-      })
-      .finally(() => {
-        if (active) setIsLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  if (isLoading) {
+  if (isLoading && !products) {
     return <LoadingSpinner message="Loading product profiles" subtext="Fetching your workspace products" />;
   }
 
@@ -36,7 +21,7 @@ export function ProductList() {
     return <div className="p-8 text-sm text-red-700 dark:text-red-400">{error}</div>;
   }
 
-  if (products.length === 0) {
+  if (!products || products.length === 0) {
     return <div className="p-8 text-sm text-slate-600 dark:text-slate-400">No product profiles yet.</div>;
   }
 

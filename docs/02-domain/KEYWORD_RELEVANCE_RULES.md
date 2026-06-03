@@ -9,7 +9,7 @@ Batch 6 calculates Relevance Score deterministically from an approved manual col
 | Field | Required | Notes |
 | --- | --- | --- |
 | search_term | Yes | Trimmed search term. Duplicate terms are preserved as separate candidates in Batch 6. |
-| competitor_rank_1..10 | Yes for scoring | Mapped organic rank values. MVP accepts 1-10 mapped rank columns. |
+| competitor_rank_1..10 | Yes for scoring | Mapped organic rank values. MVP accepts 1-10 mapped rank or position columns and rejects unrelated numeric performance metric columns. |
 | search_volume | Yes | Parsed as non-negative numeric data. |
 | suggested_bid | Optional | Used for campaign bid defaulting. |
 

@@ -74,6 +74,37 @@ def test_column_profile_infers_numeric_types_from_xlsx(monkeypatch, tmp_path) ->
     assert inferred_by_name["Rank 1"] == "integer"
 
 
+def test_column_profile_infers_xlsx_date_styles(monkeypatch, tmp_path) -> None:
+    workspace_id, upload_id = _processed_upload(
+        monkeypatch,
+        tmp_path,
+        original_filename="dated.xlsx",
+        mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        content=_minimal_xlsx(
+            data_sheet_xml="""<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+              <sheetData>
+                <row r="1">
+                  <c r="A1" t="inlineStr"><is><t>Search Term</t></is></c>
+                  <c r="B1" t="inlineStr"><is><t>End Date</t></is></c>
+                </row>
+                <row r="2">
+                  <c r="A2" t="inlineStr"><is><t>running shoes</t></is></c>
+                  <c r="B2" s="1"><v>46149</v></c>
+                </row>
+              </sheetData>
+            </worksheet>""",
+            styles_xml=_date_styles_xml(),
+        ),
+    )
+
+    response = _generate_profile(workspace_id, upload_id)
+
+    assert response.status_code == 200
+    columns = {column["original_column_name"]: column for column in response.json()["data"]["columns"]}
+    assert columns["End Date"]["inferred_data_type"] == "date"
+    assert columns["End Date"]["sample_values_json"] == ["2026-05-07"]
+
+
 def test_manual_mapping_create_and_approve_valid_mapping(monkeypatch, tmp_path) -> None:
     workspace_id, upload_id = _processed_xlsx_upload(monkeypatch, tmp_path)
     profile = _generate_profile(workspace_id, upload_id).json()["data"]["profile"]
@@ -157,6 +188,31 @@ def test_manual_mapping_non_numeric_search_volume_is_invalid(monkeypatch, tmp_pa
     assert "SEARCH_VOLUME_NOT_NUMERIC" in {message["code"] for message in response.json()["data"]["validation_errors_json"]}
 
 
+def test_manual_mapping_rejects_performance_metric_as_competitor_rank(monkeypatch, tmp_path) -> None:
+    workspace_id, upload_id = _processed_csv_upload(
+        monkeypatch,
+        tmp_path,
+        content="Customer Search Term,Impressions,Spend\nrunning shoes,1000,7.33\n",
+    )
+    profile = _generate_profile(workspace_id, upload_id).json()["data"]["profile"]
+
+    response = _create_mapping(
+        workspace_id,
+        upload_id,
+        profile["id"],
+        {
+            "search_term": "Customer Search Term",
+            "search_volume": "Impressions",
+            "competitor_rank_columns": ["Spend"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["status"] == "invalid"
+    assert "COMPETITOR_RANK_NAME_NOT_RANK_LIKE" in {message["code"] for message in data["validation_errors_json"]}
+
+
 def test_numeric_like_text_mapping_is_allowed_with_warning(monkeypatch, tmp_path) -> None:
     workspace_id, upload_id = _processed_csv_upload(monkeypatch, tmp_path)
     profile = _generate_profile(workspace_id, upload_id).json()["data"]["profile"]
@@ -234,9 +290,10 @@ def test_cross_workspace_column_profile_access_is_blocked(monkeypatch, tmp_path)
     assert response.json()["error"]["code"] == "UPLOAD_NOT_FOUND"
 
 
-def _processed_csv_upload(monkeypatch, tmp_path, rows: int = 2) -> tuple[str, str]:
-    content = "Search Term,Search Volume!,Competitor Rank 1\n"
-    content += "".join(f"shoes {index},{100 + index},{index % 10 + 1}\n" for index in range(rows))
+def _processed_csv_upload(monkeypatch, tmp_path, rows: int = 2, content: str | None = None) -> tuple[str, str]:
+    if content is None:
+        content = "Search Term,Search Volume!,Competitor Rank 1\n"
+        content += "".join(f"shoes {index},{100 + index},{index % 10 + 1}\n" for index in range(rows))
     return _processed_upload(
         monkeypatch,
         tmp_path,
@@ -322,7 +379,22 @@ def _cancel_existing_queued_jobs() -> None:
                 repository.update_status(workspace_id=workspace_id, job_id=job_id, status=JobStatus.CANCELLED)
 
 
-def _minimal_xlsx() -> bytes:
+def _minimal_xlsx(*, data_sheet_xml: str | None = None, styles_xml: str | None = None) -> bytes:
+    if data_sheet_xml is None:
+        data_sheet_xml = """<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+          <sheetData>
+            <row r="1">
+              <c r="A1" t="inlineStr"><is><t>Search Term</t></is></c>
+              <c r="B1" t="inlineStr"><is><t>Search Volume</t></is></c>
+              <c r="C1" t="inlineStr"><is><t>Rank 1</t></is></c>
+            </row>
+            <row r="2">
+              <c r="A2" t="inlineStr"><is><t>running shoes</t></is></c>
+              <c r="B2"><v>1000</v></c>
+              <c r="C2"><v>3</v></c>
+            </row>
+          </sheetData>
+        </worksheet>"""
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w") as archive:
         archive.writestr(
@@ -342,19 +414,17 @@ def _minimal_xlsx() -> bytes:
         )
         archive.writestr(
             "xl/worksheets/sheet1.xml",
-            """<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-              <sheetData>
-                <row r="1">
-                  <c r="A1" t="inlineStr"><is><t>Search Term</t></is></c>
-                  <c r="B1" t="inlineStr"><is><t>Search Volume</t></is></c>
-                  <c r="C1" t="inlineStr"><is><t>Rank 1</t></is></c>
-                </row>
-                <row r="2">
-                  <c r="A2" t="inlineStr"><is><t>running shoes</t></is></c>
-                  <c r="B2"><v>1000</v></c>
-                  <c r="C2"><v>3</v></c>
-                </row>
-              </sheetData>
-            </worksheet>""",
+            data_sheet_xml,
         )
+        if styles_xml is not None:
+            archive.writestr("xl/styles.xml", styles_xml)
     return output.getvalue()
+
+
+def _date_styles_xml() -> str:
+    return """<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+      <cellXfs count="2">
+        <xf numFmtId="0"/>
+        <xf numFmtId="14"/>
+      </cellXfs>
+    </styleSheet>"""

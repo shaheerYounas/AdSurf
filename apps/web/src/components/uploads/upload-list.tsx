@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { defaultWorkspaceId } from "@/lib/api/client";
+import { defaultWorkspaceId, formatApiError } from "@/lib/api/client";
 import { getUploadParseRuns, getUploads, type ParseRun, type UploadRecord } from "@/lib/api/uploads";
 
 export function UploadList({ productId }: { productId: string }) {
@@ -32,7 +32,7 @@ export function UploadList({ productId }: { productId: string }) {
       );
       setParseRunsByUploadId(Object.fromEntries(parseRuns));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Uploads could not be loaded.");
+      setError(formatApiError(caught, "Uploads could not be loaded."));
     } finally {
       setIsLoading(false);
     }

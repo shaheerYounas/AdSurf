@@ -175,38 +175,9 @@ CREATE POLICY rule_calibration_workspace_isolation
     USING (workspace_id = current_setting('app.current_workspace_id')::uuid);
 
 
--- ── 5. Token Usage by Workspace View ───────────────────────────────────
--- Aggregates ai_runs table to produce per-workspace token/cost attribution.
--- This is a VIEW, not a table, so it auto-updates from source data.
-
-CREATE OR REPLACE VIEW token_usage_by_workspace AS
-SELECT
-    workspace_id,
-    provider,
-    model,
-    COUNT(*) AS total_calls,
-    COUNT(*) FILTER (WHERE status = 'succeeded') AS succeeded_calls,
-    COUNT(*) FILTER (WHERE status = 'failed') AS failed_calls,
-    SUM(latency_ms) AS total_latency_ms,
-    AVG(latency_ms)::INTEGER AS avg_latency_ms,
-    -- Extract token counts from output_json if present (provider-dependent)
-    SUM(COALESCE((output_json->>'usage'->>'total_tokens')::INTEGER, 0)) AS estimated_total_tokens,
-    SUM(COALESCE((output_json->>'usage'->>'prompt_tokens')::INTEGER, 0)) AS estimated_prompt_tokens,
-    SUM(COALESCE((output_json->>'usage'->>'completion_tokens')::INTEGER, 0)) AS estimated_completion_tokens,
-    MIN(created_at) AS first_call_at,
-    MAX(created_at) AS last_call_at
-FROM ai_runs
-GROUP BY workspace_id, provider, model
-ORDER BY workspace_id, total_calls DESC;
-
-COMMENT ON VIEW token_usage_by_workspace IS
-    'Per-workspace AI token and cost attribution view. Sources from ai_runs table. '
-    'Token counts are estimates based on provider response metadata.';
-
-
--- ── 6. Support for workspace_id in ai_runs (if not present) ────────────
+-- ── 5. Support for workspace_id in ai_runs (if not present) ────────────
 -- The token_usage view references workspace_id on ai_runs.
--- Ensure it exists (the column should already exist from the foundation migration).
+-- Ensure it exists before creating the view.
 
 DO $$
 BEGIN
@@ -218,6 +189,37 @@ BEGIN
         CREATE INDEX IF NOT EXISTS idx_ai_runs_workspace ON ai_runs (workspace_id);
     END IF;
 END $$;
+
+
+-- ── 6. Token Usage by Workspace View ───────────────────────────────────
+-- Aggregates ai_runs table to produce per-workspace token/cost attribution.
+-- This public view uses SECURITY INVOKER so ai_runs RLS remains effective.
+
+CREATE OR REPLACE VIEW token_usage_by_workspace
+WITH (security_invoker = true) AS
+SELECT
+    workspace_id,
+    provider,
+    model,
+    COUNT(*) AS total_calls,
+    COUNT(*) FILTER (WHERE status = 'succeeded') AS succeeded_calls,
+    COUNT(*) FILTER (WHERE status = 'failed') AS failed_calls,
+    SUM(latency_ms) AS total_latency_ms,
+    AVG(latency_ms)::INTEGER AS avg_latency_ms,
+    -- Extract token counts from output_json if present (provider-dependent)
+    SUM(COALESCE((output_json->'usage'->>'total_tokens')::INTEGER, 0)) AS estimated_total_tokens,
+    SUM(COALESCE((output_json->'usage'->>'prompt_tokens')::INTEGER, 0)) AS estimated_prompt_tokens,
+    SUM(COALESCE((output_json->'usage'->>'completion_tokens')::INTEGER, 0)) AS estimated_completion_tokens,
+    MIN(created_at) AS first_call_at,
+    MAX(created_at) AS last_call_at
+FROM ai_runs
+GROUP BY workspace_id, provider, model
+ORDER BY workspace_id, total_calls DESC;
+
+COMMENT ON VIEW token_usage_by_workspace IS
+    'Per-workspace AI token and cost attribution view. Sources from ai_runs table. '
+    'Token counts are estimates based on provider response metadata. '
+    'SECURITY INVOKER ensures ai_runs RLS applies for API callers.';
 
 
 COMMIT;

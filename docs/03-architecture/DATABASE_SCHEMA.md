@@ -232,6 +232,9 @@ The `uploads` table has RLS enabled. Workspace members can read upload metadata.
 ## Batch 10 Monitoring RLS Status
 `monitoring_imports`, `monitoring_snapshots`, `recommendations`, `recommendation_decisions`, and `ai_runs` have RLS enabled. Workspace members can read monitoring evidence and agent outputs. Backend/service-role operations create imports, snapshots, recommendations, and AI run rows. Recommendation decisions are limited to `owner`, `admin`, `analyst`, and `approver` in the API, with `viewer` read-only.
 
+## Phase 3 Monitoring View Security
+`token_usage_by_workspace` aggregates `ai_runs` by workspace, provider, and model for observability. Because it lives in the public schema and reads workspace-scoped AI run data, it must be created with `security_invoker = true` so `ai_runs` RLS policies apply to the querying role. It must not be recreated as a default/security-definer public view.
+
 ## Dashboard Performance Indexes
 The dashboard summary endpoint is backed by compound indexes for common workspace-scoped reads: product list by created time, upload list/counts by workspace and status, recommendation queue by workspace/product/status/priority, and agent runs by workspace/product/agent. These indexes are additive migrations and do not change RLS or approval behavior.
 

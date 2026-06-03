@@ -23,7 +23,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { defaultWorkspaceId } from "@/lib/api/client";
+import { defaultWorkspaceId, formatApiError } from "@/lib/api/client";
 import { humanize } from "@/lib/utils";
 import {
   addAgentTool,
@@ -154,18 +154,12 @@ export function AgentBuilder() {
   async function load() {
     setIsLoading(true);
     try {
-      const [agentsRes, toolsRes, kbsRes, templatesRes] = await Promise.allSettled([
-        listCustomAgents(workspaceId),
-        getAvailableTools(workspaceId),
-        listKnowledgeBases(workspaceId),
-        listAgentTemplates(workspaceId),
-      ]);
-      if (agentsRes.status === "fulfilled") setAgents(agentsRes.value);
-      if (toolsRes.status === "fulfilled") setAvailableTools(toolsRes.value);
-      if (kbsRes.status === "fulfilled") setKnowledgeBases(kbsRes.value);
-      if (templatesRes.status === "fulfilled") setTemplates(templatesRes.value);
+      setAgents(await listCustomAgents(workspaceId));
+      setAvailableTools(await getAvailableTools(workspaceId));
+      setKnowledgeBases(await listKnowledgeBases(workspaceId));
+      setTemplates(await listAgentTemplates(workspaceId));
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Could not load agent data.");
+      setMessage(formatApiError(err, "Could not load agent data."));
     } finally {
       setIsLoading(false);
     }
@@ -175,7 +169,8 @@ export function AgentBuilder() {
     setIsLoading(true);
     setMessage(null);
     try {
-      const [agent, subs] = await Promise.all([getCustomAgent(agentId, workspaceId), listSubAgents(agentId, workspaceId)]);
+      const agent = await getCustomAgent(agentId, workspaceId);
+      const subs = await listSubAgents(agentId, workspaceId);
       setSelectedAgent(agent);
       setSubAgents(subs);
       // Populate edit form
@@ -189,7 +184,7 @@ export function AgentBuilder() {
       setEditOutputFormat(agent.output_format);
       setEditStatus(agent.status);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Could not load agent.");
+      setMessage(formatApiError(err, "Could not load agent."));
     } finally {
       setIsLoading(false);
     }
@@ -216,7 +211,7 @@ export function AgentBuilder() {
       await load();
       await selectAgent(agent.id);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Could not create agent.");
+      setMessage(formatApiError(err, "Could not create agent."));
     } finally {
       setIsSaving(false);
     }
@@ -241,7 +236,7 @@ export function AgentBuilder() {
       setMessage("Agent configuration saved.");
       await selectAgent(selectedAgent.id);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Could not save agent.");
+      setMessage(formatApiError(err, "Could not save agent."));
     } finally {
       setIsSaving(false);
     }
@@ -256,7 +251,7 @@ export function AgentBuilder() {
       setMessage("Agent deleted.");
       await load();
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Could not delete agent.");
+      setMessage(formatApiError(err, "Could not delete agent."));
     }
   }
 
@@ -278,7 +273,7 @@ export function AgentBuilder() {
       }
       await selectAgent(selectedAgent.id);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Tool change failed.");
+      setMessage(formatApiError(err, "Tool change failed."));
     }
   }
 
@@ -295,7 +290,7 @@ export function AgentBuilder() {
       }
       await selectAgent(selectedAgent.id);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Knowledge base change failed.");
+      setMessage(formatApiError(err, "Knowledge base change failed."));
     }
   }
 
@@ -316,7 +311,7 @@ export function AgentBuilder() {
       await selectAgent(selectedAgent.id);
       setSubAgents(await listSubAgents(selectedAgent.id, workspaceId));
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Could not create sub-agent.");
+      setMessage(formatApiError(err, "Could not create sub-agent."));
     } finally {
       setIsSaving(false);
     }
@@ -329,7 +324,7 @@ export function AgentBuilder() {
       setSubAgents(await listSubAgents(selectedAgent.id, workspaceId));
       setMessage(`Sub-agent "${name}" deleted.`);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Could not delete sub-agent.");
+      setMessage(formatApiError(err, "Could not delete sub-agent."));
     }
   }
 
@@ -343,7 +338,7 @@ export function AgentBuilder() {
       setRunResult(JSON.stringify(result.output_json, null, 2));
       setMessage("Agent run completed.");
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Agent run failed.");
+      setMessage(formatApiError(err, "Agent run failed."));
     } finally {
       setIsRunning(false);
     }
@@ -357,7 +352,7 @@ export function AgentBuilder() {
       await load();
       await selectAgent(agent.id);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Could not clone template.");
+      setMessage(formatApiError(err, "Could not clone template."));
     } finally {
       setIsSaving(false);
     }
@@ -670,7 +665,7 @@ export function AgentBuilder() {
                           const name = prompt("Knowledge base name:");
                           if (name) {
                             const { createKnowledgeBase } = await import("@/lib/api/custom-agents");
-                            try { await createKnowledgeBase({ name }, workspaceId); await load(); setMessage(`Knowledge base "${name}" created.`); } catch (err) { setMessage(err instanceof Error ? err.message : "Failed."); }
+                            try { await createKnowledgeBase({ name }, workspaceId); await load(); setMessage(`Knowledge base "${name}" created.`); } catch (err) { setMessage(formatApiError(err, "Failed.")); }
                           }
                         }} type="button" variant="primary"><Plus size={14} /> Create Knowledge Base</Button>
                       </div>
@@ -680,7 +675,7 @@ export function AgentBuilder() {
                           const name = prompt("Knowledge base name:");
                           if (name) {
                             const { createKnowledgeBase } = await import("@/lib/api/custom-agents");
-                            try { await createKnowledgeBase({ name }, workspaceId); await load(); setMessage(`Knowledge base "${name}" created.`); } catch (err) { setMessage(err instanceof Error ? err.message : "Failed."); }
+                            try { await createKnowledgeBase({ name }, workspaceId); await load(); setMessage(`Knowledge base "${name}" created.`); } catch (err) { setMessage(formatApiError(err, "Failed.")); }
                           }
                         }} type="button" variant="secondary"><Plus size={14} /> New Knowledge Base</Button>
                         <div className="grid gap-3 sm:grid-cols-2">
@@ -756,7 +751,7 @@ export function AgentBuilder() {
                               try {
                                 await updateSubAgent(selectedAgent!.id, sub.id, { enabled: newState }, workspaceId);
                                 setSubAgents(await listSubAgents(selectedAgent!.id, workspaceId));
-                              } catch (err) { setMessage(err instanceof Error ? err.message : "Update failed."); }
+                              } catch (err) { setMessage(formatApiError(err, "Update failed.")); }
                             }} type="button" variant="secondary" className="h-8 w-8 p-0" title={sub.enabled ? "Disable" : "Enable"}>{sub.enabled ? <Check size={14} className="text-emerald-600" /> : <X size={14} className="text-slate-400" />}</Button>
                             <Button onClick={() => handleDeleteSubAgent(sub.id, sub.name)} type="button" variant="secondary" className="h-8 w-8 p-0 text-rose-500" title="Delete"><Trash2 size={14} /></Button>
                           </div>

@@ -4,6 +4,7 @@
 | Route | Page | Primary purpose |
 | --- | --- | --- |
 | `/dashboard` | Dashboard Home | See products, pending approvals, recent jobs. |
+| `/reports` | Uploaded Report Library | Inspect workspace uploads, parse runs, account imports, monitoring imports, and recommendation links. |
 | `/products` | Product Profiles | List and manage products. |
 | `/products/new` | New Product | Create product profile. |
 | `/products/[productId]` | Product Detail | View product setup and workflow status. |
@@ -27,6 +28,7 @@ The current Next.js app contains 12 `page.tsx` files: 11 user-facing pages plus 
 | `/dashboard` | Workspace home. |
 | `/agents` | `/dashboard`. |
 | `/agent-builder` | `/agents`. |
+| `/reports` | `/dashboard`. |
 | `/products` | `/dashboard`. |
 | `/products/new` | `/products`. |
 | `/products/[productId]` | `/products`. |
@@ -51,6 +53,7 @@ Every implemented page receives the shared previous-page control from the root a
 | Page | Primary users | Main actions |
 | --- | --- | --- |
 | Dashboard Home | All roles | See products, pending approvals, recent jobs. |
+| Uploaded Report Library | All roles | Inspect uploaded files, parsed row counts, detected report imports, monitoring imports, and related recommendations without changing account state. |
 | Product Profiles | owner/admin/analyst | Create and edit product settings. |
 | Uploads | owner/admin/analyst | Initialize upload metadata, receive a signed upload target, and confirm processing queue handoff. |
 | Manual Column Mapping, Scoring, And Review | owner/admin/analyst | Generate profiles, save manual mappings, approve valid mapping snapshots, run deterministic scoring, create keyword overrides, and create approved keyword set snapshots; all roles with upload read access can inspect results. |

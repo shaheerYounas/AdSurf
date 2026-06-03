@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { defaultWorkspaceId } from "@/lib/api/client";
+import { defaultWorkspaceId, formatApiError } from "@/lib/api/client";
 import { createMonitoringImport, getProductMonitoring, processMonitoringJobs, type MonitoringSummary } from "@/lib/api/monitoring";
 import { getUploads, type UploadRecord } from "@/lib/api/uploads";
 import { selectClasses } from "@/lib/utils";
@@ -27,15 +27,13 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
     setMessage(null);
     setIsLoading(true);
     try {
-      const [loadedUploads, loadedSummary] = await Promise.all([
-        getUploads({ productId, workspaceId }),
-        getProductMonitoring(productId, workspaceId),
-      ]);
+      const loadedUploads = await getUploads({ productId, workspaceId });
+      const loadedSummary = await getProductMonitoring(productId, workspaceId);
       setUploads(loadedUploads);
       setSummary(loadedSummary);
       setSelectedUploadId((current) => current || loadedUploads.find((upload) => upload.status === "processed")?.id || "");
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Monitoring data could not be loaded.");
+      setMessage(formatApiError(caught, "Monitoring data could not be loaded."));
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +53,7 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
       }
       await load();
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Monitoring import failed.");
+      setMessage(formatApiError(caught, "Monitoring import failed."));
       setIsLoading(false);
     }
   }

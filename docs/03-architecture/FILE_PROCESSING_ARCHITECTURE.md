@@ -27,6 +27,7 @@
 - CSV is decoded as UTF-8 with BOM support.
 - XLSX is read with a deterministic read-only ZIP/XML parser; formulas are not executed.
 - XLSX worksheet XML is streamed row-by-row instead of materializing the full sheet before validation.
+- XLSX cells using date-formatted styles are normalized to ISO date strings before storage so column discovery can infer `date` instead of raw Excel serial integers.
 - Legacy XLS uses an optional `xlrd` path when the dependency is installed; otherwise it fails with a clear dependency error.
 - First non-empty worksheet is selected by default.
 - Original headers are preserved; blank headers become `column_{n}`.
@@ -43,7 +44,7 @@
 - Discovery is deterministic and idempotent. If a profile already exists for the parse run, the API returns the existing profile.
 - Manual mappings support `search_term`, `search_volume`, and `competitor_rank_columns`.
 - Required mapping rules: `search_term` maps to exactly one column; `search_volume` maps to exactly one column; `competitor_rank_columns` maps to 1-10 unique columns; search term, search volume, and rank roles cannot reuse incompatible columns.
-- Numeric-like validation is deterministic. Search volume and competitor rank columns prefer inferred `integer` or `decimal`; numeric-like text is allowed with warnings; clearly non-numeric values are invalid. Numeric-only search term samples are invalid.
+- Numeric-like validation is deterministic. Search volume and competitor rank columns prefer inferred `integer` or `decimal`; numeric-like text is allowed with warnings; clearly non-numeric values are invalid. Competitor rank columns must also have rank-like or position-like column names so unrelated ad performance metrics such as spend, clicks, CPC, orders, ACOS, or ROAS cannot be approved as rank inputs. Numeric-only search term samples are invalid.
 - Valid or invalid manual mapping attempts are saved as versioned snapshots. Approved mappings supersede earlier approved mappings for the same profile.
 - Batch 5 does not perform AI or semantic auto-mapping, keyword scoring, relevance scoring, Amazon verification, campaign generation, exports, monitoring, recommendations, or Amazon Ads API execution.
 

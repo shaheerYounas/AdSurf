@@ -1,5 +1,5 @@
 import type { ProductProfile } from "@adsurf/types";
-import { apiBaseUrl, defaultWorkspaceId, localAuthHeaders, readApiData } from "@/lib/api/client";
+import { apiBaseUrl, defaultWorkspaceId, fetchApiData, localAuthHeaders, readApiData } from "@/lib/api/client";
 import type { Recommendation } from "@/lib/api/monitoring";
 
 export type ProductProfileCreate = {
@@ -28,12 +28,15 @@ export type DashboardSummary = {
 };
 
 export async function getDashboardSummary(workspaceId = defaultWorkspaceId, init?: Pick<RequestInit, "signal">): Promise<DashboardSummary> {
-  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/dashboard-summary`, {
-    headers: localAuthHeaders(workspaceId),
-    cache: "no-store",
-    signal: init?.signal,
-  });
-  return readApiData<DashboardSummary>(response, "Dashboard summary could not be loaded.");
+  return fetchApiData<DashboardSummary>(
+    `${apiBaseUrl}/v1/workspaces/${workspaceId}/dashboard-summary`,
+    {
+      headers: localAuthHeaders(workspaceId),
+      cache: "no-store",
+      signal: init?.signal,
+    },
+    "Dashboard summary could not be loaded.",
+  );
 }
 
 export async function getProductProfiles(workspaceId = defaultWorkspaceId): Promise<ProductProfile[]> {

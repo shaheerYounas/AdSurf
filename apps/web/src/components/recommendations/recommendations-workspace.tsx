@@ -5,8 +5,9 @@ import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
-import { defaultWorkspaceId } from "@/lib/api/client";
+import { defaultWorkspaceId, formatApiError } from "@/lib/api/client";
 import { decideRecommendation, getRecommendations, type Recommendation } from "@/lib/api/monitoring";
+import { getCachedData, setCachedData } from "@/lib/prefetch";
 
 const statusOptions = [
   { value: "pending_approval", label: "Pending approval" },
@@ -70,11 +71,22 @@ export function RecommendationsWorkspace() {
 
   async function load() {
     setMessage(null);
+
+    // Return cached data immediately if prefetched in background.
+    const cached = getCachedData<Recommendation[]>("recommendations:list");
+    if (cached) {
+      setRecommendations(cached);
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     try {
-      setRecommendations(await getRecommendations(workspaceId));
+      const data = await getRecommendations(workspaceId);
+      setCachedData("recommendations:list", data, 60_000);
+      setRecommendations(data);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Recommendations could not be loaded.");
+      setMessage(formatApiError(caught, "Recommendations could not be loaded."));
     } finally {
       setIsLoading(false);
     }
@@ -90,7 +102,7 @@ export function RecommendationsWorkspace() {
       setNote("");
       await load();
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Recommendation decision could not be saved.");
+      setMessage(formatApiError(caught, "Recommendation decision could not be saved."));
       setIsLoading(false);
     }
   }
@@ -175,7 +187,7 @@ export function RecommendationsWorkspace() {
             ))}
           </tbody>
         </table>
-          {!isLoading && !filtered.length ? <p className="p-8 text-sm text-slate-600 dark:text-slate-400">No recommendations match the selected filters.</p> : null}
+        {!isLoading && !filtered.length ? <p className="p-8 text-sm text-slate-600 dark:text-slate-400">No recommendations match the selected filters.</p> : null}
       </div>
 
       <Modal

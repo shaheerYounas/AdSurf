@@ -2,8 +2,10 @@ import csv
 import hashlib
 import io
 import json
+import re
 import zipfile
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from pathlib import PurePosixPath
 from typing import Any
 from xml.etree import ElementTree
@@ -22,6 +24,8 @@ from apps.api.app.schemas.upload_parsing import ParsedUploadResult, ParsedUpload
 XLSX_NS = {"main": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 REL_NS = {"rel": "http://schemas.openxmlformats.org/package/2006/relationships"}
 OFFICE_REL_NS = {"rel": "http://schemas.openxmlformats.org/officeDocument/2006/relationships"}
+EXCEL_EPOCH = datetime(1899, 12, 30)
+BUILTIN_DATE_FORMAT_IDS = set(range(14, 23)) | set(range(27, 37)) | {45, 46, 47} | set(range(50, 59))
 
 
 @dataclass(frozen=True)
@@ -96,6 +100,7 @@ class UploadParser:
                 workbook_xml = ElementTree.fromstring(archive.read("xl/workbook.xml"))
                 rels_xml = ElementTree.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
                 shared_strings = _read_shared_strings(archive)
+                date_style_indexes = _read_date_style_indexes(archive)
                 sheets = _workbook_sheets(workbook_xml, rels_xml)
                 detected_sheet_names = [sheet_name for sheet_name, _ in sheets]
                 candidates: list[tuple[str, str, int]] = []
@@ -104,6 +109,7 @@ class UploadParser:
                         archive=archive,
                         sheet_path=sheet_path,
                         shared_strings=shared_strings,
+                        date_style_indexes=date_style_indexes,
                         detected_file_type="xlsx",
                         detected_sheet_names=detected_sheet_names,
                         selected_sheet_name=sheet_name,
@@ -118,6 +124,7 @@ class UploadParser:
                     archive=archive,
                     sheet_path=selected[1],
                     shared_strings=shared_strings,
+                    date_style_indexes=date_style_indexes,
                     detected_file_type="xlsx",
                     detected_sheet_names=detected_sheet_names,
                     selected_sheet_name=selected[0],
@@ -207,6 +214,7 @@ def _parse_sheet_stream(
     archive: zipfile.ZipFile,
     sheet_path: str,
     shared_strings: list[str],
+    date_style_indexes: set[int] | None,
     detected_file_type: str,
     detected_sheet_names: list[str],
     selected_sheet_name: str,
@@ -214,7 +222,7 @@ def _parse_sheet_stream(
 ) -> ParsedUploadResult:
     headers: list[str] | None = None
     rows: list[ParsedUploadRow] = []
-    for raw_values in _iter_sheet_rows(archive, sheet_path, shared_strings, limits):
+    for raw_values in _iter_sheet_rows(archive, sheet_path, shared_strings, date_style_indexes or set(), limits):
         values = [_cell_to_json_value(value) for value in raw_values]
         if not any(value is not None for value in values):
             continue
@@ -294,6 +302,33 @@ def _read_shared_strings(archive: zipfile.ZipFile) -> list[str]:
     return strings
 
 
+def _read_date_style_indexes(archive: zipfile.ZipFile) -> set[int]:
+    try:
+        root = ElementTree.fromstring(archive.read("xl/styles.xml"))
+    except KeyError:
+        return set()
+    custom_date_format_ids = {
+        int(node.attrib["numFmtId"])
+        for node in root.findall(".//main:numFmt", XLSX_NS)
+        if node.attrib.get("numFmtId", "").isdigit() and _looks_like_excel_date_format(node.attrib.get("formatCode", ""))
+    }
+    date_format_ids = BUILTIN_DATE_FORMAT_IDS | custom_date_format_ids
+    style_indexes: set[int] = set()
+    cell_xfs = root.find("main:cellXfs", XLSX_NS)
+    if cell_xfs is None:
+        return style_indexes
+    for index, xf in enumerate(cell_xfs.findall("main:xf", XLSX_NS)):
+        num_fmt_id = xf.attrib.get("numFmtId")
+        if num_fmt_id and num_fmt_id.isdigit() and int(num_fmt_id) in date_format_ids:
+            style_indexes.add(index)
+    return style_indexes
+
+
+def _looks_like_excel_date_format(format_code: str) -> bool:
+    lowered = re.sub(r'".*?"|\[.*?\]', "", format_code.lower())
+    return any(token in lowered for token in ("yy", "mm", "dd", "hh", "ss")) and "%" not in lowered
+
+
 def _workbook_sheets(workbook_xml: ElementTree.Element, rels_xml: ElementTree.Element) -> list[tuple[str, str]]:
     rel_targets = {
         rel.attrib["Id"]: rel.attrib["Target"]
@@ -315,29 +350,30 @@ def _iter_sheet_rows(
     archive: zipfile.ZipFile,
     sheet_path: str,
     shared_strings: list[str],
+    date_style_indexes: set[int],
     limits: ParserLimits,
 ):
     with archive.open(sheet_path) as sheet_file:
         for _, row in ElementTree.iterparse(sheet_file, events=("end",)):
             if row.tag != f"{{{XLSX_NS['main']}}}row":
                 continue
-            yield _read_xlsx_row(row, shared_strings, limits)
+            yield _read_xlsx_row(row, shared_strings, date_style_indexes, limits)
             row.clear()
 
 
-def _read_xlsx_row(row: ElementTree.Element, shared_strings: list[str], limits: ParserLimits) -> list[Any]:
+def _read_xlsx_row(row: ElementTree.Element, shared_strings: list[str], date_style_indexes: set[int], limits: ParserLimits) -> list[Any]:
     values_by_column: dict[int, Any] = {}
     for cell in row.findall("main:c", XLSX_NS):
         column_index = _column_index(cell.attrib.get("r", "A1"))
         _enforce_column_limit(column_index + 1, limits.max_columns)
-        values_by_column[column_index] = _xlsx_cell_value(cell, shared_strings)
+        values_by_column[column_index] = _xlsx_cell_value(cell, shared_strings, date_style_indexes)
     if not values_by_column:
         return []
     max_column = max(values_by_column)
     return [values_by_column.get(index) for index in range(max_column + 1)]
 
 
-def _xlsx_cell_value(cell: ElementTree.Element, shared_strings: list[str]) -> Any:
+def _xlsx_cell_value(cell: ElementTree.Element, shared_strings: list[str], date_style_indexes: set[int]) -> Any:
     cell_type = cell.attrib.get("t")
     formula_node = cell.find("main:f", XLSX_NS)
     if formula_node is not None:
@@ -355,9 +391,19 @@ def _xlsx_cell_value(cell: ElementTree.Element, shared_strings: list[str]) -> An
         return raw_value == "1"
     try:
         number = float(raw_value)
+        style_index = cell.attrib.get("s")
+        if style_index and style_index.isdigit() and int(style_index) in date_style_indexes:
+            return _excel_serial_to_iso(number)
         return int(number) if number.is_integer() else number
     except ValueError:
         return raw_value
+
+
+def _excel_serial_to_iso(value: float) -> str:
+    converted = EXCEL_EPOCH + timedelta(days=value)
+    if converted.time() == datetime.min.time():
+        return converted.date().isoformat()
+    return converted.isoformat(timespec="seconds")
 
 
 _BULK_SHEET_PRIORITY_NAMES = [

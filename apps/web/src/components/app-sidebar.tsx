@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { ArrowLeft, Bot, ClipboardCheck, FileText, GitBranch, LayoutDashboard, ListChecks, PackageSearch, PlusCircle, Settings, Sparkles, Users } from "lucide-react";
+import { ArrowLeft, Bot, ClipboardCheck, FileText, GitBranch, LayoutDashboard, LibraryBig, ListChecks, PackageSearch, PlusCircle, Settings, Sparkles, Users } from "lucide-react";
 import { defaultWorkspaceId } from "@/lib/api/client";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 
 const mainNavItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, helper: "Workspace overview" },
   { href: "/agents", label: "Agents", icon: Bot, helper: "Control AI workflow", opensAgentPanel: true },
+  { href: "/reports", label: "Reports", icon: LibraryBig, helper: "Files and analysis" },
   { href: "/products", label: "Products", icon: PackageSearch, helper: "ASIN profiles" },
   { href: "/products/new", label: "New product", icon: PlusCircle, helper: "Start setup" },
   { href: "/recommendations", label: "Recommendations", icon: ListChecks, helper: "Approval queue" },

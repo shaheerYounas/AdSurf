@@ -4,7 +4,7 @@ import { CheckCircle2, ListChecks, Loader2, RefreshCw } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { apiBaseUrl, defaultWorkspaceId, localAuthHeaders, newIdempotencyKey } from "@/lib/api/client";
+import { apiBaseUrl, defaultWorkspaceId, formatApiError, localAuthHeaders, newIdempotencyKey } from "@/lib/api/client";
 import {
   approveCampaignPlan,
   createBulkExport,
@@ -117,7 +117,7 @@ export function ColumnMappingWorkspace({ productId, uploadId }: ColumnMappingWor
       setCampaignPlan(null);
       setBulkExport(null);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Column profile request failed.");
+      setMessage(formatApiError(caught, "Column profile request failed."));
     } finally {
       setIsLoading(false);
     }
@@ -153,7 +153,7 @@ export function ColumnMappingWorkspace({ productId, uploadId }: ColumnMappingWor
       setCampaignPlan(null);
       setBulkExport(null);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Column mapping save failed.");
+      setMessage(formatApiError(caught, "Column mapping save failed."));
     } finally {
       setIsLoading(false);
     }
@@ -180,7 +180,7 @@ export function ColumnMappingWorkspace({ productId, uploadId }: ColumnMappingWor
       setCampaignPlan(null);
       setBulkExport(null);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Column mapping approval failed.");
+      setMessage(formatApiError(caught, "Column mapping approval failed."));
     } finally {
       setIsLoading(false);
     }
@@ -203,7 +203,7 @@ export function ColumnMappingWorkspace({ productId, uploadId }: ColumnMappingWor
       setScoringSummary(body.data);
       await loadReviews(body.data.scoring_run_id);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Keyword relevance scoring failed.");
+      setMessage(formatApiError(caught, "Keyword relevance scoring failed."));
     } finally {
       setIsLoading(false);
     }
@@ -228,7 +228,7 @@ export function ColumnMappingWorkspace({ productId, uploadId }: ColumnMappingWor
       if (!response.ok) throw new Error(body.error?.message ?? "Keyword review request failed.");
       setReviews(body.data);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Keyword review request failed.");
+      setMessage(formatApiError(caught, "Keyword review request failed."));
     }
   }
 
@@ -254,7 +254,7 @@ export function ColumnMappingWorkspace({ productId, uploadId }: ColumnMappingWor
       setOverrideReason("");
       await loadReviews();
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Keyword override failed.");
+      setMessage(formatApiError(caught, "Keyword override failed."));
     } finally {
       setIsLoading(false);
     }
@@ -281,7 +281,7 @@ export function ColumnMappingWorkspace({ productId, uploadId }: ColumnMappingWor
       setCampaignPlan(null);
       setBulkExport(null);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Approved keyword set creation failed.");
+      setMessage(formatApiError(caught, "Approved keyword set creation failed."));
     } finally {
       setIsLoading(false);
     }
@@ -299,7 +299,7 @@ export function ColumnMappingWorkspace({ productId, uploadId }: ColumnMappingWor
       setCampaignPlan(plan);
       setBulkExport(null);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Campaign plan generation failed.");
+      setMessage(formatApiError(caught, "Campaign plan generation failed."));
     } finally {
       setIsLoading(false);
     }
@@ -316,7 +316,7 @@ export function ColumnMappingWorkspace({ productId, uploadId }: ColumnMappingWor
       const plan = await approveCampaignPlan(workspaceId, campaignPlan.id, planApprovalNote);
       setCampaignPlan(plan);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Campaign plan approval failed.");
+      setMessage(formatApiError(caught, "Campaign plan approval failed."));
     } finally {
       setIsLoading(false);
     }
@@ -333,7 +333,7 @@ export function ColumnMappingWorkspace({ productId, uploadId }: ColumnMappingWor
       const exportResponse = await createBulkExport(workspaceId, campaignPlan.id, exportApprovalNote);
       setBulkExport(exportResponse);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Bulk export failed.");
+      setMessage(formatApiError(caught, "Bulk export failed."));
     } finally {
       setIsLoading(false);
     }

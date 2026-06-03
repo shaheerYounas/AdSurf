@@ -7,7 +7,7 @@ import type { ReactNode } from "react";
 import type { ProductProfile } from "@adsurf/types";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { defaultWorkspaceId } from "@/lib/api/client";
+import { defaultWorkspaceId, formatApiError } from "@/lib/api/client";
 import { getProductProfile } from "@/lib/api/products";
 import { getUploads, type UploadRecord } from "@/lib/api/uploads";
 
@@ -35,14 +35,12 @@ export function ProductDetailPanel({ productId }: { productId: string }) {
     setError(null);
     setIsLoading(true);
     try {
-      const [loadedProduct, loadedUploads] = await Promise.all([
-        getProductProfile(productId, workspaceId),
-        getUploads({ productId, workspaceId }),
-      ]);
+      const loadedProduct = await getProductProfile(productId, workspaceId);
+      const loadedUploads = await getUploads({ productId, workspaceId });
       setProduct(loadedProduct);
       setUploads(loadedUploads);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Product could not be loaded.");
+      setError(formatApiError(caught, "Product could not be loaded."));
     } finally {
       setIsLoading(false);
     }

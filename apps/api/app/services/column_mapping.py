@@ -1,4 +1,5 @@
 import json
+import re
 from uuid import UUID
 
 from apps.api.app.core.errors import ApiError
@@ -106,6 +107,7 @@ def validate_manual_mapping(
         _validate_numeric_like(messages, search_volume, "search_volume", "SEARCH_VOLUME_NOT_NUMERIC")
     for column in valid_rank_columns:
         _validate_numeric_like(messages, column, "competitor_rank_columns", "COMPETITOR_RANK_NOT_NUMERIC")
+        _validate_competitor_rank_semantics(messages, column)
     if search_term is not None:
         _validate_search_term(messages, search_term)
 
@@ -138,6 +140,20 @@ def _validate_numeric_like(messages: list[dict], column: ColumnProfileColumn, fi
         _message(messages, "warning", f"{code}_TEXT", f"{field} uses text values that look numeric.", column)
         return
     _message(messages, "error", code, f"{field} must reference a numeric-like column.", column)
+
+
+def _validate_competitor_rank_semantics(messages: list[dict], column: ColumnProfileColumn) -> None:
+    normalized = column.normalized_column_name.lower()
+    tokens = re.split(r"[\W_]+", normalized)
+    if any(token in normalized for token in ("rank", "position", "organic", "competitor")) or "comp" in tokens:
+        return
+    _message(
+        messages,
+        "error",
+        "COMPETITOR_RANK_NAME_NOT_RANK_LIKE",
+        "competitor_rank_columns must reference rank or position columns, not unrelated performance metrics.",
+        column,
+    )
 
 
 def _validate_search_term(messages: list[dict], column: ColumnProfileColumn) -> None:

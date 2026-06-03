@@ -86,13 +86,13 @@ The live RLS test skips unless a localhost database URL is provided.
 ## Batch 4.1 Cleanup Tests
 - Migration tests verify the parse run composite identity constraint and composite foreign keys from parsed rows/errors back to the owning parse run workspace/product/upload.
 - Parser tests verify extension and MIME type validation both fail closed using the Batch 3 accepted constants.
-- XLSX parser tests verify row and column limits fail during parsing, first non-empty worksheet selection is preserved, and formula cells are not executed or replaced with cached evaluated results.
+- XLSX parser tests verify row and column limits fail during parsing, first non-empty worksheet selection is preserved, date-formatted cells normalize to ISO dates, and formula cells are not executed or replaced with cached evaluated results.
 - Batch 4.1 remains parse-only: no semantic column mapping, keyword scoring, relevance scoring, campaign generation, exports, monitoring, recommendations, AI agents, or Amazon Ads API behavior is tested or implemented.
 
 ## Batch 5 Manual Column Mapping Tests
 - Migration tests verify column profile, profile-column, and manual mapping tables, composite scope foreign keys, uniqueness constraints, and non-broad RLS.
-- Column profile tests cover generation success, idempotency, blocked generation before a succeeded parse, original column preservation, normalized names, sample value limit, and inferred text/numeric types.
-- Manual mapping validation tests cover valid mappings, missing `search_term`, missing `search_volume`, missing competitor ranks, duplicate role columns, non-numeric search volume/rank columns, numeric-like text warnings, invalid mapping approval failure, approval superseding, role denial for viewer/approver, and cross-workspace denial.
+- Column profile tests cover generation success, idempotency, blocked generation before a succeeded parse, original column preservation, normalized names, sample value limit, and inferred text/numeric/date types.
+- Manual mapping validation tests cover valid mappings, missing `search_term`, missing `search_volume`, missing competitor ranks, duplicate role columns, non-numeric search volume/rank columns, rank-name semantic rejection for unrelated numeric metrics, numeric-like text warnings, invalid mapping approval failure, approval superseding, role denial for viewer/approver, and cross-workspace denial.
 - Frontend tests cover the mapping page, boundary message, manual field controls, and upload-page link after parse success.
 - Batch 5 remains manual and deterministic: no AI agents, semantic auto-mapping, keyword scoring, relevance scoring, Amazon verification, campaign generation, exports, monitoring, recommendations, or Amazon Ads API behavior is tested or implemented.
 

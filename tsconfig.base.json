@@ -12,7 +12,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
-    "baseUrl": ".",
     "paths": {
       "@adsurf/types": ["packages/types/src"],
       "@adsurf/shared": ["packages/shared/src"]

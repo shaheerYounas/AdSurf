@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { formatApiError } from "@/lib/api/client";
 import { createProductProfile } from "@/lib/api/products";
 
 export function ProductSetupForm() {
@@ -29,7 +30,7 @@ export function ProductSetupForm() {
       router.push(`/products/${product.id}`);
       router.refresh();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Product profile could not be saved.");
+      setError(formatApiError(caught, "Product profile could not be saved."));
     } finally {
       setIsSubmitting(false);
     }

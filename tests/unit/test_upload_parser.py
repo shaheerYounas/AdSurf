@@ -164,7 +164,31 @@ def test_xlsx_formula_cells_are_stored_without_evaluation() -> None:
     assert result.rows[0].row_data_json == {"term": "shoes", "formula": "=SUM(1,2)"}
 
 
-def _minimal_xlsx(*, data_sheet_xml: str | None = None) -> bytes:
+def test_xlsx_date_style_cells_are_converted_to_iso_dates() -> None:
+    result = UploadParser().parse(
+        content=_minimal_xlsx(
+            data_sheet_xml="""<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+              <sheetData>
+                <row r="1">
+                  <c r="A1" t="inlineStr"><is><t>term</t></is></c>
+                  <c r="B1" t="inlineStr"><is><t>End Date</t></is></c>
+                </row>
+                <row r="2">
+                  <c r="A2" t="inlineStr"><is><t>shoes</t></is></c>
+                  <c r="B2" s="1"><v>46149</v></c>
+                </row>
+              </sheetData>
+            </worksheet>""",
+            styles_xml=_date_styles_xml(),
+        ),
+        original_filename="keywords.xlsx",
+        mime_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+    assert result.rows[0].row_data_json == {"term": "shoes", "End Date": "2026-05-07"}
+
+
+def _minimal_xlsx(*, data_sheet_xml: str | None = None, styles_xml: str | None = None) -> bytes:
     if data_sheet_xml is None:
         data_sheet_xml = """<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
           <sheetData>
@@ -205,5 +229,16 @@ def _minimal_xlsx(*, data_sheet_xml: str | None = None) -> bytes:
             "xl/worksheets/sheet1.xml",
             """<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData/></worksheet>""",
         )
+        if styles_xml is not None:
+            archive.writestr("xl/styles.xml", styles_xml)
         archive.writestr("xl/worksheets/sheet2.xml", data_sheet_xml)
     return output.getvalue()
+
+
+def _date_styles_xml() -> str:
+    return """<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+      <cellXfs count="2">
+        <xf numFmtId="0"/>
+        <xf numFmtId="14"/>
+      </cellXfs>
+    </styleSheet>"""

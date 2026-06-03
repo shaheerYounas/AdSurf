@@ -1,4 +1,4 @@
-import { apiBaseUrl, defaultWorkspaceId, localAuthHeaders, readApiData } from "@/lib/api/client";
+import { apiBaseUrl, defaultWorkspaceId, fetchApiData, localAuthHeaders } from "@/lib/api/client";
 
 export type ReportDetection = {
   detected_report_type: string;
@@ -52,6 +52,25 @@ export type AccountImportResponse = {
   workflow_id?: string | null;
 };
 
+export type AccountImportRecord = {
+  id: string;
+  workspace_id: string;
+  upload_id: string;
+  parse_run_id: string;
+  report_type: string;
+  status: string;
+  detected_report_type: string;
+  detection_confidence: string;
+  total_rows: number;
+  processed_rows: number;
+  error_rows: number;
+  data_quality_warnings_json: Array<Record<string, unknown>>;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  error_message: string | null;
+};
+
 export type UploadAccountReportProgress =
   | "initializing_upload"
   | "storing_file"
@@ -64,22 +83,30 @@ export type UploadAccountReportOptions = {
 };
 
 export async function uploadAccountReport(file: File, workspaceId = defaultWorkspaceId, options: UploadAccountReportOptions = {}): Promise<AccountImportResponse> {
-  try {
-    options.onProgress?.("initializing_upload", "Creating upload and workflow records.");
-    const form = new FormData();
-    form.append("file", file);
-    options.onProgress?.("storing_file", `Uploading ${file.name}.`);
-    const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/report`, {
+  options.onProgress?.("initializing_upload", "Creating upload and workflow records.");
+  const form = new FormData();
+  form.append("file", file);
+  options.onProgress?.("storing_file", `Uploading ${file.name}.`);
+  const result = await fetchApiData<AccountImportResponse>(
+    `${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/report`,
+    {
       method: "POST",
       headers: localAuthHeaders(workspaceId, "analyst"),
       body: form,
-    });
-    options.onProgress?.("creating_account_import", "Creating account import and starting workflow.");
-    return readApiData<AccountImportResponse>(response, "Account report upload could not be completed.");
-  } catch (err) {
-    if (err instanceof TypeError && err.message === "Failed to fetch") {
-      throw new Error("Unable to connect to the server. Please ensure the API is running.");
-    }
-    throw err;
-  }
+    },
+    "Account report upload could not be completed.",
+  );
+  options.onProgress?.("creating_account_import", "Creating account import and starting workflow.");
+  return result;
+}
+
+export async function listAccountImports(workspaceId = defaultWorkspaceId): Promise<AccountImportRecord[]> {
+  return fetchApiData<AccountImportRecord[]>(
+    `${apiBaseUrl}/v1/workspaces/${workspaceId}/account-imports`,
+    {
+      headers: localAuthHeaders(workspaceId),
+      cache: "no-store",
+    },
+    "Account imports could not be loaded.",
+  );
 }

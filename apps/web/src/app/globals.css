@@ -66,6 +66,40 @@ html.dark body {
   background: hsl(var(--brand) / 0.18);
 }
 
+select,
+textarea,
+input {
+  color-scheme: light;
+}
+
+html.dark select,
+html.dark textarea,
+html.dark input {
+  color-scheme: dark;
+}
+
+select option,
+select optgroup {
+  background-color: hsl(var(--surface));
+  color: hsl(var(--foreground));
+}
+
+select option:checked {
+  background-color: hsl(var(--brand) / 0.18);
+  color: hsl(var(--foreground));
+}
+
+html.dark select option,
+html.dark select optgroup {
+  background-color: hsl(238 34% 12%);
+  color: hsl(var(--foreground));
+}
+
+html.dark select option:checked {
+  background-color: hsl(var(--brand) / 0.28);
+  color: hsl(var(--foreground));
+}
+
 @layer utilities {
   .scrollbar-none {
     -ms-overflow-style: none;

@@ -4,7 +4,7 @@ import { CheckCircle2, Loader2, UploadCloud } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { apiBaseUrl, defaultWorkspaceId, localAuthHeaders, newIdempotencyKey } from "@/lib/api/client";
+import { apiBaseUrl, defaultWorkspaceId, formatApiError, localAuthHeaders, newIdempotencyKey } from "@/lib/api/client";
 import {
   ACCEPTED_UPLOAD_EXTENSIONS,
   MAX_UPLOAD_FILE_SIZE_BYTES,
@@ -96,7 +96,7 @@ export function UploadInitializationForm({ productId }: UploadInitializationForm
       setInitResult(body.data);
       setParseRuns([]);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Upload initialization failed.");
+      setError(formatApiError(caught, "Upload initialization failed."));
     } finally {
       setIsSubmitting(false);
     }
@@ -132,7 +132,7 @@ export function UploadInitializationForm({ productId }: UploadInitializationForm
       await processLocalJobs();
       await loadParseRuns(initResult.upload_id);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Upload confirmation failed.");
+      setError(formatApiError(caught, "Upload confirmation failed."));
     } finally {
       setIsConfirming(false);
     }

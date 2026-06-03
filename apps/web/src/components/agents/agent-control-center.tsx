@@ -30,7 +30,8 @@ import { AgentInspector } from "@/components/agents/agent-inspector";
 import { AgentTraceTimeline } from "@/components/agents/agent-trace-timeline";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
-import { defaultWorkspaceId } from "@/lib/api/client";
+import { defaultWorkspaceId, formatApiError } from "@/lib/api/client";
+import { getCachedData, setCachedData, warmSections } from "@/lib/prefetch";
 import {
   controlAgentRun,
   getAccountImportAgentWorkflow,
@@ -182,19 +183,24 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
     setIsLoading(true);
     setMessage(null);
     try {
-      const [agentsResult, configsResult, runsResult, recommendationsResult] = await Promise.allSettled([
-        getAgents(workspaceId),
-        getAgentConfigs(workspaceId, productId),
-        getAgentRuns(workspaceId, workflowImportId ?? undefined),
-        getRecommendations(workspaceId),
-      ]);
-      if (agentsResult.status === "rejected") throw agentsResult.reason;
-      if (configsResult.status === "rejected") throw configsResult.reason;
-      if (runsResult.status === "rejected") throw runsResult.reason;
-      const loadedAgents = agentsResult.value;
-      const loadedConfigs = configsResult.value;
-      const loadedRuns = runsResult.value;
-      const loadedRecommendations = recommendationsResult.status === "fulfilled" ? recommendationsResult.value : [];
+      warmSections(["agents", "recommendations", "reports"]);
+      const loadedAgents = await cachedOrFetch("agents:definitions", () => getAgents(workspaceId), 300_000);
+      const loadedConfigs = await cachedOrFetch(
+        productId ? `agents:configs:${productId}` : "agents:configs",
+        () => getAgentConfigs(workspaceId, productId),
+        120_000,
+      );
+      const loadedRuns = await cachedOrFetch(
+        workflowImportId ? `agents:runs:${workflowImportId}` : "agents:runs",
+        () => getAgentRuns(workspaceId, workflowImportId ?? undefined),
+        45_000,
+      );
+      let loadedRecommendations: Recommendation[] = [];
+      try {
+        loadedRecommendations = await cachedOrFetch("recommendations:list", () => getRecommendations(workspaceId), 60_000);
+      } catch (recommendationError) {
+        setMessage(formatApiError(recommendationError, "Recommendations could not be loaded."));
+      }
       setAgents(loadedAgents);
       setConfigs(loadedConfigs);
       setRuns(loadedRuns);
@@ -203,7 +209,8 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
       if (workflowImportId && workflowImportKind === "monitoring") setWorkflow(await getAgentWorkflow(workflowImportId, workspaceId));
       const workflowId = importOverride?.workflowId ?? accountImport?.workflow_id ?? durableWorkflow?.workflow.id ?? null;
       if (workflowId) {
-        const [summary, events] = await Promise.all([getWorkflow(workflowId, workspaceId), getWorkflowEvents(workflowId, workspaceId)]);
+        const summary = await getWorkflow(workflowId, workspaceId);
+        const events = await getWorkflowEvents(workflowId, workspaceId);
         setDurableWorkflow(summary);
         setWorkflowEvents(events);
       }
@@ -221,11 +228,8 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
         reasoning: `Running ${loadedAgents.length} agents in ${loadedConfigs[0]?.mode ?? "hybrid"} mode across ${accountImport?.import_record.processed_rows ?? "?"} rows.`,
         skipReasons: {},
       });
-      if (recommendationsResult.status === "rejected") {
-        setMessage(recommendationsResult.reason instanceof Error ? recommendationsResult.reason.message : "Recommendations could not be loaded.");
-      }
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Agent Control Center could not be loaded.");
+      setMessage(formatApiError(caught, "Agent Control Center could not be loaded."));
     } finally {
       setIsLoading(false);
     }
@@ -259,7 +263,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
       await load({ id: result.import_record.id, kind: "account", workflowId: result.workflow_id });
     } catch (caught) {
       if (process.env.NODE_ENV !== "production") console.error("Account report upload failed", caught);
-      const text = caught instanceof Error ? caught.message : "Account report upload could not be completed.";
+      const text = formatApiError(caught, "Account report upload could not be completed.");
       setUploadStatus({ kind: "error", text, detail: "Check API health, migrations, storage, and worker processing." });
       setMessage(text);
     } finally {
@@ -288,7 +292,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
       setMessage("Agent configuration saved.");
     } catch (caught) {
       if (previousConfigs.length) setConfigs(previousConfigs);
-      setMessage(caught instanceof Error ? caught.message : "Agent configuration could not be saved.");
+      setMessage(formatApiError(caught, "Agent configuration could not be saved."));
     } finally {
       setIsSavingConfig(false);
     }
@@ -314,7 +318,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
         : `Environment mode saved as ${mode}.`);
       await load();
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Environment mode could not be saved.");
+      setMessage(formatApiError(caught, "Environment mode could not be saved."));
     } finally {
       setIsSavingConfig(false);
     }
@@ -340,12 +344,13 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
     setMessage(`${action} requested for workflow ${activeWorkflowId}.`);
     try {
       await controlWorkflow(activeWorkflowId, action, `${action} requested from Agent Control Center`, workspaceId);
-      const [summary, events] = await Promise.all([getWorkflow(activeWorkflowId, workspaceId), getWorkflowEvents(activeWorkflowId, workspaceId)]);
+      const summary = await getWorkflow(activeWorkflowId, workspaceId);
+      const events = await getWorkflowEvents(activeWorkflowId, workspaceId);
       setDurableWorkflow(summary);
       setWorkflowEvents(events);
       setMessage(`Workflow ${action} saved. No live Amazon Ads change executed.`);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : `Workflow ${action} could not be saved.`);
+      setMessage(formatApiError(caught, `Workflow ${action} could not be saved.`));
     }
     return true;
   }
@@ -370,7 +375,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
       setMessage(`Agent ${action} request saved.`);
       await load();
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : `Agent ${action} request could not be saved.`);
+      setMessage(formatApiError(caught, `Agent ${action} request could not be saved.`));
     }
   }
 
@@ -384,7 +389,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
       setMessage("Agent rerun queued.");
       await load();
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Agent rerun could not be queued.");
+      setMessage(formatApiError(caught, "Agent rerun could not be queued."));
     }
   }
 
@@ -396,7 +401,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
       setMessage(`${name} applied to all agents.`);
       await load();
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : `${name} could not be applied.`);
+      setMessage(formatApiError(caught, `${name} could not be applied.`));
     }
   }
 
@@ -410,7 +415,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
       await load();
     } catch (caught) {
       setRecommendations(previous);
-      setMessage(caught instanceof Error ? caught.message : `Recommendation ${decision} could not be saved.`);
+      setMessage(formatApiError(caught, `Recommendation ${decision} could not be saved.`));
       throw caught;
     }
   }
@@ -435,7 +440,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
       }
       await load();
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Analysis could not be started.");
+      setMessage(formatApiError(caught, "Analysis could not be started."));
     } finally {
       setIsRunningAnalysis(false);
     }
@@ -464,7 +469,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
           void Promise.all(targetRuns.map((run) => controlAgentRun(run.id, action, `${action} all from Agent Control Center`, workspaceId))).then(() => {
             setMessage(`${action} saved for ${targetRuns.length} agent runs. No live Amazon Ads change executed.`);
             return load();
-          }).catch((caught) => setMessage(caught instanceof Error ? caught.message : `Bulk ${action} could not be saved.`));
+          }).catch((caught) => setMessage(formatApiError(caught, `Bulk ${action} could not be saved.`)));
         }}
         onViewApprovals={() => document.getElementById("approval-checkpoints")?.scrollIntoView({ behavior: "smooth" })}
         viewMode={viewMode}
@@ -980,7 +985,7 @@ function ApprovalCard({ recommendation, onDecision }: { recommendation: Recommen
     try {
       await Promise.resolve(onDecision(recommendation.id, decision));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : `Recommendation ${decision} could not be saved.`);
+      setError(formatApiError(caught, `Recommendation ${decision} could not be saved.`));
     } finally {
       setPending(null);
     }
@@ -1268,6 +1273,14 @@ function workflowEventToAgentEvent(event: WorkflowEvent): AgentEvent {
 
 function runToEvent(run: AgentRun): AgentEvent {
   return { id: `event-${run.id}`, agent_id: run.agent_id, agent_run_id: run.id, monitoring_import_id: run.monitoring_import_id, event_type: run.status === "failed" ? "agent_failed" : "agent_succeeded", message: `${run.agent_name} finished with status ${run.status}.`, metadata_json: { provider: run.provider, model: run.model, latency_ms: run.latency_ms, validation_errors: run.error_json?.validation_errors ?? [], recommendation_ids: run.recommendation_ids }, created_at: run.created_at };
+}
+
+async function cachedOrFetch<T>(cacheKey: string, fetcher: () => Promise<T>, ttlMs: number): Promise<T> {
+  const cached = getCachedData<T>(cacheKey);
+  if (cached !== null) return cached;
+  const data = await fetcher();
+  setCachedData(cacheKey, data, ttlMs);
+  return data;
 }
 
 function displayStatus(status?: string, agentId?: string, config?: AgentConfig, recommendations: Recommendation[] = []) {

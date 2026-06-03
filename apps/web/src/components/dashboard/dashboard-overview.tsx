@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { AlertCircle, Boxes, CheckCircle2, ChevronRight, Clock3, DatabaseZap, FileSpreadsheet, Loader2, RefreshCw, ShieldCheck, Sparkles, UploadCloud } from "lucide-react";
+import { Boxes, CheckCircle2, ChevronRight, Clock3, DatabaseZap, FileSpreadsheet, Loader2, RefreshCw, ShieldCheck, Sparkles, UploadCloud } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { defaultWorkspaceId } from "@/lib/api/client";
+import { ErrorNotice } from "@/components/ui/error-notice";
+import { defaultWorkspaceId, formatApiError } from "@/lib/api/client";
 import { getDashboardSummary, type DashboardSummary } from "@/lib/api/products";
+import { getCachedData, setCachedData } from "@/lib/prefetch";
 
 export function DashboardOverview({ initialSummary = null }: { initialSummary?: DashboardSummary | null }) {
   const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId);
@@ -22,12 +24,22 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
 
   async function loadDashboard() {
     setError(null);
+
+    // Data may already be prefetched in background.
+    const cached = getCachedData<DashboardSummary>("dashboard:summary");
+    if (cached) {
+      setSummary(cached);
+      setIsRefreshing(false);
+      return;
+    }
+
     setIsRefreshing(true);
     try {
       const loadedSummary = await getDashboardSummary(workspaceId);
+      setCachedData("dashboard:summary", loadedSummary, 120_000);
       setSummary(loadedSummary);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Dashboard could not be loaded.");
+      setError(formatApiError(caught, "Dashboard could not be loaded."));
     } finally {
       setIsRefreshing(false);
     }
@@ -50,16 +62,18 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
       </div>
 
       {error ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-red-300/30 bg-red-400/10 px-4 py-3 text-sm font-semibold text-red-100">
-          <AlertCircle aria-hidden="true" size={18} />
-          {error}
-        </div>
+        <ErrorNotice
+          actionLabel="Refresh dashboard"
+          message={error}
+          onAction={loadDashboard}
+          title="Dashboard data could not be refreshed"
+        />
       ) : null}
 
       {isSyncingInitialData ? (
-        <div className="flex items-center gap-2 rounded-2xl border border-sky-300/25 bg-sky-300/10 px-4 py-3 text-sm font-semibold text-sky-100">
+        <div className="flex items-center gap-2 rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm font-semibold text-sky-950 shadow-sm dark:border-sky-300/25 dark:bg-sky-300/10 dark:text-sky-100" role="status" aria-live="polite">
           <Loader2 aria-hidden="true" className="animate-spin" size={18} />
-          Supabase is still syncing dashboard data. You can continue using the app while the numbers refresh.
+          Loading dashboard data from Supabase. You can continue using the app while the numbers refresh.
         </div>
       ) : null}
 

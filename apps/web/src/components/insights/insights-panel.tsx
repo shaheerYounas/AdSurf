@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { defaultWorkspaceId } from "@/lib/api/client";
+import { defaultWorkspaceId, formatApiError } from "@/lib/api/client";
 
 type BacktestResult = {
   workspace_id?: string;
@@ -119,7 +119,7 @@ export function InsightsPanel({ workspaceId = defaultWorkspaceId, recommendation
       if (key === "backtest") setBacktest(data);
       if (key === "calibration") setCalibration(data);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : `${key} could not be loaded.`);
+      setMessage(formatApiError(caught, `${key} could not be loaded.`));
     } finally {
       setIsLoading(false);
     }
@@ -144,7 +144,7 @@ export function InsightsPanel({ workspaceId = defaultWorkspaceId, recommendation
       const json = await response.json();
       setPlanner(json.data);
     } catch (caught) {
-      setMessage(caught instanceof Error ? caught.message : "Planner evaluation failed.");
+      setMessage(formatApiError(caught, "Planner evaluation failed."));
     } finally {
       setIsLoading(false);
     }

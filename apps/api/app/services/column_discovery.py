@@ -153,4 +153,8 @@ def _is_date_string(value: str) -> bool:
             return True
         except ValueError:
             continue
-    return False
+    try:
+        datetime.fromisoformat(stripped)
+        return True
+    except ValueError:
+        return False
