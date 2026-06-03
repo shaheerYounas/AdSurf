@@ -14,4 +14,10 @@ describe("dashboard page", () => {
     expect(source).toContain("Does not change Amazon Ads account");
     expect(source).toContain("DatabaseZap");
   });
+
+  it("keeps the initial dashboard fetch alive long enough for database-backed data", () => {
+    const source = readFileSync("src/app/dashboard/page.tsx", "utf-8");
+
+    expect(source).toContain("setTimeout(() => controller.abort(), 10000)");
+  });
 });

@@ -4,7 +4,9 @@ import { getDashboardSummary, type DashboardSummary } from "@/lib/api/products";
 
 async function loadInitialDashboardSummary(): Promise<DashboardSummary | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 2500);
+  // The dashboard summary query can take several seconds on real workspaces,
+  // so keep the initial server render from bailing out too early.
+  const timeout = setTimeout(() => controller.abort(), 10000);
 
   try {
     return await getDashboardSummary(defaultWorkspaceId, { signal: controller.signal });

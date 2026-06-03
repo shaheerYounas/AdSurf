@@ -27,10 +27,10 @@
 - CSV is decoded as UTF-8 with BOM support.
 - XLSX is read with a deterministic read-only ZIP/XML parser; formulas are not executed.
 - XLSX worksheet XML is streamed row-by-row instead of materializing the full sheet before validation.
-- XLSX cells using date-formatted styles are normalized to ISO date strings before storage so column discovery can infer `date` instead of raw Excel serial integers.
+- XLSX cells using date-formatted styles are normalized to ISO date strings before storage so column discovery can infer `date` instead of raw Excel serial integers. Date-named columns such as `Start Date`, `End Date`, `Report Date`, or headers ending in `Date` also coerce numeric Excel serials to ISO dates when possible.
 - Legacy XLS uses an optional `xlrd` path when the dependency is installed; otherwise it fails with a clear dependency error.
 - First non-empty worksheet is selected by default.
-- Original headers are preserved; blank headers become `column_{n}`.
+- Original headers are preserved after trimming; blank headers become `column_{n}`. If trimming creates duplicate headers, later duplicates get deterministic suffixes like `_2` so values are not silently overwritten.
 - Empty cell values are stored as `null`.
 - Row hashes use deterministic JSON serialization with sorted keys.
 - Parser limits: 25 MB file size, 50,000 parsed rows, 250 columns. XLSX row and column limits are enforced during row iteration and parsing stops as soon as a limit is exceeded.
@@ -66,3 +66,8 @@ search_term, search_volume, suggested_bid, competitor_rank_1 through competitor_
 - Bad rows or file-level failures are recorded in `upload_parse_errors`.
 - Mapping uncertainty requires user review.
 - Original files are never overwritten.
+
+## Amazon Ads Safeguard Warnings
+- Account and monitoring imports run a deterministic safeguard pass after report detection.
+- Safeguards add review warnings for report-type uncertainty, missing columns, hidden header spaces, known Amazon column-name aliases, currency or marketplace mismatch, mixed attribution windows, mixed date ranges, invalid date ranges, non-numeric metric values, ambiguous or invalid percentage values, metric formula mismatches, negative metrics, blank ACOS with zero sales, spend with no sales, ASIN-like search terms, mixed ASIN/keyword search-term rows, auto/product-targeting contexts, missing match type, exact duplicate rows, duplicate search-term contexts, orders/units confusion, other-SKU sales dominance, low-data rows, import-level insufficient optimization evidence, and margin-risk ACOS.
+- Safeguards are labels and evidence only. They do not create, export, pause, bid, negate, or mutate Amazon Ads.

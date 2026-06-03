@@ -15,6 +15,7 @@ from apps.api.app.schemas.uploads import UploadStatus
 from apps.api.app.schemas.workflows import AgentWorkflow
 from apps.api.app.services.product_entity_resolver import ProductEntityResolution, ProductEntityResolver
 from apps.api.app.services.report_type_detector import ReportDetectionResult, ReportTypeDetector
+from apps.api.app.services.amazon_ads_safeguards import analyze_search_term_report_rows
 
 
 @dataclass(frozen=True)
@@ -58,6 +59,9 @@ def create_account_import_from_processed_upload(
                 "details": {"missing_columns": detection.missing_columns, "detected_report_type": detection.detected_report_type.value},
             }
         )
+    safeguard_rows = [{**row.row_data_json, "_row_number": row.row_number} for row in rows]
+    safeguards = analyze_search_term_report_rows(rows=safeguard_rows, detection=detection)
+    warnings.extend(safeguards.warnings)
 
     import_record = new_account_import(
         workspace_id=workspace_id,

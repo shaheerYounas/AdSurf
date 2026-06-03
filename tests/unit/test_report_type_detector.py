@@ -187,3 +187,20 @@ def test_unknown_report_returns_missing_context_safely() -> None:
     assert result.confidence == DetectionConfidence.LOW
     assert result.required_columns_present is False
     assert result.available_entity_levels == [EntityType.ACCOUNT]
+
+
+def test_search_term_report_accepts_cost_and_search_term_aliases() -> None:
+    result = ReportTypeDetector().detect(
+        headers=[
+            "Search Term",
+            "Targeting",
+            "Campaign Name",
+            "Ad Group Name",
+            "Cost",
+            "14 Day Total Sales",
+            "14 Day Total Orders (#)",
+        ]
+    )
+
+    assert result.detected_report_type == ReportType.SPONSORED_PRODUCTS_SEARCH_TERM_REPORT
+    assert result.required_columns_present is True

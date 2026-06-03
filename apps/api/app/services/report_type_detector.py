@@ -169,10 +169,24 @@ def _expand_known_aliases(headers: set[str]) -> set[str]:
         expanded.add("sales")
     if "14 day total sales" in expanded:
         expanded.add("sales")
+    if "total sales" in expanded:
+        expanded.add("sales")
     if "7 day total orders" in expanded:
         expanded.add("orders")
     if "14 day total orders" in expanded:
         expanded.add("orders")
+    if "7 day total orders number" in expanded:
+        expanded.add("orders")
+    if "14 day total orders number" in expanded:
+        expanded.add("orders")
+    if "total orders" in expanded:
+        expanded.add("orders")
+    if "cost" in expanded:
+        expanded.add("spend")
+    if "customer search term" in expanded:
+        expanded.add("search term")
+    if "search term" in expanded:
+        expanded.add("customer search term")
     if "campaign" in expanded:
         expanded.add("campaign name")
     if "ad group" in expanded:

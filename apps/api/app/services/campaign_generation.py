@@ -1,5 +1,6 @@
 from decimal import Decimal
 import json
+import re
 from uuid import UUID
 
 from apps.api.app.schemas.campaigns import CampaignKeyword
@@ -11,6 +12,7 @@ from apps.api.app.services.dual_path_decision import DualPathDecisionService, sa
 CAMPAIGN_RULE_VERSION = "campaign_creation_rules_v1"
 DEFAULT_DAILY_BUDGET = Decimal("10.0000")
 DEFAULT_BID = Decimal("1.0000")
+ASIN_PATTERN = re.compile(r"^b[0-9a-z]{9}$", re.IGNORECASE)
 
 
 def build_campaign_plan_json(*, product: ProductProfile, keyword_set_id: UUID, items: list[ApprovedKeywordSetItem]) -> dict:
@@ -57,6 +59,12 @@ def build_campaign_plan_json(*, product: ProductProfile, keyword_set_id: UUID, i
         "hero_keyword": hero_keyword.model_dump(mode="json"),
         "groups": groups,
         "campaigns": campaigns,
+        "safety_summary": _campaign_plan_safety_summary(product=product, campaigns=campaigns, items=items),
+        "approval_boundary": {
+            "requires_human_approval": True,
+            "executes_live_amazon_change": False,
+            "amazon_ads_api_mutation": False,
+        },
     }
 
 
@@ -154,6 +162,61 @@ def _negative_keywords(*, match_type: str, keywords: list[CampaignKeyword]) -> l
     if match_type == "Broad":
         return [{"keyword_text": keyword.search_term, "match_type": "Negative Phrase", "rule": "broad_phrase_overlap_prevention"} for keyword in keywords]
     return []
+
+
+def _campaign_plan_safety_summary(*, product: ProductProfile, campaigns: list[dict], items: list[ApprovedKeywordSetItem]) -> dict:
+    total_daily_budget = sum((Decimal(str(campaign["daily_budget"])) for campaign in campaigns), Decimal("0"))
+    terms = [item.search_term.strip().lower() for item in items]
+    duplicate_terms = sorted({term for term in terms if terms.count(term) > 1})
+    asin_like_terms = sorted({item.search_term for item in items if ASIN_PATTERN.match(item.search_term.strip())})
+    low_volume_terms = sorted({item.search_term for item in items if item.search_volume is None or item.search_volume <= 0})
+    warnings: list[dict] = []
+    if asin_like_terms:
+        warnings.append(
+            {
+                "code": "ASIN_TERMS_NEED_PRODUCT_TARGETING_REVIEW",
+                "message": "Some approved terms look like ASINs and should be reviewed for product targeting instead of keyword campaigns.",
+                "risk_label": "possible_asin_targeting",
+                "terms": asin_like_terms,
+            }
+        )
+    if duplicate_terms:
+        warnings.append(
+            {
+                "code": "DUPLICATE_APPROVED_TERMS",
+                "message": "Duplicate approved terms can create overlapping campaign traffic.",
+                "risk_label": "possible_duplicate",
+                "terms": duplicate_terms,
+            }
+        )
+    if low_volume_terms:
+        warnings.append(
+            {
+                "code": "LOW_DATA_APPROVED_TERMS",
+                "message": "Some approved terms have no positive search-volume evidence; review before scaling.",
+                "risk_label": "not_enough_data",
+                "terms": low_volume_terms,
+            }
+        )
+    if total_daily_budget > (product.default_budget or DEFAULT_DAILY_BUDGET) * Decimal("10"):
+        warnings.append(
+            {
+                "code": "TOTAL_DAILY_BUDGET_EXPOSURE",
+                "message": "Campaign plan daily budgets add up to a high account exposure; confirm total budget before export.",
+                "risk_label": "high_risk",
+            }
+        )
+    return {
+        "campaign_count": len(campaigns),
+        "total_daily_budget": str(total_daily_budget.quantize(Decimal("0.0001"))),
+        "default_campaign_budget": str((product.default_budget or DEFAULT_DAILY_BUDGET).quantize(Decimal("0.0001"))),
+        "risk_labels": sorted({warning["risk_label"] for warning in warnings}) or ["safe"],
+        "warnings": warnings,
+        "requires_budget_confirmation": True,
+        "requires_existing_campaign_duplicate_check": True,
+        "requires_human_approval": True,
+        "executes_live_amazon_change": False,
+    }
 
 
 def _campaign_name(*, product: ProductProfile, match_type: str, group_index: int | None = None, keyword_or_group: str | None = None) -> str:

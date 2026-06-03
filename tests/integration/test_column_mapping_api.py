@@ -210,7 +210,10 @@ def test_manual_mapping_rejects_performance_metric_as_competitor_rank(monkeypatc
     assert response.status_code == 200
     data = response.json()["data"]
     assert data["status"] == "invalid"
-    assert "COMPETITOR_RANK_NAME_NOT_RANK_LIKE" in {message["code"] for message in data["validation_errors_json"]}
+    # "Spend" is an ad performance metric and should be caught by the
+    # forbidden-pattern check (COMPETITOR_RANK_IS_AD_METRIC), not just the
+    # generic name semantic check (COMPETITOR_RANK_NAME_NOT_RANK_LIKE).
+    assert "COMPETITOR_RANK_IS_AD_METRIC" in {message["code"] for message in data["validation_errors_json"]}
 
 
 def test_numeric_like_text_mapping_is_allowed_with_warning(monkeypatch, tmp_path) -> None:

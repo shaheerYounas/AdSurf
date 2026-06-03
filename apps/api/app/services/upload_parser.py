@@ -64,7 +64,7 @@ class UploadParser:
             headers = next(reader)
         except StopIteration as exc:
             raise ApiError(code="UPLOAD_PARSE_EMPTY_FILE", message="Uploaded file is empty.", status_code=400) from exc
-        headers = [_normalize_header(header, index) for index, header in enumerate(headers)]
+        headers = _normalize_headers(headers)
         _enforce_column_limit(len(headers), self._limits.max_columns)
         rows: list[ParsedUploadRow] = []
         errors: list[UploadParseError] = []
@@ -192,7 +192,7 @@ def _rows_from_matrix(
             total_columns=0,
             rows=[],
         )
-    headers = [_normalize_header(str(_cell_to_json_value(value) or ""), index) for index, value in enumerate(non_empty_rows[0])]
+    headers = _normalize_headers([str(_cell_to_json_value(value) or "") for value in non_empty_rows[0]])
     _enforce_column_limit(len(headers), limits.max_columns)
     rows: list[ParsedUploadRow] = []
     for row_number, raw_values in enumerate(non_empty_rows[1:], start=2):
@@ -227,7 +227,7 @@ def _parse_sheet_stream(
         if not any(value is not None for value in values):
             continue
         if headers is None:
-            headers = [_normalize_header(str(value or ""), index) for index, value in enumerate(values)]
+            headers = _normalize_headers([str(value or "") for value in values])
             _enforce_column_limit(len(headers), limits.max_columns)
             continue
         _enforce_row_limit(len(rows) + 1, limits.max_rows)
@@ -257,7 +257,7 @@ def _row_from_values(headers: list[str], values: list[Any]) -> dict:
     normalized: dict[str, Any] = {}
     for index, header in enumerate(headers):
         value = values[index] if index < len(values) else None
-        normalized[header] = _cell_to_json_value(value)
+        normalized[header] = _coerce_value_for_header(header, _cell_to_json_value(value))
     return normalized
 
 
@@ -273,6 +273,44 @@ def _cell_to_json_value(value: Any) -> Any:
 def _normalize_header(header: str, index: int) -> str:
     normalized = header.strip()
     return normalized if normalized else f"column_{index + 1}"
+
+
+def _normalize_headers(headers: list[str]) -> list[str]:
+    normalized_headers: list[str] = []
+    seen: dict[str, int] = {}
+    for index, header in enumerate(headers):
+        normalized = _normalize_header(header, index)
+        seen_count = seen.get(normalized, 0)
+        if seen_count:
+            normalized_headers.append(f"{normalized}_{seen_count + 1}")
+        else:
+            normalized_headers.append(normalized)
+        seen[normalized] = seen_count + 1
+    return normalized_headers
+
+
+def _coerce_value_for_header(header: str, value: Any) -> Any:
+    if value is None:
+        return None
+    if _looks_like_date_header(header) and isinstance(value, int | float) and _is_plausible_excel_date_serial(float(value)):
+        return _excel_serial_to_iso(float(value))
+    if (
+        _looks_like_date_header(header)
+        and isinstance(value, str)
+        and re.fullmatch(r"\d+(\.\d+)?", value.strip())
+        and _is_plausible_excel_date_serial(float(value.strip()))
+    ):
+        return _excel_serial_to_iso(float(value.strip()))
+    return value
+
+
+def _looks_like_date_header(header: str) -> bool:
+    normalized = re.sub(r"[^a-z0-9]+", " ", header.strip().lower()).strip()
+    return normalized in {"date", "start date", "end date", "report date"} or normalized.endswith(" date")
+
+
+def _is_plausible_excel_date_serial(value: float) -> bool:
+    return 1 <= value <= 80000
 
 
 def _enforce_row_limit(count: int, max_rows: int) -> None:

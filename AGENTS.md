@@ -58,3 +58,113 @@ All decision services inherit from `dual_path_decision.DualPathDecisionService[T
 - Product must be usable by non-technical sellers and agency operators.
 - AI may recommend, summarize, map, and explain; AI may not silently act.
 - Canonical roles are `owner`, `admin`, `analyst`, `approver`, and `viewer`.
+
+## Project: Amazon Ads Optimization Software
+
+### Goal
+Build a professional Amazon Ads analysis and campaign planning system.
+
+The software must process uploaded Sponsored Products Search Term Reports, validate the file, normalize metrics, detect risky data, generate campaign recommendations, create campaign build plans, preview negative keywords, and support human approval before any money-spending action.
+
+### Core Safety Rule
+Never make or suggest a money-spending Amazon Ads action without:
+- validation
+- explanation
+- risk label
+- human approval state
+- audit log
+
+### Required Workflow
+The product flow must be:
+
+Upload Report
+-> Validate File
+-> Normalize Data
+-> Analyze Search Terms
+-> Generate Recommendations
+-> Review Campaign Builder
+-> Review Negative Keywords
+-> Confirm Budget Risk
+-> Export or Apply Approved Changes
+-> Monitor Performance
+
+Do not build a single "Optimize" button that hides the logic.
+
+### Backend Principles
+Use modular services:
+- FileUploadService
+- ReportParserService
+- ColumnMappingService
+- ValidationService
+- MetricCalculatorService
+- SearchTermClassifierService
+- RulesEngine
+- RecommendationService
+- CampaignPlanService
+- NegativeKeywordService
+- MonitoringService
+- AuditLogService
+
+### Metric Rules
+Recalculate these metrics:
+- CTR = clicks / impressions
+- CPC = spend / clicks
+- CVR = orders / clicks
+- ACOS = spend / sales
+- ROAS = sales / spend
+
+Handle divide-by-zero safely.
+If spend > 0 and sales = 0, do not set ACOS to 0. Mark it as "Spend with No Sales".
+
+### Search Term Classification
+Classify terms into:
+- keyword
+- ASIN/product target
+- branded term
+- competitor term
+- generic category term
+- irrelevant term
+- low-data term
+- duplicate term
+
+ASINs must not be treated like normal keyword campaigns.
+
+### Recommendation Rules
+Every recommendation must include:
+- action type
+- search term or target
+- product/campaign context
+- reason list
+- risk level
+- confidence level
+- blocked reason if unsafe
+- requires approval boolean
+
+### UI Principles
+The UI must be step-by-step, spacious, and review-focused.
+Each recommendation needs a "Why?" drawer.
+Show warnings before campaign creation.
+Show total possible daily budget before launch.
+
+### Testing Requirements
+Every backend rule must have unit tests.
+File upload and metric calculation must have edge-case tests.
+Include tests for:
+- missing columns
+- hidden spaces in columns
+- blank ACOS
+- zero sales
+- zero clicks
+- ASIN search terms
+- duplicate rows
+- wrong currency
+- wrong marketplace
+- low-data terms
+
+### Definition of Done
+A task is not complete until:
+- code is implemented
+- tests are added or updated
+- lint/build passes
+- risky assumptions are documented
+- UI states for loading/error/empty/success are handled

@@ -22,6 +22,54 @@ def test_campaign_names_follow_pdf_convention() -> None:
     hero_name = plan["campaigns"][0]["campaign_name"]
     assert hero_name.startswith("CoffeeMaker / SP / Manual / Exact / coffee beans / ")
     assert any("CoffeeMaker / SP / Manual / Phrase / Relevant1 / " in campaign["campaign_name"] for campaign in plan["campaigns"])
+    assert plan["approval_boundary"]["requires_human_approval"] is True
+    assert plan["approval_boundary"]["executes_live_amazon_change"] is False
+
+
+def test_campaign_plan_safety_summary_flags_budget_duplicates_and_asins() -> None:
+    product = _product()
+    items = [
+        _keyword("b076z4n4dp", 10, "1000"),
+        _keyword("b076z4n4dp", 9, "1000"),
+        _keyword("low volume term", 8, "0"),
+        _keyword("term 1", 7, "100"),
+        _keyword("term 2", 7, "100"),
+        _keyword("term 3", 7, "100"),
+        _keyword("term 4", 7, "100"),
+        _keyword("term 5", 7, "100"),
+        _keyword("term 6", 7, "100"),
+        _keyword("term 7", 7, "100"),
+        _keyword("term 8", 7, "100"),
+        _keyword("term 9", 7, "100"),
+        _keyword("term 10", 7, "100"),
+        _keyword("term 11", 7, "100"),
+        _keyword("term 12", 7, "100"),
+        _keyword("term 13", 7, "100"),
+        _keyword("term 14", 7, "100"),
+        _keyword("term 15", 7, "100"),
+        _keyword("term 16", 7, "100"),
+        _keyword("term 17", 7, "100"),
+        _keyword("term 18", 7, "100"),
+        _keyword("term 19", 7, "100"),
+        _keyword("term 20", 7, "100"),
+        _keyword("term 21", 7, "100"),
+        _keyword("term 22", 7, "100"),
+        _keyword("term 23", 7, "100"),
+        _keyword("term 24", 7, "100"),
+        _keyword("term 25", 7, "100"),
+        _keyword("term 26", 7, "100"),
+        _keyword("term 27", 7, "100"),
+    ]
+
+    plan = build_campaign_plan_json(product=product, keyword_set_id=uuid4(), items=items)
+    summary = plan["safety_summary"]
+
+    assert summary["requires_budget_confirmation"] is True
+    assert summary["requires_existing_campaign_duplicate_check"] is True
+    assert "possible_asin_targeting" in summary["risk_labels"]
+    assert "possible_duplicate" in summary["risk_labels"]
+    assert "not_enough_data" in summary["risk_labels"]
+    assert "high_risk" in summary["risk_labels"]
 
 
 def test_monitoring_14day_service_increases_bids_then_locks_after_day7() -> None:

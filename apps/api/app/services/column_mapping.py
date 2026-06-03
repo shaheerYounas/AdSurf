@@ -17,6 +17,33 @@ from apps.api.app.services.dual_path_decision import DualPathDecisionService, sa
 
 MAX_COMPETITOR_RANK_COLUMNS = 10
 
+# Column name tokens that indicate ad performance metrics — these columns
+# should NEVER be accepted as competitor rank columns even when numeric,
+# because their values are not rank positions and would produce meaningless
+# relevance scores (scorer counts rank values < 15).
+_FORBIDDEN_RANK_COLUMN_PATTERNS: list[str] = [
+    # Spend / cost
+    "spend", "cost", "cpc", "ecpc", "cpm", "ecpm",
+    # Clicks / traffic
+    "click", "clicks", "ctr",
+    # Orders / conversions
+    "order", "orders", "cvr", "conversion", "conversions",
+    # Sales / revenue
+    "sale", "sales", "revenue", "acos", "roas", "tacos", "tros",
+    # Impressions
+    "impression", "impressions",
+    # Budget / bid
+    "budget", "bid", "bids",
+    # Other ad metrics
+    "acos", "roas",
+]
+
+# Value-level heuristics that indicate a column contains ad metric data
+# rather than organic rank positions.
+_RANK_VALUE_MAX_REASONABLE = 1000  # ranks above this are likely not ranks
+_RANK_VALUE_DECIMAL_FRACTION_WARN = 0.3  # warn if >30% of values have decimal parts
+_RANK_VALUE_LOW_PCT_WARN = 0.1  # warn if <10% of values are in rank range (1-100)
+
 
 class ColumnMappingService:
     def __init__(self, *, column_repository: ColumnMappingRepository) -> None:
@@ -143,17 +170,126 @@ def _validate_numeric_like(messages: list[dict], column: ColumnProfileColumn, fi
 
 
 def _validate_competitor_rank_semantics(messages: list[dict], column: ColumnProfileColumn) -> None:
+    """Validate that a column is semantically appropriate for competitor rank scoring.
+
+    This performs a multi-layered check beyond simple numeric-ness:
+    1. Column name is checked against forbidden ad-metric patterns (spend, clicks,
+       orders, etc.) — these produce error-level rejections.
+    2. Sample values are inspected for rank-like distribution (values in 1-100
+       range, low decimal fraction) — these produce warning-level guidance.
+    3. If the column name contains rank/position/competitor tokens, it passes.
+    """
     normalized = column.normalized_column_name.lower()
+    original_lower = column.original_column_name.lower()
     tokens = re.split(r"[\W_]+", normalized)
-    if any(token in normalized for token in ("rank", "position", "organic", "competitor")) or "comp" in tokens:
+
+    # --- Layer 1: Forbidden ad metric name patterns (hard error) ---
+    for pattern in _FORBIDDEN_RANK_COLUMN_PATTERNS:
+        if pattern in normalized or pattern in original_lower:
+            _message(
+                messages,
+                "error",
+                "COMPETITOR_RANK_IS_AD_METRIC",
+                f"competitor_rank_columns cannot use ad performance metric '{column.original_column_name}'. "
+                f"Values like '{pattern}' are not rank positions — they would produce meaningless relevance scores.",
+                column,
+            )
+            return
+
+    # --- Layer 2: Positive name signals (pass-through) ---
+    rank_positive_tokens = ("rank", "position", "organic", "competitor")
+    if any(token in normalized for token in rank_positive_tokens) or "comp" in tokens:
         return
+
+    # --- Layer 3: Value-level heuristics (warning, not hard error) ---
+    _check_rank_value_heuristics(messages, column)
+
+    # --- Layer 4: No positive signals found — name-based rejection ---
     _message(
         messages,
         "error",
         "COMPETITOR_RANK_NAME_NOT_RANK_LIKE",
-        "competitor_rank_columns must reference rank or position columns, not unrelated performance metrics.",
+        "competitor_rank_columns must reference rank or position columns, not unrelated performance metrics. "
+        f"Column '{column.original_column_name}' does not contain rank-related tokens "
+        "(e.g., 'rank', 'position', 'organic', 'competitor').",
         column,
     )
+
+
+def _check_rank_value_heuristics(messages: list[dict], column: ColumnProfileColumn) -> None:
+    """Inspect sample values for rank-like characteristics and issue warnings if
+    the data looks more like ad metrics than organic rank positions."""
+    samples = [value for value in column.sample_values_json if value is not None]
+    if not samples:
+        return
+
+    numeric_values: list[float] = []
+    for value in samples:
+        parsed = _try_parse_float(value)
+        if parsed is not None:
+            numeric_values.append(parsed)
+
+    if not numeric_values:
+        return
+
+    total = len(numeric_values)
+    # Values that look like plausible rank positions (1–100)
+    rank_range_count = sum(1 for v in numeric_values if 1.0 <= v <= 100.0)
+    # Values with fractional parts (ad metrics like CPC $1.23)
+    decimal_count = sum(1 for v in numeric_values if v != int(v))
+    # Values above a reasonable rank ceiling (e.g., 1000+ impressions)
+    high_value_count = sum(1 for v in numeric_values if v > _RANK_VALUE_MAX_REASONABLE)
+
+    rank_pct = rank_range_count / total
+    decimal_pct = decimal_count / total
+    high_pct = high_value_count / total
+
+    if high_pct > 0.5:
+        _message(
+            messages,
+            "warning",
+            "COMPETITOR_RANK_HIGH_VALUES",
+            f"competitor_rank column '{column.original_column_name}' has {high_pct:.0%} of sample values "
+            f"above {_RANK_VALUE_MAX_REASONABLE}, which does not look like rank positions. "
+            "Verify this column contains organic rank data, not ad metrics like impressions or spend.",
+            column,
+        )
+    if decimal_pct > _RANK_VALUE_DECIMAL_FRACTION_WARN:
+        _message(
+            messages,
+            "warning",
+            "COMPETITOR_RANK_DECIMAL_VALUES",
+            f"competitor_rank column '{column.original_column_name}' has {decimal_pct:.0%} of sample values "
+            "with decimal parts. Rank positions are typically whole numbers; decimal values suggest "
+            "ad metrics like CPC or CVR. Verify this column contains rank data.",
+            column,
+        )
+    if rank_pct < _RANK_VALUE_LOW_PCT_WARN and rank_pct > 0:
+        _message(
+            messages,
+            "warning",
+            "COMPETITOR_RANK_LOW_RANK_RANGE",
+            f"Only {rank_pct:.0%} of sample values in '{column.original_column_name}' fall in the 1–100 rank range. "
+            "This column may not represent organic rank positions.",
+            column,
+        )
+
+
+def _try_parse_float(value) -> float | None:
+    """Attempt to parse a value as float; returns None on failure."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int | float):
+        return float(value)
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip().replace(",", "")
+    if not stripped:
+        return None
+    try:
+        return float(stripped)
+    except ValueError:
+        return None
 
 
 def _validate_search_term(messages: list[dict], column: ColumnProfileColumn) -> None:

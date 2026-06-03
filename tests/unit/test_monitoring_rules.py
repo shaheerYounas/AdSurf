@@ -38,7 +38,7 @@ def test_sp_search_term_normalization_and_acos_zero_sales_handling() -> None:
 
     snapshots, warnings = normalize_sp_search_term_rows(import_record=import_record, rows=rows)
 
-    assert warnings == []
+    assert {warning["code"] for warning in warnings} >= {"SPEND_WITH_NO_SALES", "HIGH_CLICK_ZERO_ORDER"}
     assert snapshots[0].acos is None
     assert snapshots[0].spend == Decimal("12")
     assert snapshots[0].orders == 0

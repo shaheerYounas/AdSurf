@@ -27,6 +27,8 @@ from apps.api.app.schemas.monitoring import (
 from apps.api.app.schemas.product_profiles import ProductProfile
 from apps.api.app.schemas.upload_parsing import ParsedUploadRow
 from apps.api.app.services import monitoring_metrics
+from apps.api.app.services.amazon_ads_safeguards import analyze_search_term_report_rows
+from apps.api.app.services.report_type_detector import ReportTypeDetector
 
 
 MONEY_QUANT = Decimal("0.0001")
@@ -49,6 +51,9 @@ def normalize_sp_search_term_rows(*, import_record: MonitoringImport, rows: list
         )
 
     warnings: list[dict] = []
+    detection = ReportTypeDetector().detect(headers=rows[0].row_data_json.keys(), sample_rows=[row.row_data_json for row in rows[:25]])
+    safeguard_rows = [{**row.row_data_json, "_row_number": row.row_number} for row in rows]
+    warnings.extend(analyze_search_term_report_rows(rows=safeguard_rows, detection=detection).warnings)
     snapshots: list[MonitoringSnapshot] = []
     now = datetime.now(UTC)
     for row in rows:

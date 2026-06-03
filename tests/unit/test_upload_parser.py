@@ -20,6 +20,26 @@ def test_csv_parse_success_converts_empty_values_to_null() -> None:
     assert result.rows[1].row_data_json == {"term": "boots", "bid": None}
 
 
+def test_csv_parse_keeps_duplicate_trimmed_headers_distinct() -> None:
+    result = UploadParser().parse(
+        content="7 Day Total Sales ,7 Day Total Sales\n10,20\n".encode("utf-8"),
+        original_filename="report.csv",
+        mime_type="text/csv",
+    )
+
+    assert result.rows[0].row_data_json == {"7 Day Total Sales": "10", "7 Day Total Sales_2": "20"}
+
+
+def test_csv_parse_converts_excel_serial_in_date_named_column() -> None:
+    result = UploadParser().parse(
+        content="Start Date,End Date\n46139,46149\n".encode("utf-8"),
+        original_filename="report.csv",
+        mime_type="text/csv",
+    )
+
+    assert result.rows[0].row_data_json == {"Start Date": "2026-04-27", "End Date": "2026-05-07"}
+
+
 def test_csv_parse_rejects_unsupported_mime_type() -> None:
     with pytest.raises(ApiError) as error:
         UploadParser().parse(content=b"term\nshoes\n", original_filename="keywords.csv", mime_type="application/json")
