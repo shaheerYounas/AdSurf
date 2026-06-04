@@ -7,6 +7,7 @@ Tests two uploaded files:
 
 import os
 from copy import deepcopy
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -42,6 +43,7 @@ def _read_xlsx(path: Path) -> bytes:
 
 def _fake_product() -> ProductProfile:
     """Create a minimal product profile for recommendation generation."""
+    now = datetime.now(UTC)
     return ProductProfile(
         id=uuid4(),
         workspace_id=uuid4(),
@@ -60,14 +62,14 @@ def _fake_product() -> ProductProfile:
         break_even_acos=None,
         category=None,
         brand_name=None,
-        created_at=None,  # type: ignore[arg-type]
-        updated_at=None,  # type: ignore[arg-type]
+        created_at=now,
+        updated_at=now,
     )
 
 
 def _fake_import() -> MonitoringImport:
     """Create a minimal monitoring import record."""
-    now_placeholder = None  # type: ignore[arg-type]  # testing — not stored
+    now = datetime.now(UTC)
     return MonitoringImport(
         id=uuid4(),
         workspace_id=uuid4(),
@@ -83,8 +85,8 @@ def _fake_import() -> MonitoringImport:
         error_rows=0,
         data_quality_warnings_json=[],
         created_by="test",
-        created_at=now_placeholder,  # type: ignore[arg-type]
-        updated_at=now_placeholder,  # type: ignore[arg-type]
+        created_at=now,
+        updated_at=now,
         error_message=None,
     )
 
@@ -354,8 +356,8 @@ class TestBulkOperationsWorkbook:
             evidence_json={},
             proposed_action_json={"action": "increase_bid", "action_level": "targeting"},
             explanation_json={"summary": "Test increase bid recommendation."},
-            created_at=(rec_created_at := None),  # type: ignore[arg-type]
-            updated_at=rec_created_at,
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
 
         result = generate_bulk_sheet(

@@ -33,8 +33,8 @@ def run_database_operation(operation):
         raise ApiError(
             code="DATABASE_UNREACHABLE",
             message=(
-                "Database could not be reached. For Supabase local development, use the IPv4-compatible "
-                "Supabase pooler connection string in DATABASE_URL when the direct db.<project>.supabase.co host is unavailable."
+                "Database could not be reached. Verify DATABASE_URL is correctly configured "
+                "and the PostgreSQL server is running."
             ),
             status_code=503,
             details={"reason": str(exc.orig)[:500]},

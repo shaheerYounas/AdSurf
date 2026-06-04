@@ -10,6 +10,7 @@ Tests:
 """
 
 import hashlib
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -36,6 +37,7 @@ from apps.api.app.schemas.account_imports import (
     ProductResolutionStatus,
     ReportType,
 )
+from apps.api.app.schemas.uploads import UploadSourceType
 
 
 # =============================================================================
@@ -322,12 +324,13 @@ def test_recommendation_fingerprint_changed_detection():
 
 def test_can_reuse_import_ready_for_analysis():
     """Import that is ready_for_analysis can be reused."""
+    now = datetime.now(UTC)
     import_record = AccountImport(
         id=uuid4(),
         workspace_id=uuid4(),
         upload_id=uuid4(),
         parse_run_id=uuid4(),
-        report_type="account_bulk_report",
+        report_type=UploadSourceType.ACCOUNT_BULK_REPORT,
         status=AccountImportStatus.READY_FOR_ANALYSIS,
         detected_report_type=ReportType.SPONSORED_PRODUCTS_SEARCH_TERM_REPORT,
         detection_confidence=DetectionConfidence.HIGH,
@@ -335,20 +338,21 @@ def test_can_reuse_import_ready_for_analysis():
         processed_rows=100,
         error_rows=0,
         created_by="user-1",
-        created_at=None,
-        updated_at=None,
+        created_at=now,
+        updated_at=now,
     )
     assert can_reuse_import(import_record) is True
 
 
 def test_cannot_reuse_failed_import():
     """Failed import should not be reusable."""
+    now = datetime.now(UTC)
     import_record = AccountImport(
         id=uuid4(),
         workspace_id=uuid4(),
         upload_id=uuid4(),
         parse_run_id=uuid4(),
-        report_type="account_bulk_report",
+        report_type=UploadSourceType.ACCOUNT_BULK_REPORT,
         status=AccountImportStatus.FAILED,
         detected_report_type=ReportType.UNKNOWN_REPORT,
         detection_confidence=DetectionConfidence.LOW,
@@ -356,8 +360,8 @@ def test_cannot_reuse_failed_import():
         processed_rows=0,
         error_rows=1,
         created_by="user-1",
-        created_at=None,
-        updated_at=None,
+        created_at=now,
+        updated_at=now,
     )
     assert can_reuse_import(import_record) is False
 
@@ -368,6 +372,7 @@ def test_cannot_reuse_failed_import():
 
 def test_aggregate_entity_metrics():
     """Should correctly aggregate metrics across entities."""
+    now = datetime.now(UTC)
     entities = [
         AccountImportEntity(
             id=uuid4(),
@@ -377,7 +382,7 @@ def test_aggregate_entity_metrics():
             entity_key="key1",
             resolution_status=ProductResolutionStatus.MATCHED_EXISTING_PRODUCT,
             metrics_json={"spend": 10.50, "sales": 50.00, "clicks": 5, "orders": 2, "impressions": 100},
-            created_at=None,
+            created_at=now,
         ),
         AccountImportEntity(
             id=uuid4(),
@@ -387,7 +392,7 @@ def test_aggregate_entity_metrics():
             entity_key="key2",
             resolution_status=ProductResolutionStatus.MATCHED_EXISTING_PRODUCT,
             metrics_json={"spend": 15.25, "sales": 100.00, "clicks": 10, "orders": 3, "impressions": 200},
-            created_at=None,
+            created_at=now,
         ),
     ]
     aggregated = aggregate_entity_metrics(entities)

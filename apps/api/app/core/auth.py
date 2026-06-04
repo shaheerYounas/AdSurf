@@ -95,7 +95,7 @@ def _role_for_workspace(workspace_roles: str, workspace_id: UUID) -> WorkspaceRo
     return None
 
 
-class SupabaseJwtAuthAdapter(AuthAdapter):
+class ProductionJwtAuthAdapter(AuthAdapter):
     """Production skeleton. Full JWT verification and membership lookup are Batch 2 follow-up work."""
 
     def authenticate(self, request: Request, workspace_id: UUID) -> WorkspacePrincipal:
@@ -103,17 +103,9 @@ class SupabaseJwtAuthAdapter(AuthAdapter):
         if not authorization:
             raise ApiError(code="UNAUTHENTICATED", message="Authentication is required.", status_code=401)
 
-        settings = get_settings()
-        if not settings.supabase_jwt_secret:
-            raise ApiError(
-                code="AUTH_NOT_CONFIGURED",
-                message="Supabase JWT verification is not configured for this environment.",
-                status_code=503,
-            )
-
         raise ApiError(
             code="AUTH_NOT_IMPLEMENTED",
-            message="Supabase JWT verification skeleton is present but not enabled yet.",
+            message="JWT verification skeleton is present but not enabled yet.",
             status_code=503,
         )
 
@@ -128,7 +120,7 @@ def get_auth_adapter() -> AuthAdapter:
         )
     if settings.is_local_or_test:
         return LocalHeaderAuthAdapter()
-    return SupabaseJwtAuthAdapter()
+    return ProductionJwtAuthAdapter()
 
 
 def require_workspace_member(request: Request, workspace_id: UUID) -> WorkspacePrincipal:

@@ -155,10 +155,7 @@ def test_account_import_workflow_controls_are_audited_and_safe(monkeypatch, tmp_
 
 def _cancel_existing_queued_jobs() -> None:
     repository = get_job_repository()
-    for workspace_id, jobs in list(repository._jobs.items()):
-        for job_id, job in list(jobs.items()):
-            if job.status == JobStatus.QUEUED:
-                repository.update_status(workspace_id=workspace_id, job_id=job_id, status=JobStatus.CANCELLED)
+    repository.clear_queued_jobs()
 
 
 def _created_account_import(monkeypatch, tmp_path, include_workflow: bool = False):

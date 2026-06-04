@@ -21,14 +21,8 @@ class Settings(BaseModel):
     web_app_url: str = "http://localhost:3000"
     cors_allowed_origins: tuple[str, ...] = ("http://localhost:3000",)
     database_url: str | None = None
-    supabase_url: str | None = None
-    supabase_anon_key: str | None = None
-    supabase_publishable_key: str | None = None
-    supabase_service_role_key: str | None = None
-    supabase_jwt_secret: str | None = None
-    storage_adapter: str = "supabase"
+    storage_adapter: str = "local"
     allow_fake_storage_in_preview: bool = False
-    supabase_storage_uploads_bucket: str = "raw-uploads"
     local_upload_storage_root: str = ".local-storage/uploads"
     ai_provider: str | None = None
     ai_api_key: str | None = None
@@ -70,7 +64,7 @@ def get_settings() -> Settings:
     if database_url and database_url.startswith("postgresql://"):
         database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
     app_env = os.getenv("APP_ENV") or None
-    default_storage_adapter = "fake" if app_env in {"local", "test"} else "supabase"
+    default_storage_adapter = "local" if app_env in {"local", "test"} else "local"
 
     return Settings(
         app_name=os.getenv("PUBLIC_APP_NAME", "Amazon Ads AI Automation Control Center"),
@@ -83,15 +77,8 @@ def get_settings() -> Settings:
             if origin.strip()
         ),
         database_url=database_url,
-        supabase_url=os.getenv("SUPABASE_URL") or None,
-        supabase_anon_key=os.getenv("SUPABASE_ANON_KEY") or None,
-        supabase_publishable_key=os.getenv("SUPABASE_PUBLISHABLE_KEY") or None,
-        supabase_service_role_key=os.getenv("SUPABASE_SERVICE_ROLE_KEY") or None,
-        supabase_jwt_secret=os.getenv("SUPABASE_JWT_SECRET") or None,
         storage_adapter=os.getenv("STORAGE_ADAPTER", default_storage_adapter),
         allow_fake_storage_in_preview=os.getenv("ALLOW_FAKE_STORAGE_IN_PREVIEW", "false").lower() == "true",
-        supabase_storage_uploads_bucket=os.getenv("SUPABASE_STORAGE_BUCKET_UPLOADS")
-        or os.getenv("SUPABASE_STORAGE_UPLOADS_BUCKET", "raw-uploads"),
         local_upload_storage_root=os.getenv("LOCAL_UPLOAD_STORAGE_ROOT", ".local-storage/uploads"),
         ai_provider=os.getenv("AI_PROVIDER"),
         ai_api_key=os.getenv("AI_API_KEY"),

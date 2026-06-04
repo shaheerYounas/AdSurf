@@ -189,19 +189,19 @@ class SupabaseStorageService(StorageService):
 
 def get_storage_service() -> StorageService:
     settings = get_settings()
-    if settings.storage_adapter == "fake":
+    if settings.storage_adapter in ("fake", "local"):
         if settings.is_local_or_test or (settings.app_env == "preview" and settings.allow_fake_storage_in_preview):
             return LocalFakeStorageService()
         raise ApiError(
             code="STORAGE_ADAPTER_NOT_ALLOWED",
-            message="Fake storage adapter is only allowed in local/test or explicitly enabled preview.",
+            message="Local storage adapter is only allowed in local/test or explicitly enabled preview.",
             status_code=503,
         )
     if settings.storage_adapter == "supabase":
         return SupabaseStorageService()
     raise ApiError(
         code="STORAGE_ADAPTER_NOT_CONFIGURED",
-        message="Storage adapter must be configured as fake or supabase.",
+        message="Storage adapter must be configured as local or supabase.",
         status_code=503,
     )
 

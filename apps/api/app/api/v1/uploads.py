@@ -24,6 +24,7 @@ from apps.api.app.repositories.monitoring import MonitoringRepository, get_monit
 from apps.api.app.repositories.workflows import WorkflowRepository, get_workflow_repository
 from apps.api.app.schemas.account_imports import AccountImportResponse
 from apps.api.app.schemas.column_mapping import ColumnMappingCreateRequest, ColumnMappingStatus
+from apps.api.app.schemas.column_mapping_recommend import AiColumnMappingRecommendResponse, AiSuggestedMapping
 from apps.api.app.schemas.envelope import success_response
 from apps.api.app.schemas.keyword_review import (
     ApprovedKeywordSetCreateRequest,
@@ -38,7 +39,8 @@ from apps.api.app.schemas.uploads import (
     UploadStatus,
 )
 from apps.api.app.services.column_discovery import ColumnDiscoveryService
-from apps.api.app.services.column_mapping import ColumnMappingService
+from apps.api.app.services.column_mapping import ColumnMappingService, DualPathColumnMapping
+from apps.api.app.services.ai_provider_factory import build_agent_ai_client
 from apps.api.app.services.account_import_builder import create_account_import_from_processed_upload
 from apps.api.app.services.keyword_scoring import KeywordScoringFailedError, KeywordScoringService
 from apps.api.app.services.keyword_review import KeywordReviewService
@@ -1086,6 +1088,115 @@ def list_approved_keyword_set_items(
         data=[item.model_dump(mode="json") for item in items],
         meta={"total": total, "page": page, "page_size": page_size, "has_next": page * page_size < total},
     )
+
+
+@router.post("/workspaces/{workspace_id}/uploads/{upload_id}/column-mappings/recommend")
+def recommend_column_mapping(
+    workspace_id: UUID,
+    upload_id: UUID,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    upload_repository: UploadRepository = Depends(get_upload_repository),
+    parsing_repository: UploadParsingRepository = Depends(get_upload_parsing_repository),
+    column_repository: ColumnMappingRepository = Depends(get_column_mapping_repository),
+    agent_control_repository: AgentControlRepository = Depends(get_agent_control_repository),
+    audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
+) -> dict:
+    """AI-powered column mapping recommendation.
+
+    Analyzes the column profile using AI (with deterministic fallback)
+    and returns a suggested mapping with reasons. The user can accept
+    or modify the suggestion before saving a manual mapping.
+    """
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
+    _require_upload(workspace_id=workspace_id, upload_id=upload_id, upload_repository=upload_repository)
+
+    # Get the latest column profile
+    profile_with_columns = column_repository.get_profile_for_upload(
+        workspace_id=workspace_id, upload_id=upload_id
+    )
+    if profile_with_columns is None:
+        raise ApiError(
+            code="COLUMN_PROFILE_NOT_FOUND",
+            message="Generate a column profile before requesting a recommended mapping. Use POST /column-profile first.",
+            status_code=404,
+        )
+
+    profile, columns = profile_with_columns
+
+    # Build deterministic inputs
+    deterministic_inputs: dict = {
+        "profile": profile,
+        "columns": columns,
+        "mapping_json": None,
+    }
+
+    # Get agent config for column mapping agent
+    agent_configs = agent_control_repository.list_configs(workspace_id=workspace_id)
+    column_config = next(
+        (cfg for cfg in agent_configs if cfg.agent_id == DualPathColumnMapping.AGENT_ID),
+        None,
+    )
+    agent_config = column_config.model_dump(mode="json") if column_config else None
+
+    # Build AI client (if available)
+    ai_client = None
+    if column_config and column_config.mode != "deterministic":
+        try:
+            ai_client = build_agent_ai_client(
+                agent_id=DualPathColumnMapping.AGENT_ID,
+                agent_config=column_config,
+            )
+        except Exception:
+            ai_client = None
+
+    # Execute dual-path decision
+    dual_path = DualPathColumnMapping()
+    result = dual_path.decide(
+        mode=column_config.mode if column_config else "hybrid",
+        deterministic_inputs=deterministic_inputs,
+        ai_client=ai_client,
+        agent_config=agent_config,
+    )
+
+    # Log recommendation event
+    audit_repository.record(
+        workspace_id=workspace_id,
+        actor_user_id=principal.user_id,
+        action="column_mapping.recommend_requested",
+        entity_type="upload_column_profile",
+        entity_id=profile.id,
+        details={
+            "upload_id": str(upload_id),
+            "decision_source": result.decision_source.value,
+            "used_ai": result.used_ai,
+            "fallback_used": result.fallback_used,
+        },
+    )
+
+    mapping_result = result.result
+
+    # Build recommended mapping in terms of original column names
+    canonical_mapping = mapping_result.get("canonical_mapping", {})
+    suggested = {
+        "search_term": canonical_mapping.get("search_term"),
+        "search_volume": canonical_mapping.get("search_volume"),
+        "competitor_rank_columns": canonical_mapping.get("competitor_rank_columns", []),
+        "confidence": mapping_result.get("confidence", "medium"),
+        "reasoning": mapping_result.get("reasoning", ""),
+    }
+
+    validation_messages = mapping_result.get("messages", [])
+
+    recommendation = AiColumnMappingRecommendResponse(
+        suggested_mapping=AiSuggestedMapping(**suggested),
+        decision_source=result.decision_source.value,
+        requires_human_approval=True,
+        executes_live_amazon_change=False,
+        validation_messages=validation_messages,
+    )
+
+    return success_response(data=recommendation.model_dump(mode="json"))
 
 
 @router.get("/workspaces/{workspace_id}/jobs/{job_id}")

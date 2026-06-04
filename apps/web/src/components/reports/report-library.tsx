@@ -58,28 +58,30 @@ export function ReportLibrary() {
       const accountImportByUploadId = new Map(accountImports.map((record) => [record.upload_id, record]));
       const recommendationsByImportId = groupBy(recommendations, (rec) => rec.monitoring_import_id ?? rec.account_import_id ?? "");
 
-      const monitoringSummaries = [];
-      for (const product of products) {
-        try {
-          const summary = await cachedOrFetch(`monitoring:${product.id}:summary`, () => getProductMonitoring(product.id, workspaceId), 60_000);
-          monitoringSummaries.push({ productId: product.id, summary });
-        } catch {
-          monitoringSummaries.push({ productId: product.id, summary: null });
-        }
-      }
-      const monitoringImports = monitoringSummaries.flatMap((item) => item.summary?.imports ?? []);
+      // Fetch monitoring summaries and parse runs in parallel (was sequential for...of — O(n) → O(1) with Promise.all)
+      const [monitoringResults, parseRunResults] = await Promise.all([
+        Promise.allSettled(
+          products.map(async (product) => {
+            const summary = await cachedOrFetch(`monitoring:${product.id}:summary`, () => getProductMonitoring(product.id, workspaceId), 60_000);
+            return { productId: product.id, summary };
+          }),
+        ),
+        Promise.allSettled(
+          uploads.map(async (upload): Promise<[string, ParseRun | undefined]> => {
+            const runs = await cachedOrFetch(`uploads:${upload.id}:parse-runs`, () => getUploadParseRuns(upload.id, workspaceId), 120_000);
+            return [upload.id, runs[0]];
+          }),
+        ),
+      ]);
+
+      const monitoringImports = monitoringResults.flatMap((result) => (result.status === "fulfilled" ? result.value.summary?.imports ?? [] : []));
       const monitoringByUploadId = groupBy(monitoringImports, (item) => item.upload_id);
 
-      const parseRunEntries = [];
-      for (const upload of uploads) {
-        try {
-          const runs = await cachedOrFetch(`uploads:${upload.id}:parse-runs`, () => getUploadParseRuns(upload.id, workspaceId), 120_000);
-          parseRunEntries.push([upload.id, runs[0]] as const);
-        } catch {
-          parseRunEntries.push([upload.id, undefined] as const);
-        }
-      }
-      const parseRunByUploadId = new Map(parseRunEntries);
+      const parseRunEntries: Array<[string, ParseRun | undefined]> = parseRunResults.map((result) =>
+        result.status === "fulfilled" ? result.value : ["", undefined],
+      );
+      // Filter out failed parse entries
+      const parseRunByUploadId = new Map(parseRunEntries.filter(([uploadId]) => uploadId !== ""));
 
       setRows(
         uploads.map((upload) => {
