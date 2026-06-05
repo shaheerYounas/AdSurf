@@ -16,6 +16,7 @@ import {
   recommendationTitle,
   recommendationTypeLabel,
   recommendationWarnings,
+  recommendedAction,
 } from "@/lib/recommendation-helpers";
 import type { Recommendation } from "@/lib/api/monitoring";
 
@@ -466,6 +467,67 @@ describe("recommendation review helpers", () => {
       approved: 1,
       rejected: 1,
       criticalHigh: 2,
+      dataQuality: 1,
     });
+  });
+});
+
+describe("recommendedAction", () => {
+  it("returns add as exact negative keyword for add_negative_exact", () => {
+    expect(recommendedAction(makeRec({ recommendation_type: "add_negative_exact" }))).toBe("Add as exact negative keyword");
+  });
+
+  it("returns add as phrase negative keyword for add_negative_phrase", () => {
+    expect(recommendedAction(makeRec({ recommendation_type: "add_negative_phrase" }))).toBe("Add as phrase negative keyword");
+  });
+
+  it("returns increase bid toward target for increase_bid", () => {
+    expect(recommendedAction(makeRec({ recommendation_type: "increase_bid" }))).toBe("Increase bid toward target");
+  });
+
+  it("returns decrease bid to target ACOS for decrease_bid", () => {
+    expect(recommendedAction(makeRec({ recommendation_type: "decrease_bid" }))).toBe("Decrease bid to target ACOS");
+  });
+
+  it("returns harvest to exact match keyword for move_to_exact", () => {
+    expect(recommendedAction(makeRec({ recommendation_type: "move_to_exact" }))).toBe("Harvest to exact match keyword");
+  });
+
+  it("returns review candidate for pause for pause_review", () => {
+    expect(recommendedAction(makeRec({ recommendation_type: "pause_review" }))).toBe("Review candidate for pause");
+  });
+
+  it("returns monitor message for watch_lock", () => {
+    expect(recommendedAction(makeRec({ recommendation_type: "watch_lock" }))).toBe("Monitor — no change needed yet");
+  });
+
+  it("returns keep running as-is for keep_running", () => {
+    expect(recommendedAction(makeRec({ recommendation_type: "keep_running" }))).toBe("Keep running as-is");
+  });
+
+  it("returns resolve data quality issue for data_quality_review", () => {
+    expect(recommendedAction(makeRec({ recommendation_type: "data_quality_review" }))).toBe("Resolve data quality issue");
+  });
+
+  it("returns resolve data quality issue for inconsistent_metrics types", () => {
+    expect(recommendedAction(makeRec({ recommendation_type: "inconsistent_metrics_data_quality_review" }))).toBe("Resolve data quality issue");
+  });
+
+  it("returns review budget allocation for budget_review", () => {
+    expect(recommendedAction(makeRec({ recommendation_type: "budget_review" }))).toBe("Review budget allocation");
+  });
+
+  it("returns review and decide as fallback for unknown types", () => {
+    expect(recommendedAction(makeRec({ recommendation_type: "some_future_unknown_type" }))).toBe("Review and decide");
+  });
+
+  it("returns distinct text from recommendationTypeLabel for all core exportable types", () => {
+    const exportableTypes = ["add_negative_exact", "add_negative_phrase", "increase_bid", "decrease_bid", "move_to_exact"];
+    for (const type of exportableTypes) {
+      const rec = makeRec({ recommendation_type: type });
+      const action = recommendedAction(rec);
+      const label = recommendationTypeLabel(rec);
+      expect(action).not.toBe(label);
+    }
   });
 });

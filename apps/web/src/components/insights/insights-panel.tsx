@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   BarChart3,
   Calculator,
@@ -15,7 +15,6 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { defaultWorkspaceId, formatApiError } from "@/lib/api/client";
 
 type BacktestResult = {

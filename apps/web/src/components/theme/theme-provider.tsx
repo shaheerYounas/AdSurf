@@ -6,6 +6,16 @@ export type Theme = "light" | "dark" | "system";
 export type ResolvedTheme = "light" | "dark";
 
 const STORAGE_KEY = "adsurf-theme";
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year in seconds
+
+function setThemeCookie(resolved: ResolvedTheme) {
+  if (typeof document === "undefined") return;
+  try {
+    document.cookie = `${STORAGE_KEY}=${resolved};path=/;max-age=${COOKIE_MAX_AGE};SameSite=Lax`;
+  } catch {
+    // ignore — cookies may be blocked
+  }
+}
 
 type ThemeContextValue = {
   theme: Theme;
@@ -41,18 +51,19 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Apply resolved theme to <html> whenever it changes.
   useEffect(() => {
     applyThemeClass(resolved);
+    setThemeCookie(resolved);
   }, [resolved]);
 
   // Re-resolve when theme preference changes or when the OS preference flips while in "system".
   useEffect(() => {
     if (theme === "system") {
-      setResolved(readSystemPreference());
+      queueMicrotask(() => setResolved(readSystemPreference()));
       const media = window.matchMedia("(prefers-color-scheme: dark)");
       const listener = (event: MediaQueryListEvent) => setResolved(event.matches ? "dark" : "light");
       media.addEventListener("change", listener);
       return () => media.removeEventListener("change", listener);
     }
-    setResolved(theme);
+    queueMicrotask(() => setResolved(theme));
     return undefined;
   }, [theme]);
 
@@ -60,6 +71,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(next);
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
+      document.cookie = `${STORAGE_KEY}=${next};path=/;max-age=${COOKIE_MAX_AGE};SameSite=Lax`;
     } catch {
       // ignore — localStorage may be unavailable in private mode.
     }
@@ -87,17 +99,3 @@ export function useTheme() {
   return context;
 }
 
-/**
- * Inline script that runs before React hydrates so the page paints with the
- * correct theme on first render — no flash of incorrect colors.
- */
-export const themeBootstrapScript = `(() => {
-  try {
-    var stored = localStorage.getItem(${JSON.stringify(STORAGE_KEY)});
-    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    var resolved = stored === 'light' || stored === 'dark' ? stored : (prefersDark ? 'dark' : 'light');
-    var root = document.documentElement;
-    if (resolved === 'dark') root.classList.add('dark');
-    root.style.colorScheme = resolved;
-  } catch (_) {}
-})();`;

@@ -33,7 +33,7 @@ export function AgentTraceTimeline({ events, runs }: { events: AgentEvent[]; run
       <div className="max-h-[520px] overflow-auto">
         {fallbackEvents.length ? (
           <ol className="divide-y divide-slate-100 dark:divide-white/10">
-            {fallbackEvents.map((event, index) => (
+            {fallbackEvents.map((event) => (
               <li className="px-5 py-4" key={event.id}>
                 <details className="group">
                   <summary className="flex cursor-pointer list-none items-start gap-4 rounded-2xl p-2 outline-none transition hover:bg-slate-50 focus-visible:ring-2 focus-visible:ring-indigo-400 dark:hover:bg-white/5">

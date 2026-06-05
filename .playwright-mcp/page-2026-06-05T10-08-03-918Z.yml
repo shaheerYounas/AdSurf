@@ -1,0 +1,207 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e7]:
+          - generic [ref=e8]:
+            - img [ref=e10]
+            - generic [ref=e12]:
+              - paragraph [ref=e13]: Control Center
+              - heading "AdSurf AI" [level=1] [ref=e14]
+          - button "Switch to light mode" [ref=e15] [cursor=pointer]:
+            - img [ref=e16]
+        - navigation "Main navigation" [ref=e22]:
+          - generic [ref=e23]:
+            - paragraph [ref=e24]: Workspace
+            - generic [ref=e25]:
+              - link "Dashboard Workspace overview" [ref=e26] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e28]
+                - generic [ref=e33]:
+                  - generic [ref=e34]: Dashboard
+                  - generic [ref=e35]: Workspace overview
+              - link "Agents Control AI workflow" [ref=e36] [cursor=pointer]:
+                - /url: /agents
+                - img [ref=e38]
+                - generic [ref=e41]:
+                  - generic [ref=e42]: Agents
+                  - generic [ref=e43]: Control AI workflow
+              - link "Recommendations Approval queue" [ref=e44] [cursor=pointer]:
+                - /url: /recommendations
+                - img [ref=e46]
+                - generic [ref=e49]:
+                  - generic [ref=e50]: Recommendations
+                  - generic [ref=e51]: Approval queue
+          - generic [ref=e52]:
+            - paragraph [ref=e53]: Products
+            - generic [ref=e54]:
+              - link "Products ASIN profiles" [ref=e55] [cursor=pointer]:
+                - /url: /products
+                - img [ref=e57]
+                - generic [ref=e63]:
+                  - generic [ref=e64]: Products
+                  - generic [ref=e65]: ASIN profiles
+              - link "New product Start setup" [ref=e66] [cursor=pointer]:
+                - /url: /products/new
+                - img [ref=e68]
+                - generic [ref=e70]:
+                  - generic [ref=e71]: New product
+                  - generic [ref=e72]: Start setup
+              - link "Bulk import CSV / XLSX upload" [ref=e73] [cursor=pointer]:
+                - /url: /products/bulk
+                - img [ref=e75]
+                - generic [ref=e78]:
+                  - generic [ref=e79]: Bulk import
+                  - generic [ref=e80]: CSV / XLSX upload
+          - generic [ref=e81]:
+            - paragraph [ref=e82]: Data
+            - link "Report Library Uploaded report files" [ref=e84] [cursor=pointer]:
+              - /url: /reports
+              - img [ref=e86]
+              - generic [ref=e89]:
+                - generic [ref=e90]: Report Library
+                - generic [ref=e91]: Uploaded report files
+    - main "Main content" [ref=e92]:
+      - generic [ref=e93]:
+        - generic [ref=e94]:
+          - generic [ref=e95]:
+            - paragraph [ref=e96]: Workspace command center
+            - heading "Dashboard" [level=1] [ref=e97]
+            - paragraph [ref=e98]: Track products, uploaded research files, parsing progress, and the launch checklist for approval-controlled bulk export.
+          - generic [ref=e99]:
+            - generic [ref=e100]:
+              - generic [ref=e101]: "Workspace: 00000000-0000-0000-0000-000000000001"
+              - button "Refresh" [ref=e102] [cursor=pointer]:
+                - img [ref=e103]
+                - text: Refresh
+            - generic [ref=e108]:
+              - img [ref=e109]
+              - generic [ref=e112]: Recommendation only
+              - generic [ref=e113]: Does not change Amazon Ads account without approval.
+            - generic [ref=e114]:
+              - generic [ref=e115]:
+                - generic [ref=e116]:
+                  - img [ref=e118]
+                  - text: Products
+                - paragraph [ref=e128]: "4"
+              - generic [ref=e129]:
+                - generic [ref=e130]:
+                  - img [ref=e132]
+                  - text: Uploads
+                - paragraph [ref=e135]: "0"
+              - generic [ref=e136]:
+                - generic [ref=e137]:
+                  - img [ref=e139]
+                  - text: Processed uploads
+                - paragraph [ref=e142]: "0"
+              - generic [ref=e143]:
+                - generic [ref=e144]:
+                  - img [ref=e146]
+                  - text: Pending recommendations
+                - paragraph [ref=e149]: "2"
+            - generic [ref=e150]:
+              - generic [ref=e151]:
+                - generic [ref=e152]:
+                  - img [ref=e154]
+                  - paragraph [ref=e157]: Products ready for workflow
+                - list [ref=e158]:
+                  - listitem [ref=e159]:
+                    - generic [ref=e160]:
+                      - link "QA Button Sweep Product" [ref=e161] [cursor=pointer]:
+                        - /url: /products/3b6a4ee3-fc67-4f89-ab70-3dcfd40c85d4
+                      - paragraph [ref=e162]: US / USD / target ACOS 0.5000
+                    - link "Continue" [ref=e163] [cursor=pointer]:
+                      - /url: /products/3b6a4ee3-fc67-4f89-ab70-3dcfd40c85d4/uploads
+                      - text: Continue
+                      - img [ref=e164]
+                  - listitem [ref=e166]:
+                    - generic [ref=e167]:
+                      - link "QA Button Sweep 1780576484754" [ref=e168] [cursor=pointer]:
+                        - /url: /products/671b914d-2386-49b5-865e-b304ce1dbff1
+                      - paragraph [ref=e169]: US / USD / target ACOS 0.3000
+                    - link "Continue" [ref=e170] [cursor=pointer]:
+                      - /url: /products/671b914d-2386-49b5-865e-b304ce1dbff1/uploads
+                      - text: Continue
+                      - img [ref=e171]
+                  - listitem [ref=e173]:
+                    - generic [ref=e174]:
+                      - link "A4 Light Pad Test" [ref=e175] [cursor=pointer]:
+                        - /url: /products/e185c5b2-a87e-41c8-a9ee-0f3a3d749cb7
+                      - paragraph [ref=e176]: US / USD / target ACOS 0.3000
+                    - link "Continue" [ref=e177] [cursor=pointer]:
+                      - /url: /products/e185c5b2-a87e-41c8-a9ee-0f3a3d749cb7/uploads
+                      - text: Continue
+                      - img [ref=e178]
+                  - listitem [ref=e180]:
+                    - generic [ref=e181]:
+                      - link "Local Smoke Test Product" [ref=e182] [cursor=pointer]:
+                        - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc
+                      - paragraph [ref=e183]: US / USD / target ACOS 0.3000
+                    - link "Continue" [ref=e184] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/uploads
+                      - text: Continue
+                      - img [ref=e185]
+              - generic [ref=e187]:
+                - generic [ref=e188]:
+                  - img [ref=e190]
+                  - paragraph [ref=e192]: Launch checklist
+                - generic [ref=e193]:
+                  - generic [ref=e194]:
+                    - img [ref=e196]
+                    - generic [ref=e199]: Create product profile
+                  - generic [ref=e200]:
+                    - img [ref=e202]
+                    - generic [ref=e205]: Upload research file
+                  - generic [ref=e206]:
+                    - img [ref=e208]
+                    - generic [ref=e211]: Process upload rows
+                  - generic [ref=e212]:
+                    - img [ref=e214]
+                    - generic [ref=e217]: Approve mapping and keyword set
+                  - generic [ref=e218]:
+                    - img [ref=e220]
+                    - generic [ref=e223]: Approve campaign plan and export
+                  - generic [ref=e224]:
+                    - img [ref=e226]
+                    - generic [ref=e229]: Generate rule recommendations
+            - generic [ref=e230]:
+              - generic [ref=e231]:
+                - img [ref=e233]
+                - paragraph [ref=e238]: Rule recommendation queue
+              - list [ref=e239]:
+                - listitem [ref=e240]:
+                  - generic [ref=e241]:
+                    - paragraph [ref=e242]: add_negative_exact / medium
+                    - paragraph [ref=e243]: Camp1 / red running shoes
+                  - link "Review" [ref=e244] [cursor=pointer]:
+                    - /url: /recommendations
+                    - text: Review
+                    - img [ref=e245]
+                - listitem [ref=e247]:
+                  - generic [ref=e248]:
+                    - paragraph [ref=e249]: budget_review / medium
+                    - paragraph [ref=e250]: Camp1 / blue running shoes
+                  - link "Review" [ref=e251] [cursor=pointer]:
+                    - /url: /recommendations
+                    - text: Review
+                    - img [ref=e252]
+              - link "View all recommendations →" [ref=e255] [cursor=pointer]:
+                - /url: /recommendations
+        - generic [ref=e257]:
+          - generic [ref=e258]:
+            - img [ref=e259]
+            - text: Recommendation only
+          - generic [ref=e262]:
+            - img [ref=e263]
+            - text: Requires human approval
+          - generic [ref=e265]:
+            - img [ref=e266]
+            - text: No live Amazon Ads change executed
+  - button "Replay tour" [ref=e269] [cursor=pointer]:
+    - img [ref=e270]
+    - text: Replay tour
+  - button "Open Next.js Dev Tools" [ref=e277] [cursor=pointer]:
+    - img [ref=e278]
+  - alert [ref=e281]

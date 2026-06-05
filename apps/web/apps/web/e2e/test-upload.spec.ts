@@ -12,7 +12,6 @@ test.describe('File Upload and Compliance Testing', () => {
 
     // Look for products or navigation to upload page
     // First, let's see what's on the page
-    const pageContent = await page.content();
     console.log('Page title:', await page.title());
 
     // Try to find product or upload links

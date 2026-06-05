@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -40,6 +42,8 @@ html {
 
 body {
   min-height: 100vh;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
   background:
     radial-gradient(circle at 8% 0%, hsl(268 95% 70% / 0.28), transparent 34rem),
     radial-gradient(circle at 92% 10%, hsl(194 95% 56% / 0.22), transparent 34rem),
@@ -47,6 +51,7 @@ body {
     linear-gradient(135deg, hsl(238 50% 96%), hsl(217 72% 96%) 42%, hsl(253 65% 97%));
   color: hsl(var(--foreground));
   text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
 }
 
 html.dark body {
@@ -173,4 +178,74 @@ html.dark .soft-grid-bg {
 .heading-fluid-lg {
   font-size: clamp(1.5rem, 1.1rem + 1.8vw, 2.25rem);
   line-height: 1.1;
+}
+
+/* Skip-to-content link for keyboard accessibility */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 9999;
+  padding: 0.5rem 1rem;
+  background: hsl(var(--brand));
+  color: hsl(var(--brand-foreground));
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0 0 0.5rem 0;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+/* Tabular numeric figures for all data values */
+.tabular-data {
+  font-feature-settings: 'tnum', 'lnum';
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Animated status dot */
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.status-dot-live {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+/* Skeleton shimmer sweep */
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.shimmer-sweep {
+  animation: shimmer 1.8s ease-in-out infinite;
+}
+
+/* Modal entrance */
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.97) translateY(6px); }
+  to   { opacity: 1; transform: scale(1)    translateY(0);   }
+}
+
+.modal-enter {
+  animation: modal-in 0.18s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status-dot-live {
+    animation: none;
+  }
+  .motion-safe-lift {
+    transition: none;
+  }
+  .shimmer-sweep {
+    animation: none;
+  }
+  .modal-enter {
+    animation: none;
+  }
 }

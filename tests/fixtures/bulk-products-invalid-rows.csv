@@ -1,0 +1,6 @@
+Product Name,ASIN,SKU,Marketplace,Currency,Target ACOS,Default Budget,Default Bid
+Valid Silicone Trivet,B0TRIV1234,TRIVET-VALID-01,US,USD,25,12,0.45
+,B0BAD!2345,BAD-ASIN-01,US,USD,25,12,0.45
+Negative Budget,B0NEGB1234,NEG-BUDGET-01,US,USD,25,-10,0.45
+Wrong Currency,B0CURR1234,CURR-WRONG-01,US,EUR,25,12,0.45
+No Identifier,,,US,USD,25,12,0.45

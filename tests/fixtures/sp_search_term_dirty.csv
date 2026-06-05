@@ -1,0 +1,8 @@
+Campaign Name,Ad Group Name,Targeting,Match Type,Customer Search Term,Start Date,End Date,Impressions,Clicks,Click-Thru Rate (CTR),Cost Per Click (CPC),Spend,7 Day Total Sales ,7 Day Total Orders (#),7 Day Total Units (#),7 Day Conversion Rate,Total Advertising Cost of Sales (ACOS) ,Total Return on Advertising Spend (ROAS)
+"Camp X","Group X",keyword1,broad,good term with bad acos report,2026-01-01,2026-01-07,500,25,5.00%,$0.80,$20.00,$100.00,5,5,20.00%,99.99%,5.00
+"Camp X","Group X",keyword1,broad,clicks exceed impressions,2026-01-01,2026-01-07,10,25,250.00%,$0.80,$20.00,$0.00,0,0,0.00%,,0.00
+"Camp X","Group X",keyword1,broad,orders exceed clicks,2026-01-01,2026-01-07,1000,5,0.50%,$1.00,$5.00,$100.00,10,10,200.00%,5.00%,20.00
+"Camp X","Group X",keyword1,broad,spend but no clicks,2026-01-01,2026-01-07,500,0,0.00%,$0.00,$15.00,$0.00,0,0,0.00%,,0.00
+"Camp X","Group X",keyword1,broad,orders but no sales,2026-01-01,2026-01-07,200,10,5.00%,$0.80,$8.00,$0.00,3,3,30.00%,,0.00
+"Camp X","Group X",keyword1,broad,,2026-01-01,2026-01-07,200,10,5.00%,$1.00,$10.00,$0.00,0,0,0.00%,,0.00
+"Camp X","Group X",keyword1,broad,valid normal row,2026-01-01,2026-01-07,1000,20,2.00%,$0.90,$18.00,$72.00,3,3,15.00%,25.00%,4.00

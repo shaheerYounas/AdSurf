@@ -27,6 +27,7 @@ export function MonitoringWorkspace({ productId }: { productId: string }) {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const processedUploads = useMemo(() => uploads.filter((upload) => upload.status === "processed" && upload.source_type === "amazon_ads_sp_search_term_report"), [uploads]);

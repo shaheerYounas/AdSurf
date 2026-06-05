@@ -458,7 +458,7 @@ def archive_upload(
         raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
     if upload.status == UploadStatus.PROCESSING:
         raise ApiError(code="UPLOAD_ARCHIVE_CONFLICT", message="Processing uploads cannot be archived.", status_code=409)
-    job_repository.delete_upload_jobs(workspace_id=workspace_id, upload_id=upload_id)
+    deleted_pending_jobs = job_repository.delete_pending_upload_jobs(workspace_id=workspace_id, upload_id=upload_id)
     archived_upload = upload_repository.update_status(workspace_id=workspace_id, upload_id=upload_id, status=UploadStatus.ARCHIVED)
     if archived_upload is None:
         raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
@@ -468,7 +468,7 @@ def archive_upload(
         action="upload.archived",
         entity_type="upload",
         entity_id=upload_id,
-        details={"previous_status": upload.status.value},
+        details={"previous_status": upload.status.value, "deleted_pending_jobs": deleted_pending_jobs},
     )
     return success_response(data=archived_upload.model_dump(mode="json"))
 
@@ -493,11 +493,11 @@ def reprocess_upload(
         raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
     if upload.status == UploadStatus.PROCESSING:
         raise ApiError(code="UPLOAD_NOT_REPROCESSABLE", message="Processing uploads cannot be reprocessed.", status_code=409)
-    deleted_jobs = job_repository.delete_upload_jobs(workspace_id=workspace_id, upload_id=upload_id)
-    parsing_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
-    account_import_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
     monitoring_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    account_import_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
     keyword_scoring_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    parsing_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    deleted_jobs = job_repository.delete_upload_jobs(workspace_id=workspace_id, upload_id=upload_id)
     if upload.status in {UploadStatus.ARCHIVED, UploadStatus.FAILED, UploadStatus.CANCELLED, UploadStatus.PROCESSED}:
         upload_repository.update_status(workspace_id=workspace_id, upload_id=upload_id, status=UploadStatus.UPLOADED)
     queued_upload = upload_repository.mark_queued_for_processing(workspace_id=workspace_id, upload_id=upload_id)
@@ -536,11 +536,11 @@ def delete_upload(
     upload = upload_repository.get(workspace_id=workspace_id, upload_id=upload_id)
     if upload is None:
         raise ApiError(code="UPLOAD_NOT_FOUND", message="Upload was not found.", status_code=404)
-    deleted_jobs = job_repository.delete_upload_jobs(workspace_id=workspace_id, upload_id=upload_id)
-    parsing_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
-    account_import_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
     monitoring_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    account_import_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
     keyword_scoring_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    parsing_repository.delete_by_upload(workspace_id=workspace_id, upload_id=upload_id)
+    deleted_jobs = job_repository.delete_upload_jobs(workspace_id=workspace_id, upload_id=upload_id)
     try:
         storage_service.delete_upload_object(storage_path=upload.storage_path)
     except ApiError as exc:

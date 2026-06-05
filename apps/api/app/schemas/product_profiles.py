@@ -116,3 +116,7 @@ class ProductProfile(ProductProfileBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class BulkDeleteRequest(BaseModel):
+    product_ids: list[UUID] = Field(min_length=1, max_length=100)

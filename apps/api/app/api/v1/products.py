@@ -17,7 +17,7 @@ from apps.api.app.repositories.product_profiles import ProductProfileRepository,
 from apps.api.app.repositories.monitoring import MonitoringRepository, get_monitoring_repository
 from apps.api.app.repositories.uploads import UploadRepository, get_upload_repository
 from apps.api.app.schemas.envelope import success_response
-from apps.api.app.schemas.product_profiles import ProductProfileCreate, ProductProfileUpdate
+from apps.api.app.schemas.product_profiles import ProductProfileCreate, ProductProfileUpdate, BulkDeleteRequest
 
 router = APIRouter()
 
@@ -329,3 +329,37 @@ def update_product_profile(
     if product is None:
         raise ApiError(code="PRODUCT_NOT_FOUND", message="Product profile was not found.", status_code=404)
     return success_response(data=product.model_dump(mode="json"))
+
+
+@router.delete(
+    "/workspaces/{workspace_id}/products/{product_id}",
+    status_code=status.HTTP_200_OK,
+)
+def delete_product_profile(
+    workspace_id: UUID,
+    product_id: UUID,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    repository: ProductProfileRepository = Depends(get_product_profile_repository),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
+    deleted = repository.delete(workspace_id=workspace_id, product_id=product_id)
+    if not deleted:
+        raise ApiError(code="PRODUCT_NOT_FOUND", message="Product profile was not found.", status_code=404)
+    return success_response(data={"deleted": True, "product_id": str(product_id)})
+
+
+@router.post(
+    "/workspaces/{workspace_id}/products/bulk-delete",
+    status_code=status.HTTP_200_OK,
+)
+def bulk_delete_product_profiles(
+    workspace_id: UUID,
+    payload: BulkDeleteRequest,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    repository: ProductProfileRepository = Depends(get_product_profile_repository),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
+    deleted_count = repository.bulk_delete(workspace_id=workspace_id, product_ids=payload.product_ids)
+    return success_response(data={"deleted_count": deleted_count})

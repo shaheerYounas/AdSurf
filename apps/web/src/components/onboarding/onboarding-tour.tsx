@@ -82,17 +82,16 @@ const STEPS: Step[] = [
  * and can be re-opened via a window event `adsurf:restart-tour`.
  */
 export function OnboardingTour() {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(() => {
+    try {
+      return typeof window !== "undefined" && !window.localStorage.getItem(STORAGE_KEY);
+    } catch {
+      return false;
+    }
+  });
   const [step, setStep] = useState(0);
 
-  // On mount, decide whether to auto-show the tour.
   useEffect(() => {
-    try {
-      const done = window.localStorage.getItem(STORAGE_KEY);
-      if (!done) setOpen(true);
-    } catch {
-      // localStorage unavailable — skip auto-open rather than throw.
-    }
     const restart = () => {
       setStep(0);
       setOpen(true);

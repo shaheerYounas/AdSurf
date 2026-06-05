@@ -380,6 +380,15 @@ Local/test dev helper:
 | Local/test auth | Uses explicit headers only in local/test. |
 | Staging/production auth | Fails closed until Supabase JWT verification is configured. |
 
+## Bulk Product Import
+Bulk product import is a two-step, approval-style workflow for internal product profiles. `POST /v1/workspaces/{workspace_id}/products/bulk-import` accepts CSV, TSV, or XLSX up to 5 MB, detects common column aliases, validates each source-numbered row, detects file duplicates and workspace conflicts, and persists a review session. This endpoint must not create or update product profiles.
+
+`POST /v1/workspaces/{workspace_id}/products/bulk-import/{import_id}/commit` atomically claims a `ready_for_review` import before writing products. A second commit attempt returns `409 INVALID_IMPORT_STATUS` and must not create duplicate products. The request body accepts `conflict_strategy` as `skip_existing`, `update_existing`, or `create_only_missing`.
+
+Preview summary fields include `total_rows`, `valid_rows`, `invalid_rows`, `duplicate_in_file_rows`, `already_exists_rows`, `rows_needing_review`, `exportable_valid_rows`, `rows_to_create`, `rows_to_update`, `rows_to_skip`, `warning_rows`, `detected_columns`, and up to 50 `exception_rows`. Commit responses include exact `created_count`, `updated_count`, `skipped_count`, `failed_count`, `created_product_ids`, and `updated_product_ids`.
+
+Validation follows the product profile contract: product name is required; ASIN is normalized to uppercase and must be 10 alphanumeric characters when present; ASIN or SKU is required for import identity; target ACOS accepts `30`, `30%`, `0.30`, and `0.3` and stores a decimal percentage; budget and bid parse common currency text but must be positive with at most 4 decimal places; marketplace/currency must match supported Amazon marketplace defaults. Missing target ACOS uses the user-supplied import default when provided, otherwise the product schema default.
+
 ## Routes
 | Method | Route | Purpose |
 | --- | --- | --- |
@@ -387,6 +396,10 @@ Local/test dev helper:
 | POST | `/v1/workspaces/{workspace_id}/products` | Create product profile. |
 | GET | `/v1/workspaces/{workspace_id}/products` | List workspace product profiles. |
 | PATCH | `/v1/workspaces/{workspace_id}/products/{product_id}` | Update product profile defaults. |
+| POST | `/v1/workspaces/{workspace_id}/products/bulk-import` | Upload and validate product-profile CSV/TSV/XLSX without creating products. |
+| GET | `/v1/workspaces/{workspace_id}/products/bulk-import/{import_id}` | Read a persisted bulk product import review session and source-numbered rows. |
+| POST | `/v1/workspaces/{workspace_id}/products/bulk-import/{import_id}/commit` | Create/update only valid reviewed rows according to conflict strategy. |
+| GET | `/v1/workspaces/{workspace_id}/products/bulk-import` | List recent bulk product import sessions. |
 | POST | `/v1/workspaces/{workspace_id}/products/{product_id}/uploads/init` | Create upload record and signed upload URL. |
 | POST | `/v1/workspaces/{workspace_id}/uploads/report` | Multipart account report upload that creates upload, import, workflow, and schedules graph analysis. |
 | PUT | `/v1/workspaces/{workspace_id}/uploads/{upload_id}/object` | Local/test browser upload object handoff before confirmation. |

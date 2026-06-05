@@ -50,3 +50,27 @@ export async function getUploadParseRuns(uploadId: string, workspaceId = default
   });
   return readApiData<ParseRun[]>(response, "Parse runs could not be loaded.");
 }
+
+export async function deleteUpload(uploadId: string, workspaceId = defaultWorkspaceId): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/${uploadId}`, {
+    method: "DELETE",
+    headers: localAuthHeaders(workspaceId),
+  });
+  await readApiData<unknown>(response, "Upload could not be deleted.");
+}
+
+export async function archiveUpload(uploadId: string, workspaceId = defaultWorkspaceId): Promise<UploadRecord> {
+  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/${uploadId}/archive`, {
+    method: "POST",
+    headers: localAuthHeaders(workspaceId),
+  });
+  return readApiData<UploadRecord>(response, "Upload could not be archived.");
+}
+
+export async function reprocessUpload(uploadId: string, workspaceId = defaultWorkspaceId): Promise<{ upload: UploadRecord; job_id: string }> {
+  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/${uploadId}/reprocess`, {
+    method: "POST",
+    headers: localAuthHeaders(workspaceId),
+  });
+  return readApiData<{ upload: UploadRecord; job_id: string }>(response, "Upload could not be reprocessed.");
+}

@@ -137,12 +137,6 @@ export function ColumnMappingWorkspace({ productId, uploadId }: ColumnMappingWor
     return col?.id;
   }
 
-  function columnNameById(id: string): string {
-    if (!profile) return id;
-    const col = profile.columns.find((c) => c.id === id);
-    return col?.original_column_name ?? id;
-  }
-
   /** Apply the AI recommendation to the form fields */
   function applyAiRecommendation() {
     if (!aiRecommendation || !profile) return;
@@ -502,15 +496,14 @@ export function ColumnMappingWorkspace({ productId, uploadId }: ColumnMappingWor
 
       {/* AI Recommendation Panel */}
       {profile ? (
-        <AiRecommendationPanel
-          aiLoading={aiLoading}
-          aiRecommendation={aiRecommendation}
-          applyAiRecommendation={applyAiRecommendation}
-          confidenceColor={confidenceColor}
-          columnNameById={columnNameById}
-          onRequestRecommendation={requestAiRecommendation}
-          showAiReasons={showAiReasons}
-          setShowAiReasons={setShowAiReasons}
+          <AiRecommendationPanel
+            aiLoading={aiLoading}
+            aiRecommendation={aiRecommendation}
+            applyAiRecommendation={applyAiRecommendation}
+            confidenceColor={confidenceColor}
+            onRequestRecommendation={requestAiRecommendation}
+            showAiReasons={showAiReasons}
+            setShowAiReasons={setShowAiReasons}
         />
       ) : null}
 
@@ -714,7 +707,6 @@ function AiRecommendationPanel({
   aiRecommendation,
   applyAiRecommendation,
   confidenceColor,
-  columnNameById,
   onRequestRecommendation,
   showAiReasons,
   setShowAiReasons,
@@ -723,7 +715,6 @@ function AiRecommendationPanel({
   aiRecommendation: AiRecommendation | null;
   applyAiRecommendation: () => void;
   confidenceColor: (level: string) => string;
-  columnNameById: (id: string) => string;
   onRequestRecommendation: () => void;
   showAiReasons: boolean;
   setShowAiReasons: (value: boolean) => void;

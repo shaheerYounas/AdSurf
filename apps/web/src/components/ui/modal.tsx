@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 
 type ModalProps = {
@@ -13,11 +13,20 @@ type ModalProps = {
 };
 
 export function Modal({ open, onClose, title, description, children, size = "md" }: ModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Lock body scroll and focus the dialog when open
   useEffect(() => {
     if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    dialogRef.current?.focus();
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [open, onClose]);
@@ -26,18 +35,33 @@ export function Modal({ open, onClose, title, description, children, size = "md"
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div
-        className={`relative max-h-[92vh] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/20 dark:border-white/10 dark:bg-slate-950 ${modalSizeClass(size)}`}
+        className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div
+        ref={dialogRef}
+        className={`modal-enter relative max-h-[92vh] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/20 outline-none dark:border-white/10 dark:bg-slate-950 ${modalSizeClass(size)}`}
         role="dialog"
         aria-modal="true"
+        aria-labelledby={title ? "modal-title" : undefined}
+        tabIndex={-1}
       >
         {(title || description) && (
           <div className="border-b border-slate-100 px-6 py-4 dark:border-white/10">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                {title && <h2 className="text-base font-semibold text-slate-950 dark:text-white">{title}</h2>}
-                {description && <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">{description}</p>}
+                {title && (
+                  <h2 id="modal-title" className="text-base font-semibold text-slate-950 dark:text-white">
+                    {title}
+                  </h2>
+                )}
+                {description && (
+                  <p className="mt-1 text-sm leading-5 text-slate-600 dark:text-slate-300">
+                    {description}
+                  </p>
+                )}
               </div>
               <button
                 onClick={onClose}

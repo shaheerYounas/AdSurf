@@ -10,6 +10,7 @@
 | ACOS divide-by-zero tests | Verify `No sales` and no numeric ACOS when sales are zero. |
 | Golden-file bulk sheet tests | Compare generated exports against expected fixtures. |
 | Upload fixture tests | Validate CSV/XLSX variations, missing columns, duplicate terms, and bad rows. |
+| Bulk product import tests | Prove preview-only upload, adaptive product headers, row validation, conflict policies, and idempotent commit. |
 | API contract tests | Verify envelopes, schemas, auth, idempotency, conflicts, pagination. |
 | RLS/security tests | Prove workspace isolation and role permissions. |
 | Worker retry/idempotency tests | Prove retries, stale recovery, dead letter, and no duplicated side effects. |
@@ -35,6 +36,8 @@
 
 ## Integration Tests
 Upload parsing, column mapping, scoring, keyword approval, campaign plan generation, bulk export validation, monitoring ingestion, recommendation creation, and approval queue decisions.
+
+Bulk product import integration tests must cover clean CSV and XLSX imports, alternative headers, missing target ACOS with user default, file target ACOS overriding user default, duplicate ASIN/SKU/name rows, existing-product skip and update policies, invalid-row blocking, double confirm returning `409`, imports over 500 rows, invalid file type rejection, malformed CSV rejection, blank XLSX rejection, and backend summary counts matching commit results.
 
 ## E2E Tests
 Customer journey from product profile through upload, keyword approval, campaign review, bulk export approval, monitoring, recommendation approval, and audit log verification.

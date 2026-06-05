@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { formatApiError } from "@/lib/api/client";
 import { createProductProfile } from "@/lib/api/products";
 
@@ -37,45 +38,45 @@ export function ProductSetupForm() {
   }
 
   return (
-    <form className="grid gap-5 rounded-lg border border-slate-200 bg-white p-6 dark:border-white/10 dark:bg-slate-950/70 md:grid-cols-2" onSubmit={onSubmit}>
+    <form className="grid gap-5 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-950/70 md:grid-cols-2" onSubmit={onSubmit}>
       <label className="space-y-2 text-slate-900 dark:text-slate-200">
         <span className="text-sm font-medium">Product name</span>
-        <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" name="product_name" required />
+        <input className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400/50 dark:focus:ring-indigo-300/15" name="product_name" required />
       </label>
       <label className="space-y-2 text-slate-900 dark:text-slate-200">
         <span className="text-sm font-medium">ASIN</span>
-        <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" maxLength={10} name="asin" />
+        <input className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400/50 dark:focus:ring-indigo-300/15" maxLength={10} name="asin" />
       </label>
       <label className="space-y-2 text-slate-900 dark:text-slate-200">
         <span className="text-sm font-medium">SKU</span>
-        <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" name="sku" />
+        <input className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400/50 dark:focus:ring-indigo-300/15" name="sku" />
       </label>
       <label className="space-y-2 text-slate-900 dark:text-slate-200">
         <span className="text-sm font-medium">Marketplace</span>
-        <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" defaultValue="US" name="marketplace" />
+        <input className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400/50 dark:focus:ring-indigo-300/15" defaultValue="US" name="marketplace" />
       </label>
       <label className="space-y-2 text-slate-900 dark:text-slate-200">
         <span className="text-sm font-medium">Currency</span>
-        <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" defaultValue="USD" name="currency" />
+        <input className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400/50 dark:focus:ring-indigo-300/15" defaultValue="USD" name="currency" />
       </label>
       <label className="space-y-2 text-slate-900 dark:text-slate-200">
         <span className="text-sm font-medium">Target ACOS</span>
-        <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" defaultValue="0.50" name="target_acos" type="number" step="0.01" min="0.01" max="1" />
+        <input className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400/50 dark:focus:ring-indigo-300/15" defaultValue="0.50" name="target_acos" type="number" step="0.01" min="0.01" max="1" />
       </label>
       <label className="space-y-2 text-slate-900 dark:text-slate-200">
         <span className="text-sm font-medium">Default budget</span>
-        <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" defaultValue="10.00" name="default_budget" type="number" step="0.01" min="0.01" />
+        <input className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400/50 dark:focus:ring-indigo-300/15" defaultValue="10.00" name="default_budget" type="number" step="0.01" min="0.01" />
       </label>
       <label className="space-y-2 text-slate-900 dark:text-slate-200">
         <span className="text-sm font-medium">Default bid</span>
-        <input className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" defaultValue="1.00" name="default_bid" type="number" step="0.01" min="0.01" />
+        <input className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-indigo-400/50 dark:focus:ring-indigo-300/15" defaultValue="1.00" name="default_bid" type="number" step="0.01" min="0.01" />
       </label>
       <div className="md:col-span-2">
         {error ? <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-300/10 dark:text-red-100">{error}</p> : null}
-        <button className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white disabled:bg-slate-300" disabled={isSubmitting} type="submit">
+        <Button disabled={isSubmitting} type="submit" variant="primary">
           {isSubmitting ? <Loader2 aria-hidden="true" className="animate-spin" size={16} /> : null}
           {isSubmitting ? "Saving..." : "Save product"}
-        </button>
+        </Button>
       </div>
     </form>
   );

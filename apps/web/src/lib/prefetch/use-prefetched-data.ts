@@ -35,9 +35,12 @@ export function usePrefetchedData<T>(
   const [isLoading, setIsLoading] = useState<boolean>(!data);
   const [error, setError] = useState<string | null>(null);
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
   const cacheKeyRef = useRef(cacheKey);
-  cacheKeyRef.current = cacheKey;
+
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+    cacheKeyRef.current = cacheKey;
+  }, [cacheKey, fetcher]);
 
   const load = useCallback(async () => {
     // Re-check cache (may have been populated by prefetch since mount)

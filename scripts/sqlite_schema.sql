@@ -144,7 +144,7 @@ CREATE TABLE uploads (
     storage_path TEXT NOT NULL UNIQUE,
     mime_type TEXT NOT NULL,
     file_size_bytes INTEGER CHECK (file_size_bytes IS NULL OR file_size_bytes > 0),
-    status TEXT NOT NULL DEFAULT 'initialized' CHECK (status IN ('initialized', 'uploaded', 'queued_for_processing', 'processing', 'processed', 'failed', 'cancelled')),
+    status TEXT NOT NULL DEFAULT 'initialized' CHECK (status IN ('initialized', 'uploaded', 'queued_for_processing', 'processing', 'processed', 'failed', 'cancelled', 'archived')),
     source_type TEXT NOT NULL CHECK (source_type IN (
         'competitor_keyword_research', 'amazon_ads_sp_search_term_report',
         'single_product_report', 'account_bulk_report', 'sponsored_products_search_term_report',
@@ -170,6 +170,65 @@ CREATE INDEX uploads_created_at_idx ON uploads(created_at);
 CREATE INDEX uploads_idempotency_key_idx ON uploads(idempotency_key);
 CREATE INDEX uploads_workspace_created_desc_idx ON uploads(workspace_id, created_at DESC);
 CREATE INDEX uploads_workspace_status_created_desc_idx ON uploads(workspace_id, status, created_at DESC);
+
+-- =============================================================================
+-- Bulk Product Imports
+-- =============================================================================
+CREATE TABLE bulk_product_imports (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE RESTRICT,
+    upload_id TEXT NULL REFERENCES uploads(id) ON DELETE SET NULL,
+    original_filename TEXT NOT NULL,
+    file_hash TEXT NULL,
+    file_hash_algorithm TEXT NOT NULL DEFAULT 'sha256',
+    status TEXT NOT NULL DEFAULT 'parsing' CHECK (status IN ('parsing', 'validating', 'ready_for_review', 'creating', 'completed', 'failed', 'cancelled')),
+    conflict_strategy TEXT NOT NULL DEFAULT 'skip_existing' CHECK (conflict_strategy IN ('skip_existing', 'update_existing', 'create_only_missing')),
+    total_rows INTEGER NOT NULL DEFAULT 0 CHECK (total_rows >= 0),
+    valid_rows INTEGER NOT NULL DEFAULT 0 CHECK (valid_rows >= 0),
+    invalid_rows INTEGER NOT NULL DEFAULT 0 CHECK (invalid_rows >= 0),
+    duplicate_in_file_rows INTEGER NOT NULL DEFAULT 0 CHECK (duplicate_in_file_rows >= 0),
+    already_exists_rows INTEGER NOT NULL DEFAULT 0 CHECK (already_exists_rows >= 0),
+    created_rows INTEGER NOT NULL DEFAULT 0 CHECK (created_rows >= 0),
+    updated_rows INTEGER NOT NULL DEFAULT 0 CHECK (updated_rows >= 0),
+    skipped_rows INTEGER NOT NULL DEFAULT 0 CHECK (skipped_rows >= 0),
+    failed_rows INTEGER NOT NULL DEFAULT 0 CHECK (failed_rows >= 0),
+    detected_columns_json TEXT NOT NULL DEFAULT '{}',
+    workspace_default_acos REAL NULL,
+    workspace_default_budget REAL NULL,
+    workspace_default_bid REAL NULL,
+    error_message TEXT NULL,
+    created_by TEXT NULL,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+CREATE TABLE bulk_product_import_rows (
+    id TEXT PRIMARY KEY,
+    workspace_id TEXT NOT NULL REFERENCES workspaces(id) ON DELETE RESTRICT,
+    import_id TEXT NOT NULL REFERENCES bulk_product_imports(id) ON DELETE CASCADE,
+    row_number INTEGER NOT NULL CHECK (row_number > 0),
+    status TEXT NOT NULL DEFAULT 'valid' CHECK (status IN ('valid', 'invalid', 'duplicate_in_file', 'already_exists', 'skipped', 'created', 'updated', 'failed')),
+    product_name TEXT NULL,
+    asin TEXT NULL,
+    sku TEXT NULL,
+    marketplace TEXT NULL,
+    currency TEXT NULL,
+    target_acos REAL NULL,
+    default_budget REAL NULL,
+    default_bid REAL NULL,
+    brand TEXT NULL,
+    category TEXT NULL,
+    notes TEXT NULL,
+    product_id TEXT NULL REFERENCES product_profiles(id) ON DELETE SET NULL,
+    validation_errors TEXT NOT NULL DEFAULT '[]',
+    raw_row_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL
+);
+
+CREATE INDEX idx_bulk_product_imports_workspace ON bulk_product_imports(workspace_id, created_at DESC);
+CREATE INDEX idx_bulk_product_imports_file_hash ON bulk_product_imports(workspace_id, file_hash);
+CREATE INDEX idx_bulk_import_rows_import ON bulk_product_import_rows(import_id, row_number);
+CREATE INDEX idx_bulk_import_rows_status ON bulk_product_import_rows(import_id, status);
 
 -- =============================================================================
 -- Upload Parse

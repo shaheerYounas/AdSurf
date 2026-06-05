@@ -2,6 +2,93 @@ import type { Recommendation } from "@/lib/api/monitoring";
 
 export type RecommendationActionClass = "actionable" | "review_only" | "watch_only" | "data_quality" | "budget_review";
 
+export type DataQualityFlagSeverity = "critical" | "warning";
+
+export type DataQualityFlagInfo = {
+  flag: string;
+  severity: DataQualityFlagSeverity;
+  label: string;
+  explanation: string;
+  expertGuidance: string;
+};
+
+const DATA_QUALITY_FLAG_REGISTRY: Record<string, DataQualityFlagInfo> = {
+  clicks_exceed_impressions: {
+    flag: "clicks_exceed_impressions",
+    severity: "critical",
+    label: "Clicks exceed impressions",
+    explanation: "More clicks were recorded than impressions — physically impossible. This signals a data pipeline bug, report aggregation error, or a duplicate row.",
+    expertGuidance: "Do not act on this row. Re-download the report for this date range and re-upload. If the issue persists, file an Amazon Ads support case with the campaign ID and date range.",
+  },
+  orders_exceed_clicks: {
+    flag: "orders_exceed_clicks",
+    severity: "critical",
+    label: "Orders exceed clicks",
+    explanation: "Conversion rate is over 100%, which is mathematically impossible within a single attribution window. Usually caused by cross-campaign attribution or a 14-day window applied to a 7-day click window.",
+    expertGuidance: "Wait 48–72 h for attribution to settle before reviewing again. Cross-check the same campaign in the Amazon Ads console with both 7-day and 14-day attribution windows selected.",
+  },
+  spend_without_clicks: {
+    flag: "spend_without_clicks",
+    severity: "critical",
+    label: "Spend recorded with zero clicks",
+    explanation: "The campaign is billing spend with no click activity. This can indicate an invalid-click credit that was partially reversed, a reporting delay, or a data export timing issue.",
+    expertGuidance: "Pull the campaign performance report directly from the Amazon Ads console for the same date. If spend still shows with zero clicks, contact Amazon Ads support.",
+  },
+  orders_without_sales: {
+    flag: "orders_without_sales",
+    severity: "critical",
+    label: "Orders recorded with zero sales revenue",
+    explanation: "Units were purchased but the revenue field is zero or blank. This is typically a late-settling sales value, a cancelled order not yet reflected, or a data export issue.",
+    expertGuidance: "Re-download the report after 24–48 h and re-upload. If orders > 0 and sales = 0 persist, check for high cancellation rates on this product in Seller Central.",
+  },
+  acos_mismatch: {
+    flag: "acos_mismatch",
+    severity: "warning",
+    label: "ACOS in report doesn't match computed ACOS",
+    explanation: "The ACOS value in the uploaded file differs from Spend ÷ Sales by more than 2%. This is usually caused by an attribution window mismatch — the report ACOS uses 14-day attribution but Spend uses the report period.",
+    expertGuidance: "Rely on the computed ACOS (Spend ÷ Sales from this report) for optimization decisions, not the reported ACOS column. Check that your report date range is at least 14 days old before using ACOS for bid changes.",
+  },
+  roas_mismatch: {
+    flag: "roas_mismatch",
+    severity: "warning",
+    label: "ROAS in report doesn't match computed ROAS",
+    explanation: "The ROAS value in the uploaded file differs from Sales ÷ Spend by more than 10%. Attribution window mismatch is the most common cause.",
+    expertGuidance: "Use Sales ÷ Spend from the raw columns for ROAS-based decisions. Do not use the ROAS column from a fresh report (< 14 days old) for bid decisions.",
+  },
+  sales_with_blank_acos: {
+    flag: "sales_with_blank_acos",
+    severity: "warning",
+    label: "Sales recorded but ACOS field is blank",
+    explanation: "The report has sales revenue but the ACOS column is empty or null. Amazon sometimes omits ACOS when it cannot be calculated due to a spend tracking issue.",
+    expertGuidance: "Compute ACOS manually as Spend ÷ Sales from the raw columns. Do not use the blank ACOS field for any bid optimization decision.",
+  },
+};
+
+const UNKNOWN_FLAG_TEMPLATE = (flag: string): DataQualityFlagInfo => ({
+  flag,
+  severity: "warning",
+  label: humanizeInternal(flag),
+  explanation: "An unexpected data quality flag was detected. Review the raw metrics before acting.",
+  expertGuidance: "Re-download the report and compare with the Amazon Ads console for the same date range.",
+});
+
+export function getDataQualityFlags(rec: Recommendation): DataQualityFlagInfo[] {
+  const flags: unknown = rec.proposed_action_json?.data_quality_flags;
+  if (!Array.isArray(flags)) return [];
+  return flags
+    .filter((f): f is string => typeof f === "string")
+    .map((f) => DATA_QUALITY_FLAG_REGISTRY[f] ?? UNKNOWN_FLAG_TEMPLATE(f));
+}
+
+export function dataQualityFlagCount(rec: Recommendation): number {
+  const flags: unknown = rec.proposed_action_json?.data_quality_flags;
+  return Array.isArray(flags) ? flags.length : 0;
+}
+
+export function hasDataQualityFlags(rec: Recommendation): boolean {
+  return dataQualityFlagCount(rec) > 0;
+}
+
 export type ExportabilityFilter = "" | "exportable" | "non_exportable";
 
 export type RecommendationFilters = {
@@ -36,6 +123,7 @@ export type RecommendationSummaryCounts = {
   approved: number;
   rejected: number;
   criticalHigh: number;
+  dataQuality: number;
 };
 
 export const exportableRecommendationTypes = new Set([
@@ -346,9 +434,10 @@ export function recommendationSummaryCounts(recommendations: Recommendation[]): 
       if (status === "approved") summary.approved += 1;
       if (status === "rejected") summary.rejected += 1;
       if (["critical", "high"].includes(normalizeText(rec.priority))) summary.criticalHigh += 1;
+      if (actionClass === "data_quality") summary.dataQuality += 1;
       return summary;
     },
-    { total: 0, actionable: 0, reviewOnly: 0, exportable: 0, pending: 0, approved: 0, rejected: 0, criticalHigh: 0 },
+    { total: 0, actionable: 0, reviewOnly: 0, exportable: 0, pending: 0, approved: 0, rejected: 0, criticalHigh: 0, dataQuality: 0 },
   );
 }
 
@@ -491,23 +580,31 @@ export function recommendationReason(rec: Recommendation): string {
 }
 
 /**
- * Recommended action text for the card.
+ * Recommended action text for the approval queue "Recommended action" column.
+ * Each case returns a short, imperative, seller-friendly verb phrase that is
+ * distinct from the type label shown in the "Recommendation" column.
  */
 export function recommendedAction(rec: Recommendation): string {
   const type = rec.recommendation_type?.toLowerCase() ?? "";
 
-  if (type === "budget_review" || type === "budget review") return "Review budget allocation";
-  if (type === "budget_increase") return "Consider increasing budget";
-  if (type === "budget_decrease") return "Consider decreasing budget";
-  if (type === "decrease_bid") return "Decrease bid";
-  if (type === "increase_bid") return "Increase bid";
-  if (type === "pause_review" || type === "pause_campaign") return "Review for pause";
   if (type === "add_negative_exact") return "Add as exact negative keyword";
   if (type === "add_negative_phrase") return "Add as phrase negative keyword";
   if (type === "negative_keyword") return "Add negative keyword";
-  if (type === "wasted_spend" || type === "search_term_review") return "Review wasted spend";
+  if (type.includes("negative") && type.includes("phrase")) return "Add as phrase negative keyword";
+  if (type.includes("negative")) return "Add as exact negative keyword";
+  if (type === "increase_bid" || (type.includes("increase") && type.includes("bid"))) return "Increase bid toward target";
+  if (type === "decrease_bid" || (type.includes("decrease") && type.includes("bid"))) return "Decrease bid to target ACOS";
+  if (type === "move_to_exact" || type.includes("harvest_search_term_to_exact") || (type.includes("move") && type.includes("exact"))) {
+    return "Harvest to exact match keyword";
+  }
+  if (type === "pause_review" || type === "pause_campaign" || type === "pause_ad_group") return "Review candidate for pause";
+  if (type === "watch_lock" || type === "watch_only") return "Monitor — no change needed yet";
+  if (type === "keep_running") return "Keep running as-is";
+  if (type.includes("data_quality") || type.includes("inconsistent_metrics")) return "Resolve data quality issue";
+  if (type === "budget_review" || type === "budget review" || type.includes("budget")) return "Review budget allocation";
+  if (type === "wasted_spend" || type === "search_term_review") return "Review for wasted spend";
   if (type === "scale") return "Scale campaign";
-  if (type === "protect" || type === "budget_protection") return "Protect budget";
+  if (type === "protect" || type === "budget_protection") return "Protect budget allocation";
 
   return "Review and decide";
 }

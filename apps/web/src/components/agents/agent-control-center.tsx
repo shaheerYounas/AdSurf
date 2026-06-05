@@ -39,7 +39,6 @@ import {
   getAgentRuns,
   getAgentWorkflow,
   getAgents,
-  rerunFromAgent,
   updateAgentConfig,
   type AgentConfig,
   type AgentDefinition,
@@ -132,7 +131,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   const [workflowEvents, setWorkflowEvents] = useState<WorkflowEvent[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState<string>("report_upload_node");
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  const [, setSelectedRunId] = useState<string | null>(null);
   const [drawerAgentId, setDrawerAgentId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -140,10 +139,9 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   const [uploadStatus, setUploadStatus] = useState<UploadStatusMessage>({ kind: "idle", text: "No report uploaded yet." });
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [isRunningAnalysis, setIsRunningAnalysis] = useState(false);
-  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [, setIsRunningAnalysis] = useState(false);
+  const [, setIsSavingConfig] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>("pipeline");
-  const [plannerInfo, setPlannerInfo] = useState<any>(null);
   const [environmentMode, setEnvironmentMode] = useState<AgentConfig["mode"]>("hybrid");
   const activeImportId = accountImport?.import_record.id ?? importId ?? null;
   const activeWorkflowId = accountImport?.workflow_id ?? durableWorkflow?.workflow.id ?? null;
@@ -163,12 +161,9 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   }, [runs]);
   const workflowNodes = useMemo(() => buildWorkflowNodes({ agentCatalog, configByAgent, latestRunByAgent, workflow, recommendations }), [agentCatalog, configByAgent, latestRunByAgent, workflow, recommendations]);
   const workflowEdges = useMemo(() => buildWorkflowEdges(workflow), [workflow]);
-  const selectedAgent = agentCatalog.find((agent) => agent.agent_id === selectedAgentId) ?? agentCatalog[0];
   const drawerAgent = drawerAgentId ? (agentCatalog.find((a) => a.agent_id === drawerAgentId) ?? null) : null;
   const drawerRun = drawerAgentId ? (latestRunByAgent.get(drawerAgentId) ?? null) : null;
   const drawerConfig = drawerAgentId ? (configByAgent.get(drawerAgentId) ?? undefined) : undefined;
-  const selectedRun = runs.find((run) => run.id === selectedRunId) ?? latestRunByAgent.get(selectedAgent?.agent_id ?? "");
-  const selectedConfig = selectedAgent ? configByAgent.get(selectedAgent.agent_id) : undefined;
   const visibleEvents = workflowEvents.length ? workflowEvents.map(workflowEventToAgentEvent) : workflow?.events ?? runs.map(runToEvent);
   const pendingApprovals = recommendations.filter((item) => item.status === "pending_approval" || item.status === "pending");
   const highPriorityApprovals = pendingApprovals.filter((item) => ["critical", "high"].includes(item.priority));
@@ -215,19 +210,6 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
         setWorkflowEvents(events);
       }
       setEnvironmentMode(loadedConfigs[0]?.mode ?? "hybrid");
-      // Build planner summary from loaded config data
-      setPlannerInfo({
-        strategyMode: loadedConfigs[0]?.mode ?? "hybrid",
-        dataQualityScore: 0.85,
-        totalRows: accountImport?.import_record.processed_rows ?? runs.length,
-        warnings: [],
-        bidOptimization: loadedConfigs.some((c: AgentConfig) => c.agent_id === "bid_optimization_agent" && c.enabled !== false) ? "run" : "skip",
-        negativeKeyword: loadedConfigs.some((c: AgentConfig) => c.agent_id === "negative_keyword_agent" && c.enabled !== false) ? "run" : "skip",
-        budgetReallocation: loadedConfigs.some((c: AgentConfig) => c.agent_id === "budget_reallocation_agent" && c.enabled !== false) ? "run" : "skip",
-        campaignStructure: loadedConfigs.some((c: AgentConfig) => c.agent_id === "campaign_structure_agent" && c.enabled !== false) ? "run" : "skip",
-        reasoning: `Running ${loadedAgents.length} agents in ${loadedConfigs[0]?.mode ?? "hybrid"} mode across ${accountImport?.import_record.processed_rows ?? "?"} rows.`,
-        skipReasons: {},
-      });
     } catch (caught) {
       setMessage(formatApiError(caught, "Agent Control Center could not be loaded."));
     } finally {
@@ -364,35 +346,6 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
     await saveConfig(agentId, { enabled: !current.enabled });
   }
 
-  async function control(run: AgentRun | undefined, action: ControlAction) {
-    if (!run) {
-      setMessage("No agent run is available for this action yet. Upload a report and run analysis first.");
-      return;
-    }
-    setMessage(null);
-    try {
-      await controlAgentRun(run.id, action, `${action} requested from Agent Control Center`, workspaceId);
-      setMessage(`Agent ${action} request saved.`);
-      await load();
-    } catch (caught) {
-      setMessage(formatApiError(caught, `Agent ${action} request could not be saved.`));
-    }
-  }
-
-  async function rerunHere(agentId: string) {
-    if (!importId) {
-      setMessage("Select an import-level workflow before rerunning from a specific agent.");
-      return;
-    }
-    try {
-      await rerunFromAgent(importId, agentId, "Rerun from this agent onward", workspaceId);
-      setMessage("Agent rerun queued.");
-      await load();
-    } catch (caught) {
-      setMessage(formatApiError(caught, "Agent rerun could not be queued."));
-    }
-  }
-
   async function applyTemplate(name: string) {
     const patch = templatePatch(name);
     setMessage(null);
@@ -450,9 +403,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
     <main className="mx-auto min-w-0 max-w-[1600px] space-y-8">
       <TopCommandBar
         environmentMode={environmentMode}
-        isLoading={isLoading || isRunningAnalysis || isSavingConfig}
         onEnvironmentChange={updateEnvironmentMode}
-        onRefresh={load}
         onRunAnalysis={runAnalysis}
         onBulkControl={async (action) => {
           if (await controlActiveWorkflow(action)) return;
@@ -472,8 +423,6 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
           }).catch((caught) => setMessage(formatApiError(caught, `Bulk ${action} could not be saved.`)));
         }}
         onViewApprovals={() => document.getElementById("approval-checkpoints")?.scrollIntoView({ behavior: "smooth" })}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
       />
 
       {message ? <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-900 dark:border-indigo-300/25 dark:bg-indigo-300/10 dark:text-indigo-100">{message}</div> : null}
@@ -492,7 +441,6 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
           viewMode={viewMode}
           onViewModeChange={setViewMode}
           uploadStatus={uploadStatus}
-          workspaceId={workspaceId}
         />
 
         {viewMode === "pipeline" ? (
@@ -610,7 +558,7 @@ export function AgentControlCenter({ productId, importId }: { productId?: string
   );
 }
 
-function TopCommandBar({ environmentMode, isLoading, onEnvironmentChange, onRefresh, onRunAnalysis, onBulkControl, onViewApprovals, viewMode, onViewModeChange }: { environmentMode: AgentConfig["mode"]; isLoading: boolean; onEnvironmentChange: (mode: AgentConfig["mode"]) => void; onRefresh: () => void; onRunAnalysis: () => void; onBulkControl: (action: ControlAction) => void | Promise<void>; onViewApprovals: () => void; viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void }) {
+function TopCommandBar({ environmentMode, onEnvironmentChange, onRunAnalysis, onBulkControl, onViewApprovals }: { environmentMode: AgentConfig["mode"]; onEnvironmentChange: (mode: AgentConfig["mode"]) => void; onRunAnalysis: () => void; onBulkControl: (action: ControlAction) => void | Promise<void>; onViewApprovals: () => void }) {
   const [bulkOpen, setBulkOpen] = useState(false);
   const bulkButtonRef = useRef<HTMLButtonElement>(null);
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
@@ -719,7 +667,7 @@ function TopCommandBar({ environmentMode, isLoading, onEnvironmentChange, onRefr
   );
 }
 
-function HeroUpload({ accountImport, completedCount, failedCount, activeCount, pendingApprovals, selectedFile, isUploading, viewMode, onViewModeChange, onFileChange, onUpload, uploadStatus, workspaceId }: { accountImport: AccountImportResponse | null; completedCount: number; failedCount: number; activeCount: number; pendingApprovals: number; selectedFile: File | null; isUploading: boolean; viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void; onFileChange: (file: File | null) => void; onUpload: () => void; uploadStatus: UploadStatusMessage; workspaceId: string }) {
+function HeroUpload({ accountImport, completedCount, failedCount, activeCount, pendingApprovals, selectedFile, isUploading, viewMode, onViewModeChange, onFileChange, onUpload, uploadStatus }: { accountImport: AccountImportResponse | null; completedCount: number; failedCount: number; activeCount: number; pendingApprovals: number; selectedFile: File | null; isUploading: boolean; viewMode: ViewMode; onViewModeChange: (mode: ViewMode) => void; onFileChange: (file: File | null) => void; onUpload: () => void; uploadStatus: UploadStatusMessage }) {
   return (
     <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-slate-950/70 sm:p-8" id="reports">
       <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-8">
@@ -756,7 +704,7 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
         <div className="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-white/5">
           <label className="block text-sm font-semibold text-slate-900 dark:text-white">
             Report file
-            <input id="agent-report-file" name="agent_report_file" className="mt-2 block min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-3 file:py-1 file:text-white focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-white/10 dark:bg-slate-950/70 dark:text-white dark:file:bg-white dark:file:text-slate-950" onChange={(event) => onFileChange(event.target.files?.[0] ?? null)} type="file" accept=".csv,.xls,.xlsx" />
+            <input id="agent-report-file" name="agent_report_file" className="mt-2 block min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-3 file:py-1 file:text-white focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-white/10 dark:bg-slate-950/70 dark:text-white dark:file:bg-indigo-600 dark:file:text-white" onChange={(event) => onFileChange(event.target.files?.[0] ?? null)} type="file" accept=".csv,.xls,.xlsx" />
           </label>
           <Button className="mt-3 w-full" disabled={!selectedFile || isUploading} onClick={onUpload} type="button">
             {isUploading ? <Loader2 className="animate-spin" size={16} /> : <UploadCloud size={16} />}
@@ -766,7 +714,7 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
             <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Agent view</p>
             <div className="flex flex-col rounded-full border border-slate-200 bg-slate-100 p-1 dark:border-white/10 dark:bg-white/5 sm:flex-row" role="tablist" aria-label="Agent view mode">
               <button
-                className={`flex-1 inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-3 py-1.5 text-center text-xs font-semibold leading-snug outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 sm:text-sm ${viewMode === "pipeline" ? "bg-indigo-600 text-white shadow-sm dark:bg-indigo-300 dark:text-indigo-950" : "bg-transparent text-slate-700 hover:bg-white dark:text-slate-200 dark:hover:bg-white/10"}`}
+                className={`flex-1 inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-3 py-1.5 text-center text-xs font-semibold leading-snug outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 sm:text-sm ${viewMode === "pipeline" ? "bg-indigo-600 text-white shadow-sm dark:bg-indigo-500 dark:text-white" : "bg-transparent text-slate-700 hover:bg-white dark:text-slate-200 dark:hover:bg-white/10"}`}
                 onClick={() => onViewModeChange("pipeline")}
                 aria-label="Simple Mode"
                 role="tab"
@@ -777,7 +725,7 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
                 Simple Pipeline
               </button>
               <button
-                className={`flex-1 inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-3 py-1.5 text-center text-xs font-semibold leading-snug outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 sm:text-sm ${viewMode === "canvas" ? "bg-indigo-600 text-white shadow-sm dark:bg-indigo-300 dark:text-indigo-950" : "bg-transparent text-slate-700 hover:bg-white dark:text-slate-200 dark:hover:bg-white/10"}`}
+                className={`flex-1 inline-flex min-h-9 items-center justify-center gap-2 rounded-full px-3 py-1.5 text-center text-xs font-semibold leading-snug outline-none transition focus-visible:ring-2 focus-visible:ring-indigo-300 sm:text-sm ${viewMode === "canvas" ? "bg-indigo-600 text-white shadow-sm dark:bg-indigo-500 dark:text-white" : "bg-transparent text-slate-700 hover:bg-white dark:text-slate-200 dark:hover:bg-white/10"}`}
                 onClick={() => onViewModeChange("canvas")}
                 aria-label="Advanced Mode"
                 role="tab"
@@ -822,7 +770,7 @@ function SimplePipelineView({ agents, configByAgent, latestRunByAgent, selectedA
             <div key={agentId} className="flex items-start gap-3">
               <div className="flex shrink-0 flex-col items-center">
                 <button
-                  className={`flex h-10 w-10 items-center justify-center rounded-xl transition ${isActive ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 dark:bg-indigo-300 dark:text-indigo-950" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white/20"}`}
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl transition ${isActive ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25 dark:bg-indigo-500 dark:text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-300 dark:hover:bg-white/20"}`}
                   onClick={() => onSelect(agentId, run?.id)}
                   type="button"
                 >
@@ -883,7 +831,7 @@ function AgentCard({ agent, config, run, selected, onSelect, onOpenDrawer, onVie
   return (
     <article className={`flex h-full min-w-0 flex-col rounded-3xl border p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg ${selected ? "border-indigo-400/60 bg-indigo-100/70 shadow-md shadow-indigo-500/10 dark:border-indigo-400 dark:bg-indigo-500/15 dark:shadow-lg dark:shadow-indigo-500/20" : "border-slate-200 bg-white hover:border-indigo-200 dark:border-white/10 dark:bg-slate-800/50 dark:hover:bg-slate-700/50"}`}>
       <div className="flex items-start justify-between gap-3">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white dark:bg-white dark:text-slate-950">{agentIcon(agent.agent_id)}</span>
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white dark:bg-indigo-600 dark:text-white">{agentIcon(agent.agent_id)}</span>
         <StatusBadge status={status} />
       </div>
       <h3 className="mt-4 break-words text-base font-semibold leading-6 text-slate-950 dark:text-white">{agent.display_name}</h3>
@@ -1395,11 +1343,11 @@ function nodeClass(status: string) {
 }
 
 function nodeIconClass(status: string) {
-  if (status === "failed") return "bg-red-100 text-red-700 dark:bg-red-400 dark:text-white";
-  if (status === "approval_needed") return "bg-violet-100 text-violet-700 dark:bg-violet-300 dark:text-violet-950";
-  if (status === "completed" || status === "succeeded") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-300 dark:text-emerald-950";
-  if (status === "running" || status === "queued") return "bg-indigo-100 text-indigo-700 dark:bg-indigo-300 dark:text-indigo-950";
-  if (status === "paused" || status === "waiting") return "bg-amber-100 text-amber-700 dark:bg-amber-300 dark:text-amber-950";
+  if (status === "failed") return "bg-red-100 text-red-700 dark:bg-red-500/25 dark:text-red-200";
+  if (status === "approval_needed") return "bg-violet-100 text-violet-700 dark:bg-violet-500/25 dark:text-violet-200";
+  if (status === "completed" || status === "succeeded") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/25 dark:text-emerald-200";
+  if (status === "running" || status === "queued") return "bg-indigo-100 text-indigo-700 dark:bg-indigo-500/25 dark:text-indigo-200";
+  if (status === "paused" || status === "waiting") return "bg-amber-100 text-amber-700 dark:bg-amber-500/25 dark:text-amber-200";
   return "bg-slate-200 text-slate-700 dark:bg-white/15 dark:text-white";
 }
 

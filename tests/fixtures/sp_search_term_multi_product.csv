@@ -1,0 +1,6 @@
+Campaign Name,Ad Group Name,Advertised ASIN,Advertised SKU,Targeting,Match Type,Customer Search Term,Start Date,End Date,Impressions,Clicks,Click-Thru Rate (CTR),Cost Per Click (CPC),Spend,7 Day Total Sales ,7 Day Total Orders (#),7 Day Total Units (#),7 Day Conversion Rate,Total Advertising Cost of Sales (ACOS) ,Total Return on Advertising Spend (ROAS)
+"Product A Campaign","Group A1",B08AAAAAA1,SKU-PROD-A,running shoes,broad,best running shoes,2026-01-01,2026-01-07,3000,85,2.83%,$0.90,$76.50,$382.50,15,17,17.65%,20.00%,5.00
+"Product A Campaign","Group A1",B08AAAAAA1,SKU-PROD-A,running shoes,exact,running shoes men,2026-01-01,2026-01-07,2200,55,2.50%,$0.88,$48.40,$0.00,0,0,0.00%,,0.00
+"Product B Campaign","Group B1",B08BBBBBBB,SKU-PROD-B,yoga mat,broad,best yoga mat,2026-01-01,2026-01-07,4100,110,2.68%,$0.85,$93.50,$374.00,14,16,12.73%,25.00%,4.00
+"Product B Campaign","Group B1",B08BBBBBBB,SKU-PROD-B,yoga mat,exact,yoga mat thick 6mm,2026-01-01,2026-01-07,950,22,2.32%,$0.94,$20.68,$82.72,4,4,18.18%,25.00%,4.00
+"Product B Campaign","Group B1",B08BBBBBBB,SKU-PROD-B,yoga mat,broad,cheap yoga mat,2026-01-01,2026-01-07,2100,68,3.24%,$0.88,$59.84,$0.00,0,0,0.00%,,0.00

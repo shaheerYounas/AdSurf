@@ -1,22 +1,14 @@
 "use client";
 
 import { Loader2, type LucideIcon } from "lucide-react";
-import type { ReactNode } from "react";
 
 type LoadingSpinnerProps = {
-  /** The loading message displayed below the spinner. */
   message?: string;
-  /** Optional subtext for longer operations. */
   subtext?: string;
-  /** Icon component; defaults to Loader2 with animate-spin. */
   icon?: LucideIcon;
-  /** When true the icon spins (only applies when icon is unset). */
   animate?: boolean;
-  /** Additional class for the wrapper so callers can control spacing and alignment. */
   className?: string;
-  /** When provided, renders a compact inline spinner suitable for button children. */
   size?: "default" | "sm" | "lg";
-  /** When true, only renders the icon (no message). */
   iconOnly?: boolean;
 };
 
@@ -25,6 +17,8 @@ const sizeMap = {
   default: { icon: 20, text: "text-sm" },
   lg: { icon: 28, text: "text-base" },
 } as const;
+
+const skeletonWidths = ["92%", "84%", "88%", "78%", "90%", "82%", "86%", "80%"];
 
 export function LoadingSpinner({
   message = "Loading",
@@ -50,28 +44,31 @@ export function LoadingSpinner({
 
   return (
     <div
-      className={`flex flex-col items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-white/10 dark:bg-slate-950/70 ${className}`}
+      className={`flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm dark:border-white/10 dark:bg-slate-950/70 ${className}`}
       role="status"
       aria-live="polite"
     >
-      {Icon ? (
-        <Icon aria-hidden="true" size={dims.icon} />
-      ) : (
-        <Loader2 aria-hidden="true" className={animate ? "animate-spin" : ""} size={dims.icon} />
-      )}
-      <p className={`font-semibold text-slate-700 dark:text-slate-200 ${dims.text}`}>
-        {message}
-      </p>
-      {subtext ? (
-        <p className="text-xs text-slate-500 dark:text-slate-400">{subtext}</p>
-      ) : null}
+      <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50 dark:border-white/10 dark:bg-white/5">
+        {Icon ? (
+          <Icon aria-hidden="true" className="text-slate-500 dark:text-slate-400" size={dims.icon} />
+        ) : (
+          <Loader2
+            aria-hidden="true"
+            className={`text-indigo-500 dark:text-indigo-300 ${animate ? "animate-spin" : ""}`}
+            size={dims.icon}
+          />
+        )}
+      </div>
+      <div>
+        <p className={`font-semibold text-slate-700 dark:text-slate-200 ${dims.text}`}>{message}</p>
+        {subtext ? (
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{subtext}</p>
+        ) : null}
+      </div>
     </div>
   );
 }
 
-/**
- * Renders a set of pulsing placeholder blocks to mimic table rows or cards while data loads.
- */
 export function LoadingSkeleton({
   lines = 5,
   className = "",
@@ -80,26 +77,21 @@ export function LoadingSkeleton({
   className?: string;
 }) {
   return (
-    <div
-      className={`space-y-3 p-6 ${className}`}
-      role="status"
-      aria-live="polite"
-    >
+    <div className={`space-y-3 p-6 ${className}`} role="status" aria-live="polite">
       <span className="sr-only">Loading content</span>
       {Array.from({ length: lines }).map((_, i) => (
         <div
           key={i}
-          className="h-10 animate-pulse rounded-2xl bg-slate-200 dark:bg-white/10"
-          style={{ width: `${75 + Math.random() * 20}%` }}
-        />
+          className="relative h-10 overflow-hidden rounded-2xl bg-slate-200 dark:bg-white/10"
+          style={{ width: skeletonWidths[i % skeletonWidths.length] }}
+        >
+          <div className="shimmer-sweep absolute inset-0 bg-gradient-to-r from-transparent via-white/60 to-transparent dark:via-white/15" />
+        </div>
       ))}
     </div>
   );
 }
 
-/**
- * Compact inline text suitable for table empty states while data is still loading.
- */
 export function LoadingLine({ text = "Loading data..." }: { text?: string }) {
   return (
     <p

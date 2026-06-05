@@ -1,0 +1,538 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]:
+            - paragraph [ref=e11]: Control Center
+            - heading "AdSurf AI" [level=1] [ref=e12]
+        - button "Switch to light mode" [ref=e179] [cursor=pointer]:
+          - img [ref=e180]
+      - navigation "Main navigation" [ref=e16]:
+        - link "Dashboard Workspace overview" [ref=e17] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e19]
+          - generic [ref=e24]:
+            - generic [ref=e25]: Dashboard
+            - generic [ref=e26]: Workspace overview
+        - link "Agents Control AI workflow" [ref=e27] [cursor=pointer]:
+          - /url: /agents
+          - img [ref=e29]
+          - generic [ref=e32]:
+            - generic [ref=e33]: Agents
+            - generic [ref=e34]: Control AI workflow
+        - link "Report Library Uploaded report files" [ref=e35] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e37]
+          - generic [ref=e40]:
+            - generic [ref=e41]: Report Library
+            - generic [ref=e42]: Uploaded report files
+        - link "Products ASIN profiles" [ref=e43] [cursor=pointer]:
+          - /url: /products
+          - img [ref=e45]
+          - generic [ref=e51]:
+            - generic [ref=e52]: Products
+            - generic [ref=e53]: ASIN profiles
+        - link "New product Start setup" [ref=e54] [cursor=pointer]:
+          - /url: /products/new
+          - img [ref=e56]
+          - generic [ref=e58]:
+            - generic [ref=e59]: New product
+            - generic [ref=e60]: Start setup
+        - link "Bulk import CSV / XLSX upload" [ref=e61] [cursor=pointer]:
+          - /url: /products/bulk
+          - img [ref=e63]
+          - generic [ref=e66]:
+            - generic [ref=e67]: Bulk import
+            - generic [ref=e68]: CSV / XLSX upload
+        - link "Recommendations Approval queue" [ref=e69] [cursor=pointer]:
+          - /url: /recommendations
+          - img [ref=e71]
+          - generic [ref=e74]:
+            - generic [ref=e75]: Recommendations
+            - generic [ref=e76]: Approval queue
+    - main [ref=e77]:
+      - generic [ref=e78]:
+        - navigation "Page navigation" [ref=e186]:
+          - link "Back to Dashboard" [ref=e187] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e189]
+            - generic [ref=e191]: Dashboard
+        - generic [ref=e79]:
+          - generic [ref=e80]:
+            - generic [ref=e81]:
+              - paragraph [ref=e82]: Workspace reports
+              - heading "Uploaded report library" [level=1] [ref=e83]
+              - paragraph [ref=e84]: Inspect every uploaded file in this workspace and see the parse run, detected account import, monitoring import, and recommendation records connected to it.
+            - generic [ref=e85]:
+              - generic [ref=e86]: 00000000-0000-0000-0000-000000000001
+              - button "Refresh" [ref=e192] [cursor=pointer]:
+                - img [ref=e193]
+                - text: Refresh
+          - generic [ref=e87]:
+            - generic [ref=e88]:
+              - generic [ref=e89]:
+                - paragraph [ref=e90]: Manage uploaded resources
+                - heading "Open the right view for each uploaded file" [level=2] [ref=e91]
+                - paragraph [ref=e92]: Use these entry points to inspect uploads, continue workflows, and jump into downstream analysis without losing workspace context.
+              - paragraph [ref=e93]: 10 uploaded resources tracked in this workspace
+            - generic [ref=e94]:
+              - link "Product hubs Review product profiles and upload status by catalog." [ref=e95] [cursor=pointer]:
+                - /url: /products
+                - paragraph [ref=e96]: Product hubs
+                - paragraph [ref=e97]: Review product profiles and upload status by catalog.
+              - link "Report library Search files, parse runs, and connected analysis records." [ref=e98] [cursor=pointer]:
+                - /url: /reports
+                - paragraph [ref=e99]: Report library
+                - paragraph [ref=e100]: Search files, parse runs, and connected analysis records.
+              - link "Recommendation queue Review rule output generated from uploaded and monitored data." [ref=e101] [cursor=pointer]:
+                - /url: /recommendations
+                - paragraph [ref=e102]: Recommendation queue
+                - paragraph [ref=e103]: Review rule output generated from uploaded and monitored data.
+              - link "Workflow console Continue uploads, parsing, and campaign review in one place." [ref=e104] [cursor=pointer]:
+                - /url: /agents
+                - paragraph [ref=e105]: Workflow console
+                - paragraph [ref=e106]: Continue uploads, parsing, and campaign review in one place.
+          - generic [ref=e107]:
+            - generic [ref=e108]:
+              - generic [ref=e109]:
+                - img [ref=e111]
+                - text: Total files
+              - paragraph [ref=e114]: "10"
+            - generic [ref=e115]:
+              - generic [ref=e116]:
+                - img [ref=e118]
+                - text: Processed
+              - paragraph [ref=e121]: "4"
+            - generic [ref=e122]:
+              - generic [ref=e123]:
+                - img [ref=e125]
+                - text: Recommendations
+              - paragraph [ref=e127]: "248"
+            - generic [ref=e128]:
+              - generic [ref=e129]:
+                - img [ref=e131]
+                - text: Warnings / row errors
+              - paragraph [ref=e133]: "0"
+          - generic [ref=e134]:
+            - generic [ref=e135]:
+              - img
+              - generic [ref=e136]: Search reports
+              - textbox "Search reports" [ref=e137]:
+                - /placeholder: Search filename, product, report type
+            - generic [ref=e138]:
+              - img [ref=e139]
+              - combobox [ref=e141]:
+                - option "All statuses" [selected]
+                - option "Processed"
+                - option "Queued"
+                - option "Failed"
+              - combobox [ref=e142]:
+                - option "All report types" [selected]
+                - option "Amazon Ads Sp Search Term Report"
+                - option "Competitor Keyword Research"
+          - generic [ref=e198]:
+            - generic [ref=e199]:
+              - generic [ref=e200]: File
+              - generic [ref=e201]: Status
+              - generic [ref=e202]: Parsed data
+              - generic [ref=e203]: Related analysis
+              - generic [ref=e204]: Actions
+            - list [ref=e205]:
+              - listitem [ref=e206]:
+                - generic [ref=e207]:
+                  - paragraph [ref=e208]: Sponsored_Products_Search_term_report (2).xlsx
+                  - paragraph [ref=e209]: Amazon Ads Sp Search Term Report / 154 KB
+                  - paragraph [ref=e210]: QA Button Sweep Product / B0QA123456
+                  - paragraph [ref=e211]: ff01a48e-1b7d-44b3-b1e7-c0d8f350ca6c
+                - generic [ref=e212]:
+                  - generic [ref=e213]: Processed
+                  - paragraph [ref=e214]: Uploaded Jun 4, 2026
+                  - paragraph [ref=e215]: Confirmed Jun 4, 2026
+                - generic [ref=e216]:
+                  - paragraph [ref=e217]:
+                    - generic [ref=e218]: Parse status
+                    - generic [ref=e219]: Succeeded
+                  - paragraph [ref=e220]:
+                    - generic [ref=e221]: Rows
+                    - generic [ref=e222]: 1,077 parsed / 0 errors
+                  - paragraph [ref=e223]:
+                    - generic [ref=e224]: Columns
+                    - generic [ref=e225]: "26"
+                  - link "Open monitoring" [ref=e226] [cursor=pointer]:
+                    - /url: /products/3b6a4ee3-fc67-4f89-ab70-3dcfd40c85d4/monitoring
+                - generic [ref=e227]:
+                  - paragraph [ref=e228]:
+                    - generic [ref=e229]: Monitoring import
+                    - generic [ref=e230]: Succeeded / 1,077 rows
+                  - paragraph [ref=e231]:
+                    - generic [ref=e232]: Recommendations
+                    - generic [ref=e233]: "248"
+                  - generic [ref=e234]:
+                    - link "Product" [ref=e235] [cursor=pointer]:
+                      - /url: /products/3b6a4ee3-fc67-4f89-ab70-3dcfd40c85d4
+                    - link "Monitoring" [ref=e236] [cursor=pointer]:
+                      - /url: /products/3b6a4ee3-fc67-4f89-ab70-3dcfd40c85d4/monitoring
+                    - link "Recommendations" [ref=e237] [cursor=pointer]:
+                      - /url: /recommendations
+                - generic [ref=e238]:
+                  - button "Reprocess" [ref=e239] [cursor=pointer]:
+                    - img [ref=e240]
+                    - text: Reprocess
+                  - button "Archive" [ref=e243] [cursor=pointer]:
+                    - img [ref=e244]
+                    - text: Archive
+                  - button "Delete" [ref=e249] [cursor=pointer]:
+                    - img [ref=e250]
+                    - text: Delete
+              - listitem [ref=e253]:
+                - generic [ref=e254]:
+                  - paragraph [ref=e255]: .tmp-deep-mapping.csv
+                  - paragraph [ref=e256]: Competitor Keyword Research / 135 B
+                  - paragraph [ref=e257]: Local Smoke Test Product / B0TEST1234
+                  - paragraph [ref=e258]: e01c3fcf-8a1a-4e82-bc2c-0a6950907827
+                - generic [ref=e259]:
+                  - generic [ref=e260]: Queued For Processing
+                  - paragraph [ref=e261]: Uploaded Jun 4, 2026
+                  - paragraph [ref=e262]: Confirmed Jun 4, 2026
+                - generic [ref=e263]:
+                  - paragraph [ref=e264]: No parse run recorded.
+                  - link "Open workflow" [ref=e265] [cursor=pointer]:
+                    - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/uploads/e01c3fcf-8a1a-4e82-bc2c-0a6950907827/mapping
+                - generic [ref=e266]:
+                  - paragraph [ref=e267]:
+                    - generic [ref=e268]: Recommendations
+                    - generic [ref=e269]: "0"
+                  - generic [ref=e270]:
+                    - link "Product" [ref=e271] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc
+                    - link "Monitoring" [ref=e272] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e273]:
+                  - button "Reprocess" [ref=e274] [cursor=pointer]:
+                    - img [ref=e275]
+                    - text: Reprocess
+                  - button "Archive" [ref=e278] [cursor=pointer]:
+                    - img [ref=e279]
+                    - text: Archive
+                  - button "Delete" [ref=e284] [cursor=pointer]:
+                    - img [ref=e285]
+                    - text: Delete
+              - listitem [ref=e288]:
+                - generic [ref=e289]:
+                  - paragraph [ref=e290]: .tmp-qa-mobile-sp-report.csv
+                  - paragraph [ref=e291]: Amazon Ads Sp Search Term Report / 188 B
+                  - paragraph [ref=e292]: Local Smoke Test Product / B0TEST1234
+                  - paragraph [ref=e293]: d896c6f6-b28e-4345-ac02-738af574fc24
+                - generic [ref=e294]:
+                  - generic [ref=e295]: Queued For Processing
+                  - paragraph [ref=e296]: Uploaded Jun 4, 2026
+                  - paragraph [ref=e297]: Confirmed Jun 4, 2026
+                - generic [ref=e298]:
+                  - paragraph [ref=e299]: No parse run recorded.
+                  - link "Open monitoring" [ref=e300] [cursor=pointer]:
+                    - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e301]:
+                  - paragraph [ref=e302]:
+                    - generic [ref=e303]: Recommendations
+                    - generic [ref=e304]: "0"
+                  - generic [ref=e305]:
+                    - link "Product" [ref=e306] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc
+                    - link "Monitoring" [ref=e307] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e308]:
+                  - button "Reprocess" [ref=e309] [cursor=pointer]:
+                    - img [ref=e310]
+                    - text: Reprocess
+                  - button "Archive" [ref=e313] [cursor=pointer]:
+                    - img [ref=e314]
+                    - text: Archive
+                  - button "Delete" [ref=e319] [cursor=pointer]:
+                    - img [ref=e320]
+                    - text: Delete
+              - listitem [ref=e366]:
+                - generic [ref=e367]:
+                  - paragraph [ref=e368]: .tmp-qa-desktop-sp-report.csv
+                  - paragraph [ref=e369]: Amazon Ads Sp Search Term Report / 188 B
+                  - paragraph [ref=e370]: Local Smoke Test Product / B0TEST1234
+                  - paragraph [ref=e371]: 3de8e152-636e-4cd7-b89f-427e79a1601f
+                - generic [ref=e372]:
+                  - generic [ref=e373]: Queued For Processing
+                  - paragraph [ref=e374]: Uploaded Jun 4, 2026
+                  - paragraph [ref=e375]: Confirmed Jun 4, 2026
+                - generic [ref=e376]:
+                  - paragraph [ref=e377]: No parse run recorded.
+                  - link "Open monitoring" [ref=e378] [cursor=pointer]:
+                    - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e379]:
+                  - paragraph [ref=e380]:
+                    - generic [ref=e381]: Recommendations
+                    - generic [ref=e382]: "0"
+                  - generic [ref=e383]:
+                    - link "Product" [ref=e384] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc
+                    - link "Monitoring" [ref=e385] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e386]:
+                  - button "Reprocess" [ref=e387] [cursor=pointer]:
+                    - img [ref=e388]
+                    - text: Reprocess
+                  - button "Archive" [ref=e391] [cursor=pointer]:
+                    - img [ref=e392]
+                    - text: Archive
+                  - button "Delete" [ref=e397] [cursor=pointer]:
+                    - img [ref=e398]
+                    - text: Delete
+              - listitem [ref=e401]:
+                - generic [ref=e402]:
+                  - paragraph [ref=e403]: .tmp-qa-sp-report.csv
+                  - paragraph [ref=e404]: Competitor Keyword Research / 188 B
+                  - paragraph [ref=e405]: Local Smoke Test Product / B0TEST1234
+                  - paragraph [ref=e406]: 2d053f03-53d8-4cec-bad0-9c87a4f0120f
+                - generic [ref=e407]:
+                  - generic [ref=e408]: Queued For Processing
+                  - paragraph [ref=e409]: Uploaded Jun 4, 2026
+                  - paragraph [ref=e410]: Confirmed Jun 4, 2026
+                - generic [ref=e411]:
+                  - paragraph [ref=e412]: No parse run recorded.
+                  - link "Open workflow" [ref=e413] [cursor=pointer]:
+                    - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/uploads/2d053f03-53d8-4cec-bad0-9c87a4f0120f/mapping
+                - generic [ref=e414]:
+                  - paragraph [ref=e415]:
+                    - generic [ref=e416]: Recommendations
+                    - generic [ref=e417]: "0"
+                  - generic [ref=e418]:
+                    - link "Product" [ref=e419] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc
+                    - link "Monitoring" [ref=e420] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e421]:
+                  - button "Reprocess" [ref=e422] [cursor=pointer]:
+                    - img [ref=e423]
+                    - text: Reprocess
+                  - button "Archive" [ref=e426] [cursor=pointer]:
+                    - img [ref=e427]
+                    - text: Archive
+                  - button "Delete" [ref=e432] [cursor=pointer]:
+                    - img [ref=e433]
+                    - text: Delete
+              - listitem [ref=e436]:
+                - generic [ref=e437]:
+                  - paragraph [ref=e438]: amazon_ads_search_term_report.csv
+                  - paragraph [ref=e439]: Amazon Ads Sp Search Term Report / 294 B
+                  - paragraph [ref=e440]: Local Smoke Test Product / B0TEST1234
+                  - paragraph [ref=e441]: b556a932-aa5c-4454-8a09-46fbf84e709b
+                - generic [ref=e442]:
+                  - generic [ref=e443]: Initialized
+                  - paragraph [ref=e444]: Uploaded Jun 4, 2026
+                  - paragraph [ref=e445]: Confirmed not yet
+                - generic [ref=e446]:
+                  - paragraph [ref=e447]: No parse run recorded.
+                  - link "Open monitoring" [ref=e448] [cursor=pointer]:
+                    - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e449]:
+                  - paragraph [ref=e450]:
+                    - generic [ref=e451]: Recommendations
+                    - generic [ref=e452]: "0"
+                  - generic [ref=e453]:
+                    - link "Product" [ref=e454] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc
+                    - link "Monitoring" [ref=e455] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e456]:
+                  - button "Reprocess" [ref=e457] [cursor=pointer]:
+                    - img [ref=e458]
+                    - text: Reprocess
+                  - button "Archive" [ref=e461] [cursor=pointer]:
+                    - img [ref=e462]
+                    - text: Archive
+                  - button "Delete" [ref=e467] [cursor=pointer]:
+                    - img [ref=e468]
+                    - text: Delete
+              - listitem [ref=e471]:
+                - generic [ref=e472]:
+                  - paragraph [ref=e473]: amazon_ads_search_term_report.csv
+                  - paragraph [ref=e474]: Amazon Ads Sp Search Term Report / 294 B
+                  - paragraph [ref=e475]: Local Smoke Test Product / B0TEST1234
+                  - paragraph [ref=e476]: c2ee2225-d8b7-4ae2-bca5-a55729c12ac9
+                - generic [ref=e477]:
+                  - generic [ref=e478]: Processed
+                  - paragraph [ref=e479]: Uploaded Jun 4, 2026
+                  - paragraph [ref=e480]: Confirmed Jun 4, 2026
+                - generic [ref=e481]:
+                  - paragraph [ref=e482]:
+                    - generic [ref=e483]: Parse status
+                    - generic [ref=e484]: Succeeded
+                  - paragraph [ref=e485]:
+                    - generic [ref=e486]: Rows
+                    - generic [ref=e487]: 2 parsed / 0 errors
+                  - paragraph [ref=e488]:
+                    - generic [ref=e489]: Columns
+                    - generic [ref=e490]: "13"
+                  - link "Open monitoring" [ref=e491] [cursor=pointer]:
+                    - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e492]:
+                  - paragraph [ref=e493]:
+                    - generic [ref=e494]: Monitoring import
+                    - generic [ref=e495]: Succeeded / 2 rows
+                  - paragraph [ref=e496]:
+                    - generic [ref=e497]: Recommendations
+                    - generic [ref=e498]: "0"
+                  - generic [ref=e499]:
+                    - link "Product" [ref=e500] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc
+                    - link "Monitoring" [ref=e501] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e502]:
+                  - button "Reprocess" [ref=e503] [cursor=pointer]:
+                    - img [ref=e504]
+                    - text: Reprocess
+                  - button "Archive" [ref=e507] [cursor=pointer]:
+                    - img [ref=e508]
+                    - text: Archive
+                  - button "Delete" [ref=e513] [cursor=pointer]:
+                    - img [ref=e514]
+                    - text: Delete
+              - listitem [ref=e517]:
+                - generic [ref=e518]:
+                  - paragraph [ref=e519]: amazon_ads_search_term_report.csv
+                  - paragraph [ref=e520]: Amazon Ads Sp Search Term Report / 294 B
+                  - paragraph [ref=e521]: Local Smoke Test Product / B0TEST1234
+                  - paragraph [ref=e522]: c9b62e12-ccf0-4fd5-bd77-8e0184a66522
+                - generic [ref=e523]:
+                  - generic [ref=e524]: Queued For Processing
+                  - paragraph [ref=e525]: Uploaded Jun 4, 2026
+                  - paragraph [ref=e526]: Confirmed Jun 4, 2026
+                - generic [ref=e527]:
+                  - paragraph [ref=e528]: No parse run recorded.
+                  - link "Open monitoring" [ref=e529] [cursor=pointer]:
+                    - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e530]:
+                  - paragraph [ref=e531]:
+                    - generic [ref=e532]: Recommendations
+                    - generic [ref=e533]: "0"
+                  - generic [ref=e534]:
+                    - link "Product" [ref=e535] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc
+                    - link "Monitoring" [ref=e536] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e537]:
+                  - button "Reprocess" [ref=e538] [cursor=pointer]:
+                    - img [ref=e539]
+                    - text: Reprocess
+                  - button "Archive" [ref=e542] [cursor=pointer]:
+                    - img [ref=e543]
+                    - text: Archive
+                  - button "Delete" [ref=e548] [cursor=pointer]:
+                    - img [ref=e549]
+                    - text: Delete
+              - listitem [ref=e552]:
+                - generic [ref=e553]:
+                  - paragraph [ref=e554]: amazon_ads_search_term_report.csv
+                  - paragraph [ref=e555]: Amazon Ads Sp Search Term Report / 294 B
+                  - paragraph [ref=e556]: Local Smoke Test Product / B0TEST1234
+                  - paragraph [ref=e557]: d2eccc37-0e0d-445f-8318-482c00e8dc4f
+                - generic [ref=e558]:
+                  - generic [ref=e559]: Processed
+                  - paragraph [ref=e560]: Uploaded Jun 4, 2026
+                  - paragraph [ref=e561]: Confirmed Jun 4, 2026
+                - generic [ref=e562]:
+                  - paragraph [ref=e563]:
+                    - generic [ref=e564]: Parse status
+                    - generic [ref=e565]: Succeeded
+                  - paragraph [ref=e566]:
+                    - generic [ref=e567]: Rows
+                    - generic [ref=e568]: 2 parsed / 0 errors
+                  - paragraph [ref=e569]:
+                    - generic [ref=e570]: Columns
+                    - generic [ref=e571]: "13"
+                  - link "Open monitoring" [ref=e572] [cursor=pointer]:
+                    - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e573]:
+                  - paragraph [ref=e574]:
+                    - generic [ref=e575]: Monitoring import
+                    - generic [ref=e576]: Failed / 0 rows
+                  - paragraph [ref=e577]:
+                    - generic [ref=e578]: Recommendations
+                    - generic [ref=e579]: "0"
+                  - generic [ref=e580]:
+                    - link "Product" [ref=e581] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc
+                    - link "Monitoring" [ref=e582] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e583]:
+                  - button "Reprocess" [ref=e584] [cursor=pointer]:
+                    - img [ref=e585]
+                    - text: Reprocess
+                  - button "Archive" [ref=e588] [cursor=pointer]:
+                    - img [ref=e589]
+                    - text: Archive
+                  - button "Delete" [ref=e594] [cursor=pointer]:
+                    - img [ref=e595]
+                    - text: Delete
+              - listitem [ref=e598]:
+                - generic [ref=e599]:
+                  - paragraph [ref=e600]: amazon_ads_search_term_report.csv
+                  - paragraph [ref=e601]: Amazon Ads Sp Search Term Report / 294 B
+                  - paragraph [ref=e602]: Local Smoke Test Product / B0TEST1234
+                  - paragraph [ref=e603]: 6ab8a440-4e55-4aba-89ab-25cab935d6dd
+                - generic [ref=e604]:
+                  - generic [ref=e605]: Processed
+                  - paragraph [ref=e606]: Uploaded Jun 4, 2026
+                  - paragraph [ref=e607]: Confirmed Jun 4, 2026
+                - generic [ref=e608]:
+                  - paragraph [ref=e609]:
+                    - generic [ref=e610]: Parse status
+                    - generic [ref=e611]: Succeeded
+                  - paragraph [ref=e612]:
+                    - generic [ref=e613]: Rows
+                    - generic [ref=e614]: 2 parsed / 0 errors
+                  - paragraph [ref=e615]:
+                    - generic [ref=e616]: Columns
+                    - generic [ref=e617]: "13"
+                  - link "Open monitoring" [ref=e618] [cursor=pointer]:
+                    - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e619]:
+                  - paragraph [ref=e620]:
+                    - generic [ref=e621]: Monitoring import
+                    - generic [ref=e622]: Queued / 0 rows
+                  - paragraph [ref=e623]:
+                    - generic [ref=e624]: Recommendations
+                    - generic [ref=e625]: "0"
+                  - generic [ref=e626]:
+                    - link "Product" [ref=e627] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc
+                    - link "Monitoring" [ref=e628] [cursor=pointer]:
+                      - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+                - generic [ref=e629]:
+                  - button "Reprocess" [ref=e630] [cursor=pointer]:
+                    - img [ref=e631]
+                    - text: Reprocess
+                  - button "Archive" [ref=e634] [cursor=pointer]:
+                    - img [ref=e635]
+                    - text: Archive
+                  - button "Delete" [ref=e640] [cursor=pointer]:
+                    - img [ref=e641]
+                    - text: Delete
+          - generic [ref=e148]:
+            - img [ref=e149]
+            - generic [ref=e152]: Review and routing hub.
+            - generic [ref=e153]: This screen helps you manage uploaded resources and navigate to the right workflow without executing Amazon Ads changes.
+        - generic [ref=e155]:
+          - generic [ref=e156]:
+            - img [ref=e157]
+            - text: Recommendation only
+          - generic [ref=e160]:
+            - img [ref=e161]
+            - text: Requires human approval
+          - generic [ref=e163]:
+            - img [ref=e164]
+            - text: No live Amazon Ads change executed
+  - button "Replay tour" [ref=e167] [cursor=pointer]:
+    - img [ref=e168]
+    - text: Replay tour
+  - button "Open Next.js Dev Tools" [ref=e175] [cursor=pointer]:
+    - img [ref=e176]
+  - alert [ref=e644]

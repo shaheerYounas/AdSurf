@@ -10,35 +10,28 @@ type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const base =
-  "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 disabled:pointer-events-none disabled:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950";
+  "inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold shadow-sm transition-all duration-150 hover:-translate-y-px hover:shadow-md active:scale-[0.97] active:translate-y-0 active:shadow-sm disabled:pointer-events-none disabled:translate-y-0 disabled:active:scale-100 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950";
 
 const variants: Record<Variant, string> = {
-  // Default brand action — high-contrast indigo in both themes.
   primary:
-    "bg-indigo-700 text-white hover:bg-indigo-600 focus-visible:ring-indigo-400 dark:bg-indigo-600 dark:text-white dark:hover:bg-indigo-500",
-  // Quiet surface action — low emphasis, still visible against both backgrounds.
+    "bg-gradient-to-b from-indigo-500 to-indigo-700 text-white shadow-indigo-600/25 hover:from-indigo-400 hover:to-indigo-600 hover:shadow-indigo-500/30 focus-visible:ring-indigo-400 dark:from-indigo-500 dark:to-indigo-700 dark:shadow-indigo-500/20",
   secondary:
-    "border border-slate-200 bg-white text-slate-900 shadow-none hover:bg-slate-100 focus-visible:ring-slate-400 dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/20",
-  // Positive action.
+    "border border-slate-200 bg-white text-slate-800 shadow-none hover:border-slate-300 hover:bg-slate-50 hover:shadow-sm focus-visible:ring-slate-400 dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/15 dark:hover:border-white/20",
   success:
-    "bg-emerald-600 text-white hover:bg-emerald-500 focus-visible:ring-emerald-400 dark:bg-emerald-500 dark:text-white dark:hover:bg-emerald-400",
-  // Caution action.
+    "bg-gradient-to-b from-emerald-500 to-emerald-700 text-white shadow-emerald-600/20 hover:from-emerald-400 hover:to-emerald-600 focus-visible:ring-emerald-400 dark:from-emerald-500 dark:to-emerald-700",
   warning:
-    "bg-amber-500 text-white hover:bg-amber-400 focus-visible:ring-amber-400 dark:bg-amber-400 dark:text-amber-950 dark:hover:bg-amber-300",
-  // Destructive action.
+    "bg-gradient-to-b from-amber-400 to-amber-600 text-white shadow-amber-500/20 hover:from-amber-300 hover:to-amber-500 focus-visible:ring-amber-400 dark:from-amber-400 dark:to-amber-600 dark:text-amber-950",
   danger:
-    "bg-red-600 text-white hover:bg-red-500 focus-visible:ring-red-400 dark:bg-red-500 dark:text-white dark:hover:bg-red-400",
-  // Approvals / violet accent.
+    "bg-gradient-to-b from-red-500 to-red-700 text-white shadow-red-600/20 hover:from-red-400 hover:to-red-600 focus-visible:ring-red-400 dark:from-red-500 dark:to-red-700",
   accent:
-    "bg-violet-600 text-white hover:bg-violet-500 focus-visible:ring-violet-400 dark:bg-violet-500 dark:text-white dark:hover:bg-violet-400",
-  // Stop / neutral dark surface.
+    "bg-gradient-to-b from-violet-500 to-violet-700 text-white shadow-violet-600/20 hover:from-violet-400 hover:to-violet-600 focus-visible:ring-violet-400 dark:from-violet-500 dark:to-violet-700",
   neutral:
-    "bg-slate-800 text-white hover:bg-slate-700 focus-visible:ring-slate-500 dark:bg-slate-700 dark:text-white dark:hover:bg-slate-600",
+    "bg-gradient-to-b from-slate-700 to-slate-900 text-white shadow-slate-900/20 hover:from-slate-600 hover:to-slate-800 focus-visible:ring-slate-500 dark:from-slate-600 dark:to-slate-800",
 };
 
 const sizes: Record<Size, string> = {
   default: "min-h-10",
-  sm: "min-h-9 px-3 text-xs",
+  sm: "min-h-8 px-3 text-xs",
 };
 
 export function Button({ className, variant = "primary", size = "default", ...props }: ButtonProps) {

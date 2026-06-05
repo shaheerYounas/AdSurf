@@ -55,6 +55,10 @@ class JobRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def delete_pending_upload_jobs(self, *, workspace_id: UUID, upload_id: UUID) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
     def clear_queued_jobs(self, *, job_type: str | None = None) -> int:
         raise NotImplementedError
 
@@ -153,6 +157,17 @@ class LocalJobRepository(JobRepository):
     def delete_upload_jobs(self, *, workspace_id: UUID, upload_id: UUID) -> int:
         jobs = self._jobs.get(workspace_id, {})
         job_ids = [job_id for job_id, job in jobs.items() if job.payload_json.get("upload_id") == str(upload_id)]
+        for job_id in job_ids:
+            jobs.pop(job_id, None)
+        return len(job_ids)
+
+    def delete_pending_upload_jobs(self, *, workspace_id: UUID, upload_id: UUID) -> int:
+        jobs = self._jobs.get(workspace_id, {})
+        job_ids = [
+            job_id
+            for job_id, job in jobs.items()
+            if job.payload_json.get("upload_id") == str(upload_id) and job.status == JobStatus.QUEUED
+        ]
         for job_id in job_ids:
             jobs.pop(job_id, None)
         return len(job_ids)
@@ -371,7 +386,22 @@ class PostgresJobRepository(JobRepository):
                       and payload_json like :upload_pattern
                     """
                 ),
-                {"workspace_id": workspace_id, "upload_pattern": f'%"upload_id":"{upload_id}"%'},
+                {"workspace_id": workspace_id, "upload_pattern": f'%"upload_id": "{upload_id}"%'},
+            )
+        return int(deleted.rowcount or 0)
+
+    def delete_pending_upload_jobs(self, *, workspace_id: UUID, upload_id: UUID) -> int:
+        with self._engine.begin() as connection:
+            deleted = connection.execute(
+                text(
+                    """
+                    delete from job_queue
+                    where workspace_id = :workspace_id
+                      and status = 'queued'
+                      and payload_json like :upload_pattern
+                    """
+                ),
+                {"workspace_id": workspace_id, "upload_pattern": f'%"upload_id": "{upload_id}"%'},
             )
         return int(deleted.rowcount or 0)
 

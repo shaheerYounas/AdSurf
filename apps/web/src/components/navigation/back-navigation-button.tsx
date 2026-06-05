@@ -37,36 +37,28 @@ export function BackNavigationButton() {
 
   useEffect(() => {
     const history = readNavigationHistory().filter((entry) => entry !== pathname);
-    setPreviousPath(history.at(-1) ?? null);
+    queueMicrotask(() => setPreviousPath(history.at(-1) ?? null));
     writeNavigationHistory([...history, pathname]);
   }, [pathname]);
 
-  // On root nav pages with no real history, there is nothing useful to go back
-  // to — the sidebar is already the navigation for these pages.
   if (!previousPath && isRootNavPage(pathname)) {
     return null;
   }
 
   const targetHref = previousPath ?? fallbackTarget.href;
-
-  // Derive a human-readable label from the actual destination path so the
-  // button always says where it goes, e.g. "← Products" or "← Monitoring".
   const targetLabel = previousPath
     ? getBackNavigationTarget(previousPath).label
     : fallbackTarget.label;
 
   return (
-    <nav className="mb-5 flex items-center gap-3" aria-label="Page navigation">
+    <nav className="mb-3 flex items-center" aria-label="Page navigation">
       <Link
         aria-label={`Back to ${targetLabel}`}
-        className="group inline-flex min-h-10 max-w-full items-center gap-2 rounded-xl border border-slate-200/80 bg-white/85 px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm backdrop-blur transition hover:-translate-y-0.5 hover:border-indigo-200 hover:bg-white hover:text-indigo-700 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 dark:border-white/10 dark:bg-white/10 dark:text-slate-100 dark:hover:border-indigo-300/40 dark:hover:bg-white/15 dark:hover:text-white"
+        className="inline-flex h-7 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-indigo-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 dark:text-slate-400 dark:hover:bg-white/8 dark:hover:text-indigo-300"
         href={targetHref}
         onClick={(event) => {
           if (!previousPath) return;
           event.preventDefault();
-          // Pop the current page and the destination from history before
-          // navigating back so the destination's useEffect sees the correct
-          // prior entry instead of re-inserting the current page.
           const trimmed = readNavigationHistory()
             .filter((entry) => entry !== pathname)
             .slice(0, -1);
@@ -74,10 +66,8 @@ export function BackNavigationButton() {
           router.push(previousPath);
         }}
       >
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-white shadow-sm transition group-hover:bg-indigo-600 dark:bg-white dark:text-slate-950 dark:group-hover:bg-indigo-200">
-          <ArrowLeft aria-hidden="true" size={15} />
-        </span>
-        <span className="truncate">{targetLabel}</span>
+        <ArrowLeft aria-hidden="true" size={14} />
+        <span>{targetLabel}</span>
       </Link>
     </nav>
   );

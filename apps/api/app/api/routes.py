@@ -2,8 +2,10 @@ from fastapi import APIRouter
 
 from apps.api.app.api.v1.account_imports import router as account_imports_router
 from apps.api.app.api.v1.agents import router as agents_router
+from apps.api.app.api.v1.bulk_products import router as bulk_products_router
 from apps.api.app.api.v1.campaigns import router as campaigns_router
 from apps.api.app.api.v1.competitor import router as competitor_router
+from apps.api.app.api.v1.competitor_research import router as competitor_research_router
 from apps.api.app.api.v1.dev import router as dev_router
 from apps.api.app.api.v1.monitoring import router as monitoring_router
 from apps.api.app.api.v1.products import router as products_router
@@ -16,7 +18,9 @@ from apps.api.app.api.v1.workflows import router as workflows_router
 api_router = APIRouter()
 api_router.include_router(account_imports_router, prefix="/v1", tags=["account-imports"])
 api_router.include_router(agents_router, prefix="/v1", tags=["agents"])
+api_router.include_router(bulk_products_router, prefix="/v1", tags=["bulk-product-import"])
 api_router.include_router(competitor_router, prefix="/v1", tags=["competitor"])
+api_router.include_router(competitor_research_router, prefix="/v1", tags=["competitor-research"])
 api_router.include_router(products_router, prefix="/v1", tags=["product-profiles"])
 api_router.include_router(file_upload_router, prefix="/v1", tags=["file-uploads"])
 api_router.include_router(uploads_router, prefix="/v1", tags=["uploads"])

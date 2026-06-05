@@ -20,7 +20,9 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
   const [mounted, setMounted] = useState(false);
 
   // Avoid hydration mismatch: only render the actual selected state once we're on the client.
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    queueMicrotask(() => setMounted(true));
+  }, []);
 
   if (compact) {
     // Single-button mode: clicking flips between light and dark, ignoring system.

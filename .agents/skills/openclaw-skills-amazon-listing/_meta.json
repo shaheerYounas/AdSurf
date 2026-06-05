@@ -1,0 +1,11 @@
+{
+  "owner": "bytesagain",
+  "slug": "amazon-listing",
+  "displayName": "amazon-listing",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773152382772,
+    "commit": "https://github.com/openclaw/skills/commit/17ce2359a98172a81f5acd02d2e019400a7a6faf"
+  },
+  "history": []
+}

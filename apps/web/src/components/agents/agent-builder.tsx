@@ -149,7 +149,10 @@ export function AgentBuilder() {
   // Tool search
   const [toolSearch, setToolSearch] = useState("");
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function load() {
     setIsLoading(true);
@@ -431,7 +434,7 @@ export function AgentBuilder() {
                   </div>
                 </button>
               ))}
-              {!agents.length && <p className="py-6 text-center text-sm text-slate-400">No agents created yet. Click "New" to get started.</p>}
+              {!agents.length && <p className="py-6 text-center text-sm text-slate-400">No agents created yet. Click &quot;New&quot; to get started.</p>}
             </div>
 
             {/* Templates section */}

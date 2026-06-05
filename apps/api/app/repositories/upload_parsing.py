@@ -375,6 +375,18 @@ class PostgresUploadParsingRepository(UploadParsingRepository):
     def delete_by_upload(self, *, workspace_id: UUID, upload_id: UUID) -> None:
         with self._engine.begin() as connection:
             connection.execute(
+                text("delete from upload_column_profile_columns where workspace_id = :workspace_id and upload_id = :upload_id"),
+                {"workspace_id": workspace_id, "upload_id": upload_id},
+            )
+            connection.execute(
+                text("delete from upload_column_mappings where workspace_id = :workspace_id and upload_id = :upload_id"),
+                {"workspace_id": workspace_id, "upload_id": upload_id},
+            )
+            connection.execute(
+                text("delete from upload_column_profiles where workspace_id = :workspace_id and upload_id = :upload_id"),
+                {"workspace_id": workspace_id, "upload_id": upload_id},
+            )
+            connection.execute(
                 text("delete from upload_parsed_rows where workspace_id = :workspace_id and upload_id = :upload_id"),
                 {"workspace_id": workspace_id, "upload_id": upload_id},
             )

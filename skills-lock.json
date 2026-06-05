@@ -1,17 +1,239 @@
 {
   "version": 1,
   "skills": {
+    "affaan-m-everything-claude-code-agent-harness-construction": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/affaan-m-everything-claude-code-agent-harness-construction/SKILL.md",
+      "computedHash": "73fb1a7601ec7c0bced1cb8025940c1aa27409d324136b2ff77300dbdf73b43a"
+    },
+    "affaan-m-everything-claude-code-design-system": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/affaan-m-everything-claude-code-design-system/SKILL.md",
+      "computedHash": "833451c6db6de6c93b48812ac1580ea50f5ffd5a0c3b80940d2b10d3b20f418b"
+    },
+    "affaan-m-everything-claude-code-frontend-design": {
+      "source": "affaan-m/everything-claude-code",
+      "sourceType": "github",
+      "skillPath": "skills/affaan-m-everything-claude-code-frontend-design/SKILL.md",
+      "computedHash": "6b4d60566dd123d5598b7a16af5675b3a6a40f46b7c0fd805218d14758b03393"
+    },
+    "andrewyng-context-hub-deploy": {
+      "source": "andrewyng/context-hub",
+      "sourceType": "github",
+      "skillPath": "skills/andrewyng-context-hub-deploy/SKILL.md",
+      "computedHash": "52b73b13958dad2c42a3d41b3ec8c2fe358c25117df8ffaa92a0d1595f62ab1f"
+    },
+    "andrewyng-context-hub-get-api-docs": {
+      "source": "andrewyng/context-hub",
+      "sourceType": "github",
+      "skillPath": "skills/andrewyng-context-hub-get-api-docs/SKILL.md",
+      "computedHash": "441876d819886d5a10dfbb0986ba204a0089a14347bb673e0be56250cf4f7078"
+    },
+    "andrewyng-context-hub-login-flows": {
+      "source": "andrewyng/context-hub",
+      "sourceType": "github",
+      "skillPath": "skills/andrewyng-context-hub-login-flows/SKILL.md",
+      "computedHash": "3eeca4af763eb17c9762c632ee2a2dc7f1173f8503715247cf20ed85274c5841"
+    },
+    "browser-use-browser-use-browser-use": {
+      "source": "browser-use/browser-use",
+      "sourceType": "github",
+      "skillPath": "skills/browser-use-browser-use-browser-use/SKILL.md",
+      "computedHash": "a5460082df718aa069a5f467487c23c12a76e900a1845d39480420507e66c9e1"
+    },
+    "browser-use-browser-use-remote-browser": {
+      "source": "browser-use/browser-use",
+      "sourceType": "github",
+      "skillPath": "skills/browser-use-browser-use-remote-browser/SKILL.md",
+      "computedHash": "fc60ca63b33235fd077b7713d63d17b70a52ec4e00189d3c0bf64976907933eb"
+    },
+    "browserbase-skills-autobrowse": {
+      "source": "browserbase/skills",
+      "sourceType": "github",
+      "skillPath": "skills/browserbase-skills-autobrowse/SKILL.md",
+      "computedHash": "a092a09fcfc3501e0e1cfe0c35c2deabd39222d46175b2e48a7a1e9d312380a3"
+    },
+    "browserbase-skills-browser": {
+      "source": "browserbase/skills",
+      "sourceType": "github",
+      "skillPath": "skills/browserbase-skills-browser/SKILL.md",
+      "computedHash": "bb116bad61b78b5fcb7ad2f95fee9d45f43e0bbfa5aaecef37ab741ee45d8072"
+    },
+    "browserbase-skills-browser-trace": {
+      "source": "browserbase/skills",
+      "sourceType": "github",
+      "skillPath": "skills/browserbase-skills-browser-trace/SKILL.md",
+      "computedHash": "1651305e7c09dca2d5b41b9b76c137f77103db1be2e7079d38d83144f125d675"
+    },
+    "browserbase-skills-browserbase-cli": {
+      "source": "browserbase/skills",
+      "sourceType": "github",
+      "skillPath": "skills/browserbase-skills-browserbase-cli/SKILL.md",
+      "computedHash": "778c6fddd97ac8f2168ea8f487117d493a66f5c490b55461544f0c01a820b275"
+    },
+    "browserbase-skills-company-research": {
+      "source": "browserbase/skills",
+      "sourceType": "github",
+      "skillPath": "skills/browserbase-skills-company-research/SKILL.md",
+      "computedHash": "8ded3012798889f7c8ef887128e32040a3a9f13e1c2feb4e908555c0dc3089e9"
+    },
+    "browserbase-skills-cookie-sync": {
+      "source": "browserbase/skills",
+      "sourceType": "github",
+      "skillPath": "skills/browserbase-skills-cookie-sync/SKILL.md",
+      "computedHash": "3fb861a0e99a28f13a87fd7624e7e6d6ad216a3bb360402067bbf977f03e2b09"
+    },
+    "browserbase-skills-event-prospecting": {
+      "source": "browserbase/skills",
+      "sourceType": "github",
+      "skillPath": "skills/browserbase-skills-event-prospecting/SKILL.md",
+      "computedHash": "10e92bdfae97b80a2412631fb225d5c7e9328cc594db04e99ec2a62e4d261238"
+    },
+    "browserbase-skills-fetch": {
+      "source": "browserbase/skills",
+      "sourceType": "github",
+      "skillPath": "skills/browserbase-skills-fetch/SKILL.md",
+      "computedHash": "0bc9d3cd66024e23372d4bdcc272688150445740f1d5e7043d63cea1a14bf7d9"
+    },
+    "browserbase-skills-functions": {
+      "source": "browserbase/skills",
+      "sourceType": "github",
+      "skillPath": "skills/browserbase-skills-functions/SKILL.md",
+      "computedHash": "a91cf51874f47922b24fc8be904cda3056f398b041bd4f21160443b623184069"
+    },
+    "browserbase-skills-search": {
+      "source": "browserbase/skills",
+      "sourceType": "github",
+      "skillPath": "skills/browserbase-skills-search/SKILL.md",
+      "computedHash": "abf00f87e9c1306e5698f6ab4d8c312ea6930136ce730402d9349c36ef8291d5"
+    },
+    "browserbase-skills-ui-test": {
+      "source": "browserbase/skills",
+      "sourceType": "github",
+      "skillPath": "skills/browserbase-skills-ui-test/SKILL.md",
+      "computedHash": "ec4ea6406d2c6d505d915a0d41ebd768c778fe1709331017ff1b2847c7b9985c"
+    },
+    "ceeon-best-minds": {
+      "source": "ceeon/best-minds",
+      "sourceType": "github",
+      "skillPath": "skills/ceeon-best-minds/SKILL.md",
+      "computedHash": "29822839dcb6af65e53af2a5c37a42512b4827e98d8d420dcd57fc59fd2292d7"
+    },
+    "code-yeongyu-oh-my-opencode-frontend-ui-ux": {
+      "source": "code-yeongyu/oh-my-opencode",
+      "sourceType": "github",
+      "skillPath": "skills/code-yeongyu-oh-my-opencode-frontend-ui-ux/SKILL.md",
+      "computedHash": "4d233247ddb3d608aabee5f313fc8825dd30d4f59786490a435e88ae117b846b"
+    },
+    "leonxlnx-taste-skill-soft-skill": {
+      "source": "leonxlnx/taste-skill",
+      "sourceType": "github",
+      "skillPath": "skills/leonxlnx-taste-skill-soft-skill/SKILL.md",
+      "computedHash": "e1e32f5e2d420872c6c7332b53d5ff7721946766b78c4822b424c2d512c8fdbc"
+    },
+    "lobehub-skills-search-engine": {
+      "source": "lobehub/skills",
+      "sourceType": "github",
+      "skillPath": "skills/lobehub-skills-search-engine/SKILL.md",
+      "computedHash": "c6d0f5b2f93ea9a12f8304401a3f573de5c98c34adc47dc35e365a207ea8fdda"
+    },
+    "microsoft-playwright-cli-dev": {
+      "source": "microsoft/playwright-cli",
+      "sourceType": "github",
+      "skillPath": "skills/microsoft-playwright-cli-dev/SKILL.md",
+      "computedHash": "45110d693033fe758074c8fab1ac773fcc9af65c8ad0ba6de1ca438a1ff2ba46"
+    },
+    "microsoft-playwright-cli-playwright-cli": {
+      "source": "microsoft/playwright-cli",
+      "sourceType": "github",
+      "skillPath": "skills/microsoft-playwright-cli-playwright-cli/SKILL.md",
+      "computedHash": "716a80315821d6694f8ca1331c1e03ecbdf33c88ce8b4042c7684b4c4ff5e4dc"
+    },
+    "obra-superpowers-brainstorming": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "skillPath": "skills/obra-superpowers-brainstorming/SKILL.md",
+      "computedHash": "b3c4258ef82ace5729a46367750bd967707d3a03ff4ec7ce7b588abbd637cb38"
+    },
+    "obra-superpowers-using-superpowers": {
+      "source": "obra/superpowers",
+      "sourceType": "github",
+      "skillPath": "skills/obra-superpowers-using-superpowers/SKILL.md",
+      "computedHash": "e243d086576164f73ae92df052150a34728b873e9f3aaf5b736e234866b7e2f1"
+    },
+    "openai-skills-playwright": {
+      "source": "openai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/openai-skills-playwright/SKILL.md",
+      "computedHash": "0ffaabcc8e0990627c4725f18bf1c7955534a796c1c199e872909de2013ce6a8"
+    },
+    "openai-skills-playwright-interactive": {
+      "source": "openai/skills",
+      "sourceType": "github",
+      "skillPath": "skills/openai-skills-playwright-interactive/SKILL.md",
+      "computedHash": "92a0882bc34be10451c7b077f20bb915a2711e68e1baa9ccb10f6915b5568881"
+    },
+    "openclaw-skills-amazon-analyse": {
+      "source": "openclaw/skills",
+      "sourceType": "github",
+      "skillPath": "skills/openclaw-skills-amazon-analyse/SKILL.md",
+      "computedHash": "79d008e8de7b64bc27aca525d78a4600dea5e2428185fd452565cdd0e95c8bb5"
+    },
+    "openclaw-skills-amazon-listing": {
+      "source": "openclaw/skills",
+      "sourceType": "github",
+      "skillPath": "skills/openclaw-skills-amazon-listing/SKILL.md",
+      "computedHash": "e8211761ed3949753d622b32afc1b7a177472e82cc723987ca427fcd282f1c2b"
+    },
+    "panniantong-agent-reach-skill": {
+      "source": "Panniantong/Agent-Reach",
+      "sourceType": "github",
+      "skillPath": "skills/panniantong-agent-reach-skill/SKILL.md",
+      "computedHash": "e589b432a0fa3b4db3092e7706d4efade22230cfa09b169b95a59098ce5e89f3"
+    },
+    "shubhamsaboo-awesome-llm-apps-fullstack-developer": {
+      "source": "shubhamsaboo/awesome-llm-apps",
+      "sourceType": "github",
+      "skillPath": "skills/shubhamsaboo-awesome-llm-apps-fullstack-developer/SKILL.md",
+      "computedHash": "53077f62532d9b995d7b1d3aa729b6487ef05a33e377e8d1bb8f319fcf670c2a"
+    },
     "supabase": {
       "source": "supabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/supabase/SKILL.md",
-      "computedHash": "b77176bbd69eb179e1250eac478178a43f635f5f9efecb9cf196eb5482d7e8c8"
+      "computedHash": "1171386737b231610fa42485707272765c3516a9bbc0bd2c6c161a8cee3d7d33"
     },
     "supabase-postgres-best-practices": {
       "source": "supabase/agent-skills",
       "sourceType": "github",
       "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
-      "computedHash": "38fb49d3b57c46cba18b07a44254bd42c4c93903fda1d8cb683429615d32fec4"
+      "computedHash": "ccd6e4596bd51cf344fe76c464867c541ccc16b6d90ae7a9db449fb17588613b"
+    },
+    "vercel-labs-agent-browser-agent-browser": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "skillPath": "skills/vercel-labs-agent-browser-agent-browser/SKILL.md",
+      "computedHash": "6472477cf3488a33f6aaf5ad34354b8beaf8342e5bda7042b995039d83587c7a"
+    },
+    "vercel-labs-agent-browser-dogfood": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "skillPath": "skills/vercel-labs-agent-browser-dogfood/SKILL.md",
+      "computedHash": "c86db6b33c8f92e2a074d7f5b7eb9629e333d0fb287eca4421782266b1e76257"
+    },
+    "vercel-labs-agent-browser-electron": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "skillPath": "skills/vercel-labs-agent-browser-electron/SKILL.md",
+      "computedHash": "4df15d0a0d1d1c10311e294c20bd916f000b03c8e056c8f256acce6f87cf7ee4"
+    },
+    "vercel-labs-agent-browser-slack": {
+      "source": "vercel-labs/agent-browser",
+      "sourceType": "github",
+      "skillPath": "skills/vercel-labs-agent-browser-slack/SKILL.md",
+      "computedHash": "02fa93d905a523cc884351de032772b668c5eb7faac860166405ee63b7bca7e1"
     }
   }
 }

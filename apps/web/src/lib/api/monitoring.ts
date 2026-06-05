@@ -136,10 +136,10 @@ export type MonitoringSummary = {
 
 // ── Request deduplication ──────────────────────────────────────────────
 // Prevents duplicate in-flight requests for the same endpoint.
-const _pendingRequests = new Map<string, Promise<any>>();
+const _pendingRequests = new Map<string, Promise<unknown>>();
 
 function deduplicate<T>(key: string, fn: () => Promise<T>): Promise<T> {
-  if (_pendingRequests.has(key)) return _pendingRequests.get(key)!;
+  if (_pendingRequests.has(key)) return _pendingRequests.get(key)! as Promise<T>;
   const promise = fn().finally(() => _pendingRequests.delete(key));
   _pendingRequests.set(key, promise);
   return promise;

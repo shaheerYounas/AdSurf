@@ -1,38 +1,40 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { AppSidebar } from "@/components/app-sidebar";
+import { MobileHeader } from "@/components/navigation/mobile-header";
 import { BackNavigationButton } from "@/components/navigation/back-navigation-button";
 import { OnboardingTour } from "@/components/onboarding/onboarding-tour";
-import { ThemeProvider, themeBootstrapScript } from "@/components/theme/theme-provider";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { ThemeProvider } from "@/components/theme/theme-provider";
+import type { ResolvedTheme } from "@/components/theme/theme-provider";
 import { SafetyNotice } from "@/components/ui/safety-notice";
 import { PrefetchProvider } from "@/lib/prefetch/prefetch-provider";
 import "./globals.css";
 
+function resolveThemeFromCookie(cookieValue: string | null): ResolvedTheme {
+  if (cookieValue === "light" || cookieValue === "dark") return cookieValue;
+  return "light";
+}
+
 export const metadata: Metadata = {
   title: "Amazon Ads AI Control Center",
-  description: "AI-native Amazon Ads recommendation control center with human-approved execution boundaries."
+  description: "AI-native Amazon Ads recommendation control center with human-approved execution boundaries.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const cookieStore = await cookies();
+  const resolvedTheme = resolveThemeFromCookie(cookieStore.get("adsurf-theme")?.value ?? null);
+
   return (
-    <html lang="en" suppressHydrationWarning>
-      <head>
-        {/* Set the theme class before paint so we never flash the wrong colors. */}
-        <script dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
-      </head>
+    <html lang="en" className={resolvedTheme === "dark" ? "dark" : ""} style={{ colorScheme: resolvedTheme }} suppressHydrationWarning>
+      <head />
       <body className="min-h-screen text-slate-950 antialiased dark:text-white">
+        <a className="skip-link" href="#main-content">Skip to content</a>
         <ThemeProvider>
           <PrefetchProvider>
             <div className="soft-grid-bg flex min-h-screen">
               <AppSidebar />
-              <main className="min-w-0 flex-1">
-                <div className="sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-white/60 bg-white/75 px-4 py-3 shadow-sm backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/60 sm:px-5 sm:py-4 md:hidden">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold">AdSurf AI Control Center</p>
-                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">Recommendation only · human approval required</p>
-                  </div>
-                  <ThemeToggle compact />
-                </div>
+              <main aria-label="Main content" className="min-w-0 flex-1" id="main-content">
+                <MobileHeader />
                 <div className="mx-auto max-w-[1800px] px-4 py-8 sm:px-6 sm:py-10 lg:px-10">
                   <BackNavigationButton />
                   {children}

@@ -3,7 +3,6 @@
 import { CheckCircle2, Loader2, UploadCloud } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { apiBaseUrl, defaultWorkspaceId, formatApiError, localAuthHeaders, newIdempotencyKey } from "@/lib/api/client";
 import {
   ACCEPTED_UPLOAD_EXTENSIONS,
@@ -162,7 +161,7 @@ export function UploadInitializationForm({ productId }: UploadInitializationForm
           Report file
           <input
             accept={ACCEPTED_UPLOAD_EXTENSIONS.join(",")}
-            className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-3 file:py-1 file:text-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:file:bg-white dark:file:text-slate-950"
+            className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-3 file:py-1 file:text-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:file:bg-indigo-600 dark:file:text-white"
             id="product-report-file"
             name="product_report_file"
             onChange={(event) => {
@@ -217,7 +216,8 @@ export function UploadInitializationForm({ productId }: UploadInitializationForm
             {isSubmitting ? "Initializing..." : "Init upload"}
           </Button>
           <Button
-            className="inline-flex items-center gap-2 bg-emerald-700 disabled:bg-slate-300"
+            variant="success"
+            className="inline-flex items-center gap-2"
             disabled={!initResult || isConfirming}
             onClick={confirmUpload}
             type="button"
@@ -274,7 +274,7 @@ export function UploadInitializationForm({ productId }: UploadInitializationForm
             </dl>
             {parseRuns[0].status === "succeeded" && initResult ? (
               <a
-                className="mt-3 inline-flex rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white dark:bg-indigo-300 dark:text-indigo-950"
+                className="mt-3 inline-flex items-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400"
                 href={sourceType === "amazon_ads_sp_search_term_report" ? `/products/${productId}/monitoring` : `/products/${productId}/uploads/${initResult.upload_id}/mapping`}
               >
                 {sourceType === "amazon_ads_sp_search_term_report" ? "Open monitoring import" : "Open column mapping"}

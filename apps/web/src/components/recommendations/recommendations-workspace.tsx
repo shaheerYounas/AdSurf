@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  AlertOctagon,
   AlertTriangle,
   CheckCircle2,
   ClipboardCheck,
@@ -26,8 +27,10 @@ import { decideRecommendation, getRecommendations, type Recommendation } from "@
 import { getCachedData, setCachedData } from "@/lib/prefetch";
 import { cn, humanize } from "@/lib/utils";
 import {
+  dataQualityFlagCount,
   emptyRecommendationFilters,
   filterRecommendations,
+  getDataQualityFlags,
   isRecommendationExportable,
   recommendationActionClass,
   recommendationActionClassLabel,
@@ -45,6 +48,8 @@ import {
   recommendationTechnicalReason,
   recommendationTechnicalSource,
   recommendationTypeLabel,
+  recommendedAction,
+  type DataQualityFlagInfo,
   type RecommendationActionClass,
   type RecommendationFilters,
 } from "@/lib/recommendation-helpers";
@@ -145,12 +150,12 @@ export function RecommendationsWorkspace() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    setPage(1);
-  }, [filters]);
-
   const filtered = useMemo(() => filterRecommendations(recommendations, filters), [filters, recommendations]);
   const summary = useMemo(() => recommendationSummaryCounts(recommendations), [recommendations]);
+  const dataQualityRecs = useMemo(
+    () => recommendations.filter((r) => recommendationActionClass(r) === "data_quality"),
+    [recommendations],
+  );
   const pageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
   const currentPage = Math.min(page, pageCount);
   const pageStart = (currentPage - 1) * pageSize;
@@ -210,14 +215,17 @@ export function RecommendationsWorkspace() {
   }
 
   function updateFilter<K extends keyof RecommendationFilters>(key: K, value: RecommendationFilters[K]) {
+    setPage(1);
     setFilters((current) => ({ ...current, [key]: value }));
   }
 
   function applyQuickFilter(patch: Partial<RecommendationFilters>) {
+    setPage(1);
     setFilters((current) => ({ ...current, ...patch }));
   }
 
   function clearFilters() {
+    setPage(1);
     setFilters(emptyRecommendationFilters);
   }
 
@@ -233,8 +241,17 @@ export function RecommendationsWorkspace() {
         <SummaryCard icon={AlertTriangle} label="Pending approval" value={summary.pending} tone="amber" />
         <SummaryCard icon={CheckCircle2} label="Approved" value={summary.approved} tone="emerald" />
         <SummaryCard icon={XCircle} label="Rejected" value={summary.rejected} tone="rose" />
-        <SummaryCard icon={ShieldCheck} label="Critical/high priority" value={summary.criticalHigh} tone="red" />
+        <SummaryCard icon={AlertOctagon} label="Data quality issues" value={summary.dataQuality} tone="red" clickLabel="View data quality" onClick={summary.dataQuality > 0 ? () => applyQuickFilter({ actionClass: "data_quality" }) : undefined} />
       </section>
+
+      {dataQualityRecs.length > 0 && (
+        <DataQualityTriageSection
+          recommendations={dataQualityRecs}
+          onApprove={(rec) => setDecisionTarget({ recommendation: rec, decision: "approve" })}
+          onReject={(rec) => setDecisionTarget({ recommendation: rec, decision: "reject" })}
+          onViewDetails={setDetailsTarget}
+        />
+      )}
 
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/70" aria-label="Recommendation filters">
         <div className="flex flex-col gap-4">
@@ -344,6 +361,238 @@ export function RecommendationsWorkspace() {
       />
 
       <DetailsModal recommendation={detailsTarget} onClose={() => setDetailsTarget(null)} />
+    </div>
+  );
+}
+
+function DataQualityTriageSection({
+  recommendations,
+  onApprove,
+  onReject,
+  onViewDetails,
+}: {
+  recommendations: Recommendation[];
+  onApprove: (rec: Recommendation) => void;
+  onReject: (rec: Recommendation) => void;
+  onViewDetails: (rec: Recommendation) => void;
+}) {
+  const criticalCount = recommendations.filter((r) => r.priority === "critical").length;
+
+  return (
+    <section aria-label="Data quality triage" className="space-y-4">
+      {/* Section header */}
+      <div className="overflow-hidden rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-300/20 dark:bg-rose-300/5">
+        <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex min-w-0 gap-3">
+            <AlertOctagon aria-hidden="true" className="mt-0.5 shrink-0 text-rose-600 dark:text-rose-400" size={20} />
+            <div className="min-w-0">
+              <h2 className="text-sm font-semibold text-rose-950 dark:text-rose-100">
+                Data Quality Triage — {recommendations.length} row{recommendations.length !== 1 ? "s" : ""} need review
+                {criticalCount > 0 && (
+                  <span className="ml-2 inline-flex items-center rounded-full border border-rose-300 bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700 dark:border-rose-300/30 dark:bg-rose-300/15 dark:text-rose-200">
+                    {criticalCount} critical
+                  </span>
+                )}
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-rose-800 dark:text-rose-200/80">
+                These rows have inconsistent metrics detected by the rule engine. Amazon Ads experts do not act on this data — bids, negatives, and budgets are suppressed until metrics are verified. Re-download the report for the same date range and re-upload to resolve most issues.
+              </p>
+            </div>
+          </div>
+          <div className="shrink-0">
+            <Badge className="border-rose-300 bg-white text-rose-700 dark:border-rose-300/30 dark:bg-rose-300/10 dark:text-rose-200">
+              Optimization blocked
+            </Badge>
+          </div>
+        </div>
+
+        {/* Expert protocol steps */}
+        <div className="border-t border-rose-200 px-5 py-3 dark:border-rose-300/15">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-rose-700 dark:text-rose-300">Expert protocol</p>
+          <ol className="flex flex-col gap-1 text-xs text-rose-800 dark:text-rose-200/80 sm:flex-row sm:flex-wrap sm:gap-x-6">
+            <li className="flex items-start gap-1.5">
+              <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-200 text-[10px] font-bold text-rose-800 dark:bg-rose-300/25 dark:text-rose-200">1</span>
+              Do not change bids or negatives on flagged rows
+            </li>
+            <li className="flex items-start gap-1.5">
+              <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-200 text-[10px] font-bold text-rose-800 dark:bg-rose-300/25 dark:text-rose-200">2</span>
+              Re-download the report for the same date range
+            </li>
+            <li className="flex items-start gap-1.5">
+              <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-200 text-[10px] font-bold text-rose-800 dark:bg-rose-300/25 dark:text-rose-200">3</span>
+              Wait 48–72 h for attribution to settle on recent data
+            </li>
+            <li className="flex items-start gap-1.5">
+              <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-200 text-[10px] font-bold text-rose-800 dark:bg-rose-300/25 dark:text-rose-200">4</span>
+              Cross-check in the Amazon Ads console with both 7-day and 14-day attribution
+            </li>
+            <li className="flex items-start gap-1.5">
+              <span className="mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-rose-200 text-[10px] font-bold text-rose-800 dark:bg-rose-300/25 dark:text-rose-200">5</span>
+              File Amazon support case if issue persists after re-download
+            </li>
+          </ol>
+        </div>
+      </div>
+
+      {/* Cards grid */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {recommendations.map((rec) => (
+          <DataQualityCard
+            key={rec.id}
+            recommendation={rec}
+            onApprove={onApprove}
+            onReject={onReject}
+            onViewDetails={onViewDetails}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function DataQualityCard({
+  recommendation: rec,
+  onApprove,
+  onReject,
+  onViewDetails,
+}: {
+  recommendation: Recommendation;
+  onApprove: (rec: Recommendation) => void;
+  onReject: (rec: Recommendation) => void;
+  onViewDetails: (rec: Recommendation) => void;
+}) {
+  const flags = getDataQualityFlags(rec);
+  const flagCount = dataQualityFlagCount(rec);
+  const isCritical = rec.priority === "critical";
+  const pending = rec.status === "pending" || rec.status === "pending_approval";
+
+  return (
+    <article className={cn(
+      "overflow-hidden rounded-xl border bg-white shadow-sm dark:bg-slate-950/80",
+      isCritical
+        ? "border-rose-200 dark:border-rose-300/20"
+        : "border-amber-200 dark:border-amber-300/20",
+    )}>
+      {/* Card header */}
+      <div className={cn(
+        "flex items-start justify-between gap-3 px-4 py-3",
+        isCritical ? "bg-rose-50 dark:bg-rose-300/5" : "bg-amber-50 dark:bg-amber-300/5",
+      )}>
+        <div className="min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={isCritical
+              ? "border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-300/30 dark:bg-rose-300/15 dark:text-rose-200"
+              : "border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-300/30 dark:bg-amber-300/15 dark:text-amber-200"
+            }>
+              {isCritical ? "Critical" : "Warning"}
+            </Badge>
+            {flagCount > 0 && (
+              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                {flagCount} flag{flagCount !== 1 ? "s" : ""} detected
+              </span>
+            )}
+            <Badge className={statusClass(rec.status)}>{recommendationStatusLabel(rec.status)}</Badge>
+          </div>
+          <p className="truncate text-sm font-semibold text-slate-900 dark:text-white" title={rec.customer_search_term || rec.targeting || ""}>
+            {rec.customer_search_term || rec.targeting || "—"}
+          </p>
+          <p className="truncate text-xs text-slate-500 dark:text-slate-400" title={rec.campaign_name || ""}>
+            {rec.campaign_name || "Account-level"}{rec.ad_group_name ? ` › ${rec.ad_group_name}` : ""}
+          </p>
+        </div>
+      </div>
+
+      {/* Metrics row */}
+      <div className="border-t border-slate-100 px-4 py-3 dark:border-white/10">
+        <MetricChips recommendation={rec} compact />
+      </div>
+
+      {/* Flags list */}
+      {flags.length > 0 && (
+        <div className="border-t border-slate-100 px-4 py-3 dark:border-white/10">
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Detected flags</p>
+          <div className="space-y-3">
+            {flags.map((flag) => (
+              <DataQualityFlagRow key={flag.flag} flagInfo={flag} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Actions */}
+      <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 px-4 py-3 dark:border-white/10">
+        {pending ? (
+          <>
+            <Button onClick={() => onApprove(rec)} size="sm" type="button" variant="success">
+              <CheckCircle2 aria-hidden="true" size={13} />
+              Acknowledge issue
+            </Button>
+            <Button onClick={() => onReject(rec)} size="sm" type="button" variant="danger">
+              <XCircle aria-hidden="true" size={13} />
+              Mark resolved
+            </Button>
+          </>
+        ) : (
+          <Badge className={statusClass(rec.status)}>{recommendationStatusLabel(rec.status)}</Badge>
+        )}
+        <Button onClick={() => onViewDetails(rec)} size="sm" type="button" variant="secondary">
+          <Eye aria-hidden="true" size={13} />
+          Full details
+        </Button>
+        <p className="ml-auto text-xs text-slate-400 dark:text-slate-500">No bid/negative export generated</p>
+      </div>
+    </article>
+  );
+}
+
+function DataQualityFlagRow({ flagInfo }: { flagInfo: DataQualityFlagInfo }) {
+  const [expanded, setExpanded] = useState(false);
+  const isCritical = flagInfo.severity === "critical";
+
+  return (
+    <div className={cn(
+      "rounded-lg border p-3",
+      isCritical
+        ? "border-rose-200 bg-rose-50/60 dark:border-rose-300/15 dark:bg-rose-300/5"
+        : "border-amber-200 bg-amber-50/60 dark:border-amber-300/15 dark:bg-amber-300/5",
+    )}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex min-w-0 items-start gap-2">
+          <AlertOctagon
+            aria-hidden="true"
+            size={14}
+            className={cn("mt-0.5 shrink-0", isCritical ? "text-rose-600 dark:text-rose-400" : "text-amber-600 dark:text-amber-400")}
+          />
+          <div className="min-w-0">
+            <p className={cn("text-xs font-semibold", isCritical ? "text-rose-900 dark:text-rose-200" : "text-amber-900 dark:text-amber-200")}>
+              {flagInfo.label}
+            </p>
+            {expanded && (
+              <div className="mt-2 space-y-2">
+                <p className="text-xs leading-5 text-slate-700 dark:text-slate-300">
+                  <span className="font-semibold">What happened: </span>{flagInfo.explanation}
+                </p>
+                <div className={cn(
+                  "rounded-md border px-3 py-2",
+                  isCritical
+                    ? "border-rose-200 bg-white dark:border-rose-300/15 dark:bg-white/5"
+                    : "border-amber-200 bg-white dark:border-amber-300/15 dark:bg-white/5",
+                )}>
+                  <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">Expert action:</p>
+                  <p className="mt-0.5 text-xs leading-5 text-slate-700 dark:text-slate-200">{flagInfo.expertGuidance}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="shrink-0 text-xs font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-300"
+        >
+          {expanded ? "Less" : "Why?"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -468,7 +717,7 @@ function RecommendationRow({
         <MetricChips recommendation={recommendation} compact />
       </td>
       <td className="px-4 py-4">
-        <p className="font-semibold text-slate-900 dark:text-white">{recommendationTypeLabel(recommendation)}</p>
+        <p className="font-semibold text-slate-900 dark:text-white">{recommendedAction(recommendation)}</p>
         <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{isRecommendationExportable(recommendation) ? "Manual export after approval" : "Review only"}</p>
       </td>
       <td className="px-4 py-4">
@@ -528,7 +777,9 @@ function DecisionModal({
   onSave: () => void;
 }) {
   const recommendation = decisionTarget?.recommendation ?? null;
-  const decisionLabel = decisionTarget?.decision === "approve" ? "Approve" : "Reject";
+  const decisionLabel = decisionTarget?.decision === "approve"
+    ? (recommendation && recommendationActionClass(recommendation) === "data_quality" ? "Acknowledge" : "Approve")
+    : (recommendation && recommendationActionClass(recommendation) === "data_quality" ? "Mark resolved" : "Reject");
 
   return (
     <Modal
@@ -548,6 +799,20 @@ function DecisionModal({
               </p>
             </div>
           </div>
+
+          {recommendationActionClass(recommendation) === "data_quality" && (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-900 dark:border-rose-300/25 dark:bg-rose-300/10 dark:text-rose-100">
+              <div className="flex gap-2">
+                <AlertOctagon aria-hidden="true" className="mt-0.5 shrink-0" size={16} />
+                <div>
+                  <p className="font-semibold">Data quality issue — no optimization will be exported.</p>
+                  <p className="mt-1 text-xs">
+                    <strong>Acknowledge issue</strong> to record that you have reviewed the problem and will re-download the report. <strong>Mark resolved</strong> once the re-upload confirms the metrics are clean. Neither action changes Amazon Ads.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Evidence</p>
@@ -692,13 +957,18 @@ function SafetyBanner() {
   );
 }
 
-function SummaryCard({ icon: Icon, label, tone, value }: { icon: typeof ClipboardCheck; label: string; tone: string; value: number }) {
+function SummaryCard({ icon: Icon, label, tone, value, clickLabel, onClick }: { icon: typeof ClipboardCheck; label: string; tone: string; value: number; clickLabel?: string; onClick?: () => void }) {
   return (
     <article className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-slate-950/70">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
           <p className="mt-2 text-2xl font-semibold tabular-nums text-slate-950 dark:text-white">{value.toLocaleString("en-US")}</p>
+          {onClick && value > 0 ? (
+            <button onClick={onClick} type="button" className="mt-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-300">
+              {clickLabel ?? "View"}
+            </button>
+          ) : null}
         </div>
         <span className={cn("inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border", summaryIconClass(tone))}>
           <Icon aria-hidden="true" size={17} />

@@ -41,7 +41,7 @@ The role applies only to the workspace listed in the same entry.
 ## Batch 2 Database Behavior
 When `DATABASE_URL` is configured, product profile routes use the database repository. When `DATABASE_URL` is absent in local/test, a local repository adapter is used for tests and scaffolding only. Outside local/test, missing `DATABASE_URL` fails closed.
 
-For offline SQLite development, the API initializes its local schema on startup from `scripts/sqlite_schema.sql`. The bootstrap includes product, upload, campaign, monitoring, workflow, and custom agent builder runtime tables, plus seed rows for public custom agent templates. Custom agent builder routes must validate the parent agent, knowledge base, thread, memory, and run against the requested `workspace_id` before returning or mutating child records.
+For offline SQLite development, the API initializes its local schema on startup from `scripts/sqlite_schema.sql`. The bootstrap includes product, bulk product import, upload, campaign, monitoring, workflow, and custom agent builder runtime tables, plus seed rows for public custom agent templates. Custom agent builder routes must validate the parent agent, knowledge base, thread, memory, and run against the requested `workspace_id` before returning or mutating child records.
 
 When starting the API from the repository root with `npm run dev:api`, `python-dotenv` loads the root `.env` first. Keep the root `DATABASE_URL` aligned with the SQLite file you intend to inspect, for example:
 

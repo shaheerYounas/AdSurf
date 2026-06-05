@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, BarChart3, CheckCircle2, Database, FileSpreadsheet, Filter, Loader2, RefreshCw, Search, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ArchiveX, BarChart3, CheckCircle2, Database, FileSpreadsheet, Filter, Loader2, RefreshCw, RotateCcw, Search, ShieldCheck, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ErrorNotice } from "@/components/ui/error-notice";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { Modal } from "@/components/ui/modal";
 import { defaultWorkspaceId, formatApiError } from "@/lib/api/client";
 import { listAccountImports, type AccountImportRecord } from "@/lib/api/account-imports";
 import { getProductMonitoring, getRecommendations, type MonitoringImport, type Recommendation } from "@/lib/api/monitoring";
 import { getProductProfiles } from "@/lib/api/products";
-import { getUploadParseRuns, getUploads, type ParseRun, type UploadRecord } from "@/lib/api/uploads";
+import { archiveUpload, deleteUpload, getUploadParseRuns, getUploads, reprocessUpload, type ParseRun, type UploadRecord } from "@/lib/api/uploads";
 import { getCachedData, setCachedData, warmSections } from "@/lib/prefetch";
 
 type ProductLite = {
@@ -32,7 +33,7 @@ type ReportRow = {
 type StatusFilter = "all" | "processed" | "queued_for_processing" | "failed";
 
 export function ReportLibrary() {
-  const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId);
+  const [workspaceId] = useState(defaultWorkspaceId);
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -43,6 +44,7 @@ export function ReportLibrary() {
   useEffect(() => {
     warmSections(["reports", "uploads", "products", "recommendations"]);
     loadReports();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadReports() {
@@ -216,15 +218,16 @@ export function ReportLibrary() {
         <LoadingSpinner message="Loading report library" subtext="Fetching uploads, parse runs, imports, and recommendation links" />
       ) : filteredRows.length ? (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/90">
-          <div className="grid grid-cols-[minmax(260px,1.4fr)_minmax(160px,0.8fr)_minmax(220px,1fr)_minmax(220px,1fr)] gap-4 border-b border-slate-100 px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:border-white/10 dark:text-slate-400 max-lg:hidden">
+          <div className="grid grid-cols-[minmax(260px,1.4fr)_minmax(160px,0.8fr)_minmax(220px,1fr)_minmax(220px,1fr)_auto] gap-4 border-b border-slate-100 px-5 py-3 text-xs font-bold uppercase tracking-[0.12em] text-slate-500 dark:border-white/10 dark:text-slate-400 max-lg:hidden">
             <span>File</span>
             <span>Status</span>
             <span>Parsed data</span>
             <span>Related analysis</span>
+            <span>Actions</span>
           </div>
           <ul className="divide-y divide-slate-100 dark:divide-white/10">
             {filteredRows.map((row) => (
-              <ReportRowItem key={row.upload.id} row={row} />
+              <ReportRowItem key={row.upload.id} row={row} workspaceId={workspaceId} onDeleted={(id) => setRows((prev) => prev.filter((r) => r.upload.id !== id))} onStatusChanged={(id, status) => setRows((prev) => prev.map((r) => r.upload.id === id ? { ...r, upload: { ...r.upload, status } } : r))} />
             ))}
           </ul>
         </div>
@@ -253,7 +256,17 @@ async function cachedOrFetch<T>(cacheKey: string, fetcher: () => Promise<T>, ttl
   return data;
 }
 
-function ReportRowItem({ row }: { row: ReportRow }) {
+function ReportRowItem({
+  row,
+  workspaceId,
+  onDeleted,
+  onStatusChanged,
+}: {
+  row: ReportRow;
+  workspaceId: string;
+  onDeleted: (id: string) => void;
+  onStatusChanged: (id: string, status: string) => void;
+}) {
   const upload = row.upload;
   const latestMonitoring = row.monitoringImports[0];
   const isSpSearchTermReport = upload.source_type === "amazon_ads_sp_search_term_report";
@@ -265,44 +278,163 @@ function ReportRowItem({ row }: { row: ReportRow }) {
   const workflowLabel = isSpSearchTermReport ? "Open monitoring" : "Open workflow";
   const monitoringHref = upload.product_id ? `/products/${upload.product_id}/monitoring` : "/agents";
 
+  const [pendingAction, setPendingAction] = useState<"delete" | "archive" | "reprocess" | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  async function handleConfirm() {
+    if (!pendingAction) return;
+    setIsSubmitting(true);
+    setActionError(null);
+    try {
+      if (pendingAction === "delete") {
+        await deleteUpload(upload.id, workspaceId);
+        setPendingAction(null);
+        onDeleted(upload.id);
+      } else if (pendingAction === "archive") {
+        const updated = await archiveUpload(upload.id, workspaceId);
+        setPendingAction(null);
+        onStatusChanged(upload.id, updated.status);
+      } else if (pendingAction === "reprocess") {
+        const result = await reprocessUpload(upload.id, workspaceId);
+        setPendingAction(null);
+        onStatusChanged(upload.id, result.upload.status);
+      }
+    } catch (err) {
+      setActionError(formatApiError(err, "Action failed. Please try again."));
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
+  const isProcessing = upload.status === "processing";
+  const isArchived = upload.status === "archived";
+
+  const modalConfig = {
+    delete: {
+      title: "Delete upload permanently",
+      description: "This will permanently remove the file, parse run, account import, monitoring data, and all associated records. This action cannot be undone.",
+      confirmLabel: "Delete permanently",
+      confirmVariant: "danger" as const,
+    },
+    archive: {
+      title: "Archive upload",
+      description: "Archiving will hide this upload from active workflows. The record is preserved but marked inactive. You can reprocess it later if needed.",
+      confirmLabel: "Archive upload",
+      confirmVariant: "warning" as const,
+    },
+    reprocess: {
+      title: "Reprocess upload",
+      description: "This will clear all existing parse runs, imports, and monitoring data for this upload, then re-queue it for processing from scratch.",
+      confirmLabel: "Reprocess upload",
+      confirmVariant: "primary" as const,
+    },
+  };
+
   return (
-    <li className="grid gap-4 px-5 py-4 lg:grid-cols-[minmax(260px,1.4fr)_minmax(160px,0.8fr)_minmax(220px,1fr)_minmax(220px,1fr)]">
-      <div className="min-w-0">
-        <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{upload.original_filename}</p>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{humanize(upload.source_type)} / {formatBytes(upload.file_size_bytes)}</p>
-        <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{row.product ? `${row.product.product_name}${row.product.asin ? ` / ${row.product.asin}` : ""}` : "Account-level report"}</p>
-        <p className="mt-2 font-mono text-[11px] text-slate-400">{upload.id}</p>
-      </div>
-      <div>
-        <StatusPill status={upload.status} />
-        <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Uploaded {formatDate(upload.created_at)}</p>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Confirmed {upload.confirmed_at ? formatDate(upload.confirmed_at) : "not yet"}</p>
-      </div>
-      <div className="space-y-2 text-sm">
-        {row.parseRun ? (
-          <>
-            <MetricLine label="Parse status" value={humanize(row.parseRun.status)} />
-            <MetricLine label="Rows" value={`${formatNumber(row.parseRun.parsed_rows_count)} parsed / ${formatNumber(row.parseRun.error_rows_count)} errors`} />
-            <MetricLine label="Columns" value={formatNumber(row.parseRun.total_columns)} />
-          </>
-        ) : (
-          <p className="text-sm text-slate-500 dark:text-slate-400">No parse run recorded.</p>
-        )}
-        <Link className="inline-flex text-xs font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-200" href={workflowHref}>
-          {workflowLabel}
-        </Link>
-      </div>
-      <div className="space-y-2 text-sm">
-        {row.accountImport ? <MetricLine label="Account import" value={`${humanize(row.accountImport.status)} / ${humanize(row.accountImport.detected_report_type)}`} /> : null}
-        {latestMonitoring ? <MetricLine label="Monitoring import" value={`${humanize(latestMonitoring.status)} / ${formatNumber(latestMonitoring.processed_rows)} rows`} /> : null}
-        <MetricLine label="Recommendations" value={formatNumber(row.recommendations.length)} />
-        <div className="flex flex-wrap gap-2 pt-1">
-          {upload.product_id ? <Link className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200" href={`/products/${upload.product_id}`}>Product</Link> : null}
-          {upload.product_id ? <Link className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200" href={monitoringHref}>Monitoring</Link> : null}
-          {row.recommendations.length ? <Link className="rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-300/15 dark:text-indigo-100" href="/recommendations">Recommendations</Link> : null}
+    <>
+      <li className="grid gap-4 px-5 py-4 lg:grid-cols-[minmax(260px,1.4fr)_minmax(160px,0.8fr)_minmax(220px,1fr)_minmax(220px,1fr)_auto]">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{upload.original_filename}</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{humanize(upload.source_type)} / {formatBytes(upload.file_size_bytes)}</p>
+          <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{row.product ? `${row.product.product_name}${row.product.asin ? ` / ${row.product.asin}` : ""}` : "Account-level report"}</p>
+          <p className="mt-2 font-mono text-[11px] text-slate-400">{upload.id}</p>
         </div>
-      </div>
-    </li>
+        <div>
+          <StatusPill status={upload.status} />
+          <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Uploaded {formatDate(upload.created_at)}</p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Confirmed {upload.confirmed_at ? formatDate(upload.confirmed_at) : "not yet"}</p>
+        </div>
+        <div className="space-y-2 text-sm">
+          {row.parseRun ? (
+            <>
+              <MetricLine label="Parse status" value={humanize(row.parseRun.status)} />
+              <MetricLine label="Rows" value={`${formatNumber(row.parseRun.parsed_rows_count)} parsed / ${formatNumber(row.parseRun.error_rows_count)} errors`} />
+              <MetricLine label="Columns" value={formatNumber(row.parseRun.total_columns)} />
+            </>
+          ) : (
+            <p className="text-sm text-slate-500 dark:text-slate-400">No parse run recorded.</p>
+          )}
+          <Link className="inline-flex text-xs font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-200" href={workflowHref}>
+            {workflowLabel}
+          </Link>
+        </div>
+        <div className="space-y-2 text-sm">
+          {row.accountImport ? <MetricLine label="Account import" value={`${humanize(row.accountImport.status)} / ${humanize(row.accountImport.detected_report_type)}`} /> : null}
+          {latestMonitoring ? <MetricLine label="Monitoring import" value={`${humanize(latestMonitoring.status)} / ${formatNumber(latestMonitoring.processed_rows)} rows`} /> : null}
+          <MetricLine label="Recommendations" value={formatNumber(row.recommendations.length)} />
+          <div className="flex flex-wrap gap-2 pt-1">
+            {upload.product_id ? <Link className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200" href={`/products/${upload.product_id}`}>Product</Link> : null}
+            {upload.product_id ? <Link className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-200 dark:bg-white/10 dark:text-slate-200" href={monitoringHref}>Monitoring</Link> : null}
+            {row.recommendations.length ? <Link className="rounded-full bg-indigo-100 px-3 py-1.5 text-xs font-semibold text-indigo-700 hover:bg-indigo-200 dark:bg-indigo-300/15 dark:text-indigo-100" href="/recommendations">Recommendations</Link> : null}
+          </div>
+        </div>
+        <div className="flex flex-row items-start gap-2 lg:flex-col lg:items-end">
+          <button
+            type="button"
+            title="Reprocess upload"
+            disabled={isProcessing}
+            onClick={() => setPendingAction("reprocess")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-indigo-300/20 dark:bg-indigo-300/10 dark:text-indigo-200 dark:hover:bg-indigo-300/20"
+          >
+            <RotateCcw size={12} />
+            Reprocess
+          </button>
+          {!isArchived && (
+            <button
+              type="button"
+              title="Archive upload"
+              disabled={isProcessing}
+              onClick={() => setPendingAction("archive")}
+              className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-amber-300/20 dark:bg-amber-300/10 dark:text-amber-200 dark:hover:bg-amber-300/20"
+            >
+              <ArchiveX size={12} />
+              Archive
+            </button>
+          )}
+          <button
+            type="button"
+            title="Delete upload"
+            disabled={isProcessing}
+            onClick={() => setPendingAction("delete")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-40 dark:border-rose-300/20 dark:bg-rose-300/10 dark:text-rose-300 dark:hover:bg-rose-300/20"
+          >
+            <Trash2 size={12} />
+            Delete
+          </button>
+        </div>
+      </li>
+
+      {pendingAction && (
+        <Modal
+          open
+          onClose={() => { if (!isSubmitting) { setPendingAction(null); setActionError(null); } }}
+          title={modalConfig[pendingAction].title}
+          description={modalConfig[pendingAction].description}
+          size="sm"
+        >
+          <div className="space-y-4">
+            <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+              <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{upload.original_filename}</p>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{humanize(upload.source_type)} · {formatBytes(upload.file_size_bytes)}</p>
+              <p className="mt-1 font-mono text-[11px] text-slate-400">{upload.id}</p>
+            </div>
+            {actionError && (
+              <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-300/20 dark:bg-rose-300/10 dark:text-rose-200">{actionError}</p>
+            )}
+            <div className="flex justify-end gap-3">
+              <Button disabled={isSubmitting} onClick={() => { setPendingAction(null); setActionError(null); }} type="button" variant="secondary" size="sm">
+                Cancel
+              </Button>
+              <Button disabled={isSubmitting} onClick={handleConfirm} type="button" variant={modalConfig[pendingAction].confirmVariant} size="sm">
+                {isSubmitting ? <Loader2 aria-hidden="true" className="animate-spin" size={13} /> : null}
+                {modalConfig[pendingAction].confirmLabel}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }
 

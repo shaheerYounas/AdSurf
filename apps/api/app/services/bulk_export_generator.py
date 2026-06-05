@@ -26,6 +26,24 @@ from apps.api.app.schemas.monitoring import (
     RecommendationType,
 )
 
+# Recommendation types that produce actionable bulk-sheet rows (not just informational).
+_ACTIONABLE_TYPES = {
+    RecommendationType.INCREASE_BID,
+    RecommendationType.DECREASE_BID,
+    RecommendationType.SET_BID,
+    RecommendationType.PAUSE_KEYWORD,
+    RecommendationType.PAUSE_TARGET,
+    RecommendationType.PAUSE_REVIEW,
+    RecommendationType.ADD_NEGATIVE_EXACT,
+    RecommendationType.ADD_NEGATIVE_PHRASE,
+    RecommendationType.HARVEST_TO_EXACT,
+    RecommendationType.HARVEST_TO_PHRASE,
+    RecommendationType.MOVE_TO_EXACT,
+    RecommendationType.INCREASE_CAMPAIGN_BUDGET,
+    RecommendationType.DECREASE_CAMPAIGN_BUDGET,
+    RecommendationType.CREATE_EXACT_CAMPAIGN,
+}
+
 
 BULK_SHEET_HEADERS = [
     "Record ID",
@@ -121,20 +139,29 @@ def generate_bulk_sheet(
         op = row.get("Operation", "Unknown")
         action_counts[op] = action_counts.get(op, 0) + 1
 
+    # Count by recommendation type for accurate summary (operation strings are Amazon bulk-sheet
+    # format values like "Update"/"Create" and do not distinguish bid increase from decrease).
+    type_counts: dict[str, int] = {}
+    for rec in approved_recommendations:
+        if rec.status == RecommendationStatus.APPROVED:
+            type_counts[rec.recommendation_type.value] = type_counts.get(rec.recommendation_type.value, 0) + 1
+
     return {
         "csv_content": csv_content,
         "filename": f"{export_name.replace(' ', '_')}_{now.strftime('%Y%m%d_%H%M%S')}.csv",
         "generated_at": now.isoformat(),
         "total_rows": len(rows),
-        "total_recommendations": len(approved_recommendations),
+        "total_recommendations": sum(type_counts.values()),
         "summary": {
             "operations": action_counts,
-            "bid_increases": action_counts.get("Update Bid", 0),
-            "bid_decreases": action_counts.get("Update Bid (Decrease)", 0),
-            "negative_keywords": action_counts.get("Add Negative Keyword", 0),
-            "budget_changes": action_counts.get("Update Budget", 0),
-            "pauses": action_counts.get("Pause", 0),
-            "new_campaigns": action_counts.get("Create Campaign", 0),
+            "bid_increases": type_counts.get(RecommendationType.INCREASE_BID.value, 0),
+            "bid_decreases": type_counts.get(RecommendationType.DECREASE_BID.value, 0),
+            "negative_keywords": type_counts.get(RecommendationType.ADD_NEGATIVE_EXACT.value, 0) + type_counts.get(RecommendationType.ADD_NEGATIVE_PHRASE.value, 0),
+            "budget_changes": type_counts.get(RecommendationType.INCREASE_CAMPAIGN_BUDGET.value, 0) + type_counts.get(RecommendationType.DECREASE_CAMPAIGN_BUDGET.value, 0),
+            "pauses": type_counts.get(RecommendationType.PAUSE_REVIEW.value, 0) + type_counts.get(RecommendationType.PAUSE_KEYWORD.value, 0) + type_counts.get(RecommendationType.PAUSE_TARGET.value, 0),
+            "new_campaigns": type_counts.get(RecommendationType.CREATE_EXACT_CAMPAIGN.value, 0),
+            "move_to_exact": type_counts.get(RecommendationType.MOVE_TO_EXACT.value, 0),
+            "watch_insights": type_counts.get(RecommendationType.WATCH_LOCK.value, 0) + type_counts.get(RecommendationType.WATCH_ONLY.value, 0),
         },
         "audit_log": audit_log,
         "before_after": before_after,
@@ -165,7 +192,7 @@ def _recommendation_to_bulk_rows(rec: Recommendation, now: datetime) -> list[dic
                 "Record Type": "Keyword",
                 "Keyword": rec.customer_search_term,
                 "Keyword Type": rec.match_type or "Exact",
-                "Keyword Bid": str(rec.recommended_bid) if rec.recommended_bid else "",
+                "Keyword Bid": str(rec.recommended_bid or _decimal_from_action(rec, "recommended_bid") or ""),
                 "Keyword Status": "Enabled",
                 "Operation": "Update",
             })
@@ -175,7 +202,7 @@ def _recommendation_to_bulk_rows(rec: Recommendation, now: datetime) -> list[dic
                 **base,
                 "Record Type": "Product Targeting",
                 "Product Targeting Expression": rec.targeting or "",
-                "Product Targeting Bid": str(rec.recommended_bid) if rec.recommended_bid else "",
+                "Product Targeting Bid": str(rec.recommended_bid or _decimal_from_action(rec, "recommended_bid") or ""),
                 "Product Targeting Status": "Enabled",
                 "Operation": "Update",
             })
@@ -216,7 +243,7 @@ def _recommendation_to_bulk_rows(rec: Recommendation, now: datetime) -> list[dic
             "Record Type": "Keyword",
             "Keyword": rec.customer_search_term or "",
             "Keyword Type": match_type,
-            "Keyword Bid": str(rec.recommended_bid) if rec.recommended_bid else "",
+            "Keyword Bid": str(rec.recommended_bid or _decimal_from_action(rec, "recommended_bid") or ""),
             "Keyword Status": "Enabled",
             "Operation": "Create",
         })
@@ -240,16 +267,10 @@ def _recommendation_to_bulk_rows(rec: Recommendation, now: datetime) -> list[dic
             "Operation": "Create",
         })
 
-    elif rec_type == RecommendationType.WATCH_LOCK or rec_type == RecommendationType.WATCH_ONLY:
-        # No bulk sheet operation for watch/review
-        rows.append({
-            **base,
-            "Record Type": "Keyword",
-            "Keyword": rec.customer_search_term or "",
-            "Keyword Status": "Enabled",
-            "Operation": "No Change - Review Only",
-            "Notes": f"AdSurf Watch: {rec.explanation_json.get('summary', 'Monitor for more data before action.')}",
-        })
+    elif rec_type in {RecommendationType.WATCH_LOCK, RecommendationType.WATCH_ONLY}:
+        # WATCH types carry no bulk-sheet action — Amazon's importer rejects unknown Operation
+        # values. These recommendations are informational only and must not appear in the CSV.
+        pass
 
     return rows
 
@@ -287,7 +308,7 @@ def generate_approval_queue_summary(
     )
 
     total_spend = sum(float(r.input_metrics_json.get("spend", 0)) for r in recommendations)
-    high_risk = len([r for r in pending if r.risk_level == "high"])
+    high_risk = len([r for r in pending if r.priority in {"critical", "high"}])
 
     return {
         "pending_approval": len(pending),
@@ -314,10 +335,12 @@ def generate_approval_queue_summary(
 
 def _before_value(rec: Recommendation) -> str:
     """Get the 'before' value for audit comparison."""
-    if rec.current_bid is not None:
-        return f"${rec.current_bid}"
-    if rec.current_budget is not None:
-        return f"${rec.current_budget}"
+    current_bid = rec.current_bid or _decimal_from_action(rec, "current_bid")
+    if current_bid is not None:
+        return f"${current_bid}"
+    current_budget = rec.current_budget or _decimal_from_action(rec, "current_budget")
+    if current_budget is not None:
+        return f"${current_budget}"
     metrics = rec.input_metrics_json
     if "spend" in metrics:
         return f"Spend: ${metrics.get('spend', '0')}"
@@ -326,12 +349,25 @@ def _before_value(rec: Recommendation) -> str:
 
 def _after_value(rec: Recommendation) -> str:
     """Get the 'after' value for audit comparison."""
-    if rec.recommended_bid is not None:
-        return f"${rec.recommended_bid}"
-    if rec.recommended_budget is not None:
-        return f"${rec.recommended_budget}"
+    recommended_bid = rec.recommended_bid or _decimal_from_action(rec, "recommended_bid")
+    if recommended_bid is not None:
+        return f"${recommended_bid}"
+    recommended_budget = rec.recommended_budget or _decimal_from_action(rec, "recommended_budget")
+    if recommended_budget is not None:
+        return f"${recommended_budget}"
     action = rec.proposed_action_json.get("action", "")
     return action.replace("_", " ").title()
+
+
+def _decimal_from_action(rec: Recommendation, key: str) -> Decimal | None:
+    """Safely read a Decimal value from proposed_action_json."""
+    raw = rec.proposed_action_json.get(key)
+    if raw is None:
+        return None
+    try:
+        return Decimal(str(raw))
+    except Exception:
+        return None
 
 
 def _change_description(rec: Recommendation) -> str:
@@ -363,3 +399,89 @@ def _build_csv(rows: list[dict[str, str]]) -> str:
     for row in rows:
         writer.writerow(row)
     return output.getvalue()
+
+
+def validate_export_readiness(
+    recommendations: list[Recommendation],
+    *,
+    latest_import_id: UUID | None = None,
+) -> dict[str, Any]:
+    """Backend safety gate to run before generating a bulk export.
+
+    Checks for:
+    - Non-approved recommendations in the list
+    - Stale recommendations (from an older import when a newer one exists)
+    - Contradictory actions on the same entity (e.g. both increase_bid and decrease_bid)
+    - Recommendations from insufficient data (WATCH_LOCK exported accidentally)
+    - Missing search term on negative keyword recommendations
+
+    Returns a dict with:
+    - is_safe: bool
+    - blocking_errors: list[str] — must be empty before exporting
+    - warnings: list[str] — non-blocking issues to show the user
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+
+    # Guard 1: all recs must be approved
+    non_approved = [r for r in recommendations if r.status != RecommendationStatus.APPROVED]
+    if non_approved:
+        errors.append(
+            f"{len(non_approved)} recommendation(s) are not in 'approved' status and must not be exported."
+        )
+
+    # Guard 2: stale recommendations from an older import
+    if latest_import_id is not None:
+        stale = [r for r in recommendations if r.monitoring_import_id != latest_import_id]
+        if stale:
+            warnings.append(
+                f"{len(stale)} recommendation(s) were generated from an older import. "
+                "A newer import exists. Review whether these decisions are still relevant."
+            )
+
+    # Guard 3: contradictory bid changes on the same entity
+    _entity_actions: dict[str, list[str]] = {}
+    for rec in recommendations:
+        key = "|".join(filter(None, [rec.campaign_name, rec.ad_group_name, rec.customer_search_term or rec.targeting or ""]))
+        _entity_actions.setdefault(key, []).append(rec.recommendation_type.value)
+
+    for entity, actions in _entity_actions.items():
+        has_increase = any("increase_bid" in a for a in actions)
+        has_decrease = any("decrease_bid" in a for a in actions)
+        has_pause = any("pause" in a for a in actions)
+        has_negative = any("negative" in a for a in actions)
+        if has_increase and has_decrease:
+            errors.append(f"Contradictory bid change for '{entity}': both increase_bid and decrease_bid approved.")
+        if has_pause and has_increase:
+            warnings.append(f"'{entity}' has both pause and bid_increase approved — review before export.")
+        if has_negative and has_increase:
+            warnings.append(f"'{entity}' has both negative keyword and bid_increase — negative will supersede the bid change.")
+
+    # Guard 4: non-actionable types sneaking into export list
+    non_actionable = [r for r in recommendations if r.recommendation_type not in _ACTIONABLE_TYPES]
+    if non_actionable:
+        warnings.append(
+            f"{len(non_actionable)} recommendation(s) have informational types "
+            f"({', '.join(sorted({r.recommendation_type.value for r in non_actionable}))}) "
+            "and will produce no rows in the bulk sheet."
+        )
+
+    # Guard 5: negative keyword recs must have a search term
+    missing_term = [
+        r for r in recommendations
+        if r.recommendation_type in {RecommendationType.ADD_NEGATIVE_EXACT, RecommendationType.ADD_NEGATIVE_PHRASE}
+        and not r.customer_search_term
+    ]
+    if missing_term:
+        errors.append(
+            f"{len(missing_term)} negative keyword recommendation(s) are missing the customer_search_term "
+            "and cannot be written to the bulk sheet."
+        )
+
+    return {
+        "is_safe": len(errors) == 0,
+        "blocking_errors": errors,
+        "warnings": warnings,
+        "actionable_count": sum(1 for r in recommendations if r.recommendation_type in _ACTIONABLE_TYPES),
+        "total_count": len(recommendations),
+    }

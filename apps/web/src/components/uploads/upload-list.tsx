@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { defaultWorkspaceId, formatApiError } from "@/lib/api/client";
 import { getUploadParseRuns, getUploads, type ParseRun, type UploadRecord } from "@/lib/api/uploads";
@@ -15,6 +16,7 @@ export function UploadList({ productId }: { productId: string }) {
 
   useEffect(() => {
     loadUploads();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadUploads() {
@@ -45,9 +47,9 @@ export function UploadList({ productId }: { productId: string }) {
           Workspace ID
           <input id="upload-list-workspace-id" name="upload_list_workspace_id" className="block rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setWorkspaceId(event.target.value)} value={workspaceId} />
         </label>
-        <button className="rounded-md bg-slate-700 px-4 py-2 text-sm font-medium text-white" onClick={loadUploads} type="button">
+        <Button onClick={loadUploads} type="button" variant="secondary">
           Refresh uploads
-        </button>
+        </Button>
       </div>
       {error ? <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-300/10 dark:text-red-100">{error}</p> : null}
       {isLoading ? (
@@ -69,7 +71,7 @@ export function UploadList({ productId }: { productId: string }) {
                 ) : null}
               </div>
               <Link
-                className={upload.status === "processed" ? "rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white dark:bg-indigo-300 dark:text-indigo-950" : "rounded-md bg-slate-200 px-4 py-2 text-sm font-medium text-slate-600 dark:bg-white/10 dark:text-slate-300"}
+                className={upload.status === "processed" ? "rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-400" : "rounded-md bg-slate-200 px-4 py-2 text-sm font-medium text-slate-600 dark:bg-white/10 dark:text-slate-300"}
                 href={workflowHref(upload, productId)}
               >
                 {upload.status === "processed" ? workflowLabel(upload) : "Waiting"}

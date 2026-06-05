@@ -11,7 +11,7 @@ import { getDashboardSummary, type DashboardSummary } from "@/lib/api/products";
 import { getCachedData, setCachedData } from "@/lib/prefetch";
 
 export function DashboardOverview({ initialSummary = null }: { initialSummary?: DashboardSummary | null }) {
-  const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId);
+  const [workspaceId] = useState(defaultWorkspaceId);
   const [summary, setSummary] = useState<DashboardSummary | null>(initialSummary);
   const [error, setError] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(!initialSummary);
@@ -20,6 +20,7 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
     if (!initialSummary) {
       loadDashboard();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function loadDashboard() {
@@ -92,10 +93,10 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
 
       {/* Metric cards — lighter, more spacious */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-5">
-        <DashboardCard icon={<Boxes aria-hidden="true" size={18} />} label="Products" value={summary?.product_count ?? 0} />
-        <DashboardCard icon={<UploadCloud aria-hidden="true" size={18} />} label="Uploads" value={summary?.upload_count ?? 0} />
-        <DashboardCard icon={<CheckCircle2 aria-hidden="true" size={18} />} label="Processed uploads" value={uploadCounts.processed ?? 0} />
-        <DashboardCard icon={<Clock3 aria-hidden="true" size={18} />} label="Pending recommendations" value={summary?.pending_recommendation_count ?? 0} />
+        <DashboardCard icon={<Boxes aria-hidden="true" size={18} />} label="Products" value={summary?.product_count ?? 0} tone="indigo" />
+        <DashboardCard icon={<UploadCloud aria-hidden="true" size={18} />} label="Uploads" value={summary?.upload_count ?? 0} tone="sky" />
+        <DashboardCard icon={<CheckCircle2 aria-hidden="true" size={18} />} label="Processed uploads" value={uploadCounts.processed ?? 0} tone="emerald" />
+        <DashboardCard icon={<Clock3 aria-hidden="true" size={18} />} label="Pending recommendations" value={summary?.pending_recommendation_count ?? 0} tone="amber" />
       </div>
 
       {/* Two-column: products + checklist */}
@@ -136,7 +137,7 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
 
         <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/90">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-300 dark:text-indigo-950">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700 dark:bg-indigo-500/30 dark:text-indigo-300">
               <Sparkles aria-hidden="true" size={16} />
             </span>
             <p className="text-base font-semibold text-slate-950 dark:text-white">Launch checklist</p>
@@ -187,14 +188,36 @@ export function DashboardOverview({ initialSummary = null }: { initialSummary?: 
   );
 }
 
-function DashboardCard({ icon, label, value }: { icon: ReactNode; label: string; value: number }) {
+type Tone = "indigo" | "sky" | "emerald" | "amber";
+
+const toneStyles: Record<Tone, { icon: string; stat: string }> = {
+  indigo: {
+    icon: "bg-indigo-50 text-indigo-600 dark:bg-indigo-300/15 dark:text-indigo-300",
+    stat: "text-indigo-600 dark:text-indigo-300",
+  },
+  sky: {
+    icon: "bg-sky-50 text-sky-600 dark:bg-sky-300/15 dark:text-sky-300",
+    stat: "text-sky-600 dark:text-sky-300",
+  },
+  emerald: {
+    icon: "bg-emerald-50 text-emerald-600 dark:bg-emerald-300/15 dark:text-emerald-300",
+    stat: "text-emerald-600 dark:text-emerald-300",
+  },
+  amber: {
+    icon: "bg-amber-50 text-amber-600 dark:bg-amber-300/15 dark:text-amber-300",
+    stat: "text-amber-600 dark:text-amber-300",
+  },
+};
+
+function DashboardCard({ icon, label, value, tone = "indigo" }: { icon: ReactNode; label: string; value: number; tone?: Tone }) {
+  const t = toneStyles[tone];
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-950/90">
       <div className="flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-300">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-indigo-600 dark:bg-white/10 dark:text-indigo-200">{icon}</span>
+        <span className={`flex h-8 w-8 items-center justify-center rounded-lg ${t.icon}`}>{icon}</span>
         {label}
       </div>
-      <p className="mt-3 text-2xl font-semibold text-slate-950 dark:text-white">{value}</p>
+      <p className={`tabular-data mt-3 text-2xl font-semibold ${t.stat}`}>{value}</p>
     </div>
   );
 }

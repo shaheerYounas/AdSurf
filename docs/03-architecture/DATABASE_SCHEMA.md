@@ -9,6 +9,8 @@ Use workspace language in database tables and APIs. `workspace_id` is the canoni
 | workspaces | Workspace for seller or agency | Has users, profiles, files, plans. |
 | workspace_members | User membership and role | Links auth user to workspace. |
 | product_profiles | Advertised product settings | Owns uploads and plans. |
+| bulk_product_imports | Temporary reviewed product-list import sessions | Owns per-row validation and commit outcomes. |
+| bulk_product_import_rows | Source-numbered product import row previews | Links import rows to created/updated/skipped products. |
 | uploads | Original CSV/XLSX/report file metadata | Source for later parsed rows and snapshots. |
 | parsed_file_rows | Normalized uploaded rows | Links to file upload. |
 | column_mappings | Later canonical mapping workflow | Links upload to canonical columns after Batch 5 manual mapping foundation. |
@@ -51,6 +53,8 @@ Batch 8 adds deterministic campaign plan generation from locked approved keyword
 
 Batch 10 adds Sponsored Products Search Term monitoring imports, normalized targeting/search-term snapshots, deterministic recommendation records, human decision records, and deterministic summary metadata. Phase 1 adds evidence JSON and the full monitoring recommendation taxonomy. Monitoring remains recommendation-only and does not execute bid changes, pauses, negatives, exports, or Amazon Ads API actions.
 
+Bulk product imports are a preview-then-confirm workflow. Uploading a CSV/TSV/XLSX creates `bulk_product_imports` and `bulk_product_import_rows` only; product profiles are created or updated after the commit endpoint atomically claims a `ready_for_review` import. Row numbers preserve the original source file row numbers, including the header offset.
+
 Local SQLite stores JSON fields such as monitoring import warnings, snapshot raw metrics, recommendation evidence/action/explanation payloads, AI run output, agent event metadata, competitor upload warnings/detected columns, and competitor cleaned row rank/raw metric payloads as JSON text. Repository row mappers must deserialize these values before constructing Pydantic schemas.
 
 Local SQLite development stores JSON columns as text, so repository reads must deserialize JSON payloads before returning API models. Upload parsing, competitor uploads and cleaned rows, account imports, monitoring recommendations, workflows, jobs, audit logs, and approval gate writes also provide explicit timestamps where the local database does not supply Postgres defaults.
@@ -63,6 +67,8 @@ Custom agent builder records are workspace-owned across agents, tools, knowledge
 | workspaces | id, name, type, status, created_at, updated_at |
 | workspace_members | id, workspace_id, user_id, role, status, created_at, updated_at |
 | product_profiles | id, workspace_id, asin, marketplace, currency, product_name, default_daily_budget, default_bid, status, created_by, updated_by, created_at, updated_at |
+| bulk_product_imports | id, workspace_id, original_filename, file_hash, status, conflict_strategy, total_rows, valid_rows, invalid_rows, duplicate_in_file_rows, already_exists_rows, created_rows, updated_rows, skipped_rows, failed_rows, detected_columns_json, workspace_default_acos, workspace_default_budget, workspace_default_bid, created_by, created_at, updated_at |
+| bulk_product_import_rows | id, workspace_id, import_id, row_number, status, product_name, asin, sku, marketplace, currency, target_acos, default_budget, default_bid, brand, category, notes, product_id, validation_errors, raw_row_json, created_at |
 | uploads | id, workspace_id, product_id, uploaded_by, original_filename, storage_path, mime_type, file_size_bytes, status, source_type, idempotency_key, created_at, updated_at, confirmed_at |
 | upload_parse_runs | id, workspace_id, product_id, upload_id, job_id, status, parser_version, original_filename, storage_path, detected_file_type, detected_sheet_names, selected_sheet_name, total_rows, total_columns, parsed_rows_count, error_rows_count, started_at, completed_at, created_at, updated_at, error_message |
 | upload_parsed_rows | id, workspace_id, product_id, upload_id, parse_run_id, row_number, row_data_json, row_hash, created_at |
@@ -97,7 +103,7 @@ Custom agent builder records are workspace-owned across agents, tools, knowledge
 ## Status Enums
 | Entity | Allowed statuses |
 | --- | --- |
-| uploads | initialized, uploaded, queued_for_processing, processing, processed, failed, cancelled |
+| uploads | initialized, uploaded, queued_for_processing, processing, processed, failed, cancelled, archived |
 | upload_parse_runs | running, succeeded, failed |
 | upload_column_profiles | generated, failed |
 | upload_column_profile_columns inferred_data_type | text, integer, decimal, date, boolean, unknown |
@@ -109,6 +115,8 @@ Custom agent builder records are workspace-owned across agents, tools, knowledge
 | keyword_candidate_overrides new_status | approved, rejected |
 | approved_keyword_sets | created, locked, superseded |
 | approved_keyword_set_items final_status | approved |
+| bulk_product_imports | parsing, validating, ready_for_review, creating, completed, failed, cancelled |
+| bulk_product_import_rows | valid, invalid, duplicate_in_file, already_exists, skipped, created, updated, failed |
 | jobs | queued, running, succeeded, failed, dead_letter, cancelled |
 | campaign_plans | draft, generated, pending_approval, approved, rejected, superseded |
 | bulk_exports | requested, generating, generated, pending_approval, approved, failed, expired |
@@ -158,6 +166,7 @@ The `uploads` table has RLS enabled. Workspace members can read upload metadata.
 | --- | --- |
 | Parse run uniqueness | `upload_parse_runs.job_id` is unique. |
 | Upload integrity | Parse tables carry `workspace_id`, `product_id`, and `upload_id` and reference `uploads(workspace_id, product_id, id)`. |
+| Upload archive behavior | Archiving marks the upload `archived` and removes only pending queued upload jobs. Completed or failed processing jobs and parse history are preserved for auditability and later reprocess workflows. |
 | Parse child integrity | `upload_parse_runs` enforces `unique(id, workspace_id, product_id, upload_id)`, and rows/errors use composite foreign keys from `(parse_run_id, workspace_id, product_id, upload_id)` to that parse run identity. Direct DB writes cannot attach row/error metadata to a different workspace, product, or upload than the owning parse run. |
 | Parsed row uniqueness | `upload_parsed_rows` enforces `unique(parse_run_id, row_number)`. |
 | Parsed row data | `row_data_json` and `row_hash` are required. |

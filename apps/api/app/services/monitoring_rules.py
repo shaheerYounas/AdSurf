@@ -143,6 +143,10 @@ def build_recommendations(*, product: ProductProfile, import_record: MonitoringI
             target_acos=target_acos,
             default_budget=default_budget,
         )
+        action = rule_result["proposed_action"]
+        _recommended_bid_str = action.get("recommended_bid")
+        _current_bid_str = action.get("current_bid")
+        _change_pct_str = action.get("change_percent")
         recommendations.append(
             Recommendation(
                 id=uuid4(),
@@ -161,15 +165,19 @@ def build_recommendations(*, product: ProductProfile, import_record: MonitoringI
                 ad_group_name=snapshot.ad_group_name,
                 targeting=snapshot.targeting,
                 customer_search_term=snapshot.customer_search_term,
+                match_type=snapshot.match_type,
+                current_bid=Decimal(_current_bid_str) if _current_bid_str else None,
+                recommended_bid=Decimal(_recommended_bid_str) if _recommended_bid_str else None,
+                change_percent=Decimal(_change_pct_str) if _change_pct_str else None,
                 input_metrics_json=metrics,
                 current_metric_snapshot_json=metrics,
                 evidence_json=evidence,
-                proposed_action_json=rule_result["proposed_action"],
+                proposed_action_json=action,
                 explanation_json=explain_recommendation(
                     recommendation_type=rule_result["recommendation_type"],
                     priority=rule_result["priority"],
                     evidence=evidence,
-                    proposed_action=rule_result["proposed_action"],
+                    proposed_action=action,
                 ),
                 created_at=now,
                 updated_at=now,

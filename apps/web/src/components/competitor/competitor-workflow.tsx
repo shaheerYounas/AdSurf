@@ -46,11 +46,6 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isWorking, setIsWorking] = useState(false);
 
-  useEffect(() => {
-    loadProduct();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const rowCounts = useMemo(() => {
     return rows.reduce(
       (counts, row) => {
@@ -79,6 +74,13 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
       setIsLoading(false);
     }
   }
+
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadProduct();
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function refreshRows(uploadId = upload?.id) {
     if (!uploadId) return;
@@ -239,7 +241,7 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
             Competitor research CSV
             <input
               accept=".csv"
-              className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-3 file:py-1 file:text-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:file:bg-white dark:file:text-slate-950"
+              className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-3 file:py-1 file:text-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:file:bg-indigo-600 dark:file:text-white"
               id="competitor-research-file"
               name="competitor_research_file"
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}

@@ -33,7 +33,7 @@ let sections: PrefetchSection[] = [];
 let isRunning = false;
 let abortController: AbortController | null = null;
 let completedSections = new Set<string>();
-let queuedSectionKeys: string[] = [];
+const queuedSectionKeys: string[] = [];
 const DEFAULT_SECTION_COOLDOWN_MS = 250;
 
 // ── Public API ──────────────────────────────────────────────────────

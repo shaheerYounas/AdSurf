@@ -1,0 +1,12 @@
+Campaign Name,Ad Group Name,Targeting,Match Type,Customer Search Term,Start Date,End Date,Impressions,Clicks,Click-Thru Rate (CTR),Cost Per Click (CPC),Spend,7 Day Total Sales ,7 Day Total Orders (#),7 Day Total Units (#),7 Day Conversion Rate,Total Advertising Cost of Sales (ACOS) ,Total Return on Advertising Spend (ROAS)
+"Camp A","Group A",yoga mat,broad,yoga mat non slip,2026-01-01,2026-01-07,5000,200,4.00%,$0.72,$144.00,$720.00,40,45,20.00%,20.00%,5.00
+"Camp A","Group A",yoga mat,broad,cheap yoga mat,2026-01-01,2026-01-07,3200,87,2.72%,$1.10,$95.70,$0.00,0,0,0.00%,,0.00
+"Camp A","Group A",yoga mat,broad,B07X3J5WY6,2026-01-01,2026-01-07,1800,55,3.06%,$0.95,$52.25,$0.00,0,0,0.00%,,0.00
+"Camp A","Group A",yoga mat,exact,yoga mat,2026-01-01,2026-01-07,8200,250,3.05%,$0.68,$170.00,$850.00,55,60,22.00%,20.00%,5.00
+"Camp A","Group A",yoga mat,exact,yoga mat thick,2026-01-01,2026-01-07,620,12,1.94%,$1.15,$13.80,$48.00,2,2,16.67%,28.75%,3.48
+"Camp B","Group B","asin=""B09FAKE001""",auto,yoga mat non slip,2026-01-01,2026-01-07,2100,65,3.10%,$0.80,$52.00,$260.00,12,13,18.46%,20.00%,5.00
+"Camp B","Group B","asin=""B09FAKE001""",auto,yoga block set,2026-01-01,2026-01-07,900,22,2.44%,$0.88,$19.36,$0.00,0,0,0.00%,,0.00
+"Camp C","Group C",yoga mat,broad,yoga mat 6mm,2026-01-01,2026-01-07,45,2,4.44%,$1.20,$2.40,$0.00,0,0,0.00%,,0.00
+"Camp C","Group C",yoga mat,exact,premium yoga mat,2026-01-01,2026-01-07,8,0,0.00%,$0.00,$0.00,$0.00,0,0,0.00%,,
+"Camp A","Group A",yoga mat,broad,yoga mat for beginners,2026-01-01,2026-01-07,2500,70,2.80%,$0.95,$66.50,$266.00,8,9,11.43%,25.00%,4.00
+"Camp A","Group A",yoga mat,broad,yoga mat bag,2026-01-01,2026-01-07,1100,32,2.91%,$0.90,$28.80,$28.80,1,1,3.13%,100.00%,1.00

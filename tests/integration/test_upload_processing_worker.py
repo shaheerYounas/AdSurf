@@ -59,6 +59,47 @@ def test_worker_success_updates_upload_job_and_parse_statuses(monkeypatch, tmp_p
     assert rows_response.json()["data"][0]["row_data_json"] == {"term": "shoes", "bid": "1.25"}
 
 
+def test_archive_processed_upload_preserves_completed_job_and_parse_history(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("LOCAL_UPLOAD_STORAGE_ROOT", str(tmp_path))
+    get_settings.cache_clear()
+    _cancel_existing_queued_jobs()
+    workspace_id = str(uuid4())
+    product_id = _create_product(workspace_id)
+    init_response = _init_upload(workspace_id, product_id, original_filename="archive-processed.csv")
+    upload = init_response.json()["data"]
+    LocalFakeStorageService(root=str(tmp_path)).write_upload_object(
+        storage_path=upload["storage_path"],
+        content=b"term,bid\nshoes,1.25\nboots,1.10\n",
+    )
+    confirm_response = _confirm_upload(workspace_id, upload["upload_id"])
+    job_id = confirm_response.json()["data"]["job_id"]
+    UploadProcessingWorker().process_one()
+    runs_before = client.get(
+        f"/v1/workspaces/{workspace_id}/uploads/{upload['upload_id']}/parse-runs",
+        headers=auth_headers(workspace_id),
+    ).json()["data"]
+
+    archive_response = client.post(
+        f"/v1/workspaces/{workspace_id}/uploads/{upload['upload_id']}/archive",
+        headers=auth_headers(workspace_id),
+    )
+
+    job_response = client.get(f"/v1/workspaces/{workspace_id}/jobs/{job_id}", headers=auth_headers(workspace_id))
+    runs_after = client.get(
+        f"/v1/workspaces/{workspace_id}/uploads/{upload['upload_id']}/parse-runs",
+        headers=auth_headers(workspace_id),
+    )
+    upload_response = client.get(f"/v1/workspaces/{workspace_id}/uploads/{upload['upload_id']}", headers=auth_headers(workspace_id))
+
+    assert archive_response.status_code == 200
+    assert archive_response.json()["data"]["status"] == "archived"
+    assert job_response.status_code == 200
+    assert job_response.json()["data"]["status"] == "succeeded"
+    assert runs_after.status_code == 200
+    assert [run["id"] for run in runs_after.json()["data"]] == [run["id"] for run in runs_before]
+    assert upload_response.json()["data"]["status"] == "archived"
+
+
 def test_worker_failure_updates_statuses_and_records_error(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("LOCAL_UPLOAD_STORAGE_ROOT", str(tmp_path))
     get_settings.cache_clear()
