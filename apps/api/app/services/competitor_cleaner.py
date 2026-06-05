@@ -27,6 +27,7 @@ RANK_PATTERNS = [
     re.compile(r"organic\s*rank", re.IGNORECASE),
     re.compile(r"natural\s*rank", re.IGNORECASE),
     re.compile(r"competitor\s*rank", re.IGNORECASE),
+    re.compile(r"competitor\b.*\brank", re.IGNORECASE),
     re.compile(r"org\s*rank", re.IGNORECASE),
 ]
 TERM_PATTERNS = [

@@ -61,6 +61,7 @@ def validate_recommendation(
     risk_level = "low"
 
     strategy_config = DEFAULT_STRATEGY_CONFIG.get(StrategyMode(strategy_mode), DEFAULT_STRATEGY_CONFIG[StrategyMode.PROFIT])
+    effective_allow_negative_keywords = allow_negative_keywords and bool(strategy_config.get("allow_negative_keywords", True))
 
     # 1. Evidence check
     evidence_result = _validate_evidence(recommendation)
@@ -75,7 +76,7 @@ def validate_recommendation(
         max_bid_increase_pct=max_bid_increase_pct,
         max_bid_decrease_pct=max_bid_decrease_pct,
         max_budget_increase_pct=max_budget_increase_pct,
-        allow_negative_keywords=allow_negative_keywords,
+        allow_negative_keywords=effective_allow_negative_keywords,
         allow_auto_pause=allow_auto_pause,
     )
     errors.extend(strategy_result.errors)
@@ -91,7 +92,7 @@ def validate_recommendation(
     warnings.extend(bid_result.warnings)
 
     # 4. Negative keyword safety check
-    neg_result = _validate_negative_keyword_safety(recommendation, allow_negative_keywords=allow_negative_keywords)
+    neg_result = _validate_negative_keyword_safety(recommendation, allow_negative_keywords=effective_allow_negative_keywords)
     errors.extend(neg_result.errors)
 
     # 5. Conflict detection (duplicates, conflicting actions)

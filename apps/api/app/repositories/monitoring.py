@@ -26,6 +26,17 @@ class MonitoringRepository(ABC):
         raise NotImplementedError
 
     @abstractmethod
+    def get_import_for_upload(
+        self,
+        *,
+        workspace_id: UUID,
+        product_id: UUID,
+        upload_id: UUID,
+        report_type: str,
+    ) -> MonitoringImport | None:
+        raise NotImplementedError
+
+    @abstractmethod
     def get_import(self, *, workspace_id: UUID, monitoring_import_id: UUID) -> MonitoringImport | None:
         raise NotImplementedError
 
@@ -117,8 +128,34 @@ class LocalMonitoringRepository(MonitoringRepository):
         self._ai_runs: dict[UUID, AiRun] = {}
 
     def create_import(self, *, import_record: MonitoringImport) -> MonitoringImport:
+        existing = self.get_import_for_upload(
+            workspace_id=import_record.workspace_id,
+            product_id=import_record.product_id,
+            upload_id=import_record.upload_id,
+            report_type=import_record.report_type,
+        )
+        if existing is not None:
+            return existing
         self._imports[import_record.id] = import_record
         return import_record
+
+    def get_import_for_upload(
+        self,
+        *,
+        workspace_id: UUID,
+        product_id: UUID,
+        upload_id: UUID,
+        report_type: str,
+    ) -> MonitoringImport | None:
+        matches = [
+            item
+            for item in self._imports.values()
+            if item.workspace_id == workspace_id
+            and item.product_id == product_id
+            and item.upload_id == upload_id
+            and item.report_type == report_type
+        ]
+        return sorted(matches, key=lambda item: item.created_at, reverse=True)[0] if matches else None
 
     def get_import(self, *, workspace_id: UUID, monitoring_import_id: UUID) -> MonitoringImport | None:
         item = self._imports.get(monitoring_import_id)
@@ -228,6 +265,14 @@ class PostgresMonitoringRepository(MonitoringRepository):
         self._engine = engine
 
     def create_import(self, *, import_record: MonitoringImport) -> MonitoringImport:
+        existing = self.get_import_for_upload(
+            workspace_id=import_record.workspace_id,
+            product_id=import_record.product_id,
+            upload_id=import_record.upload_id,
+            report_type=import_record.report_type,
+        )
+        if existing is not None:
+            return existing
         with self._engine.begin() as connection:
             row = connection.execute(
                 text(
@@ -240,7 +285,7 @@ class PostgresMonitoringRepository(MonitoringRepository):
                     values (
                         :id, :workspace_id, :product_id, :upload_id, :parse_run_id, :report_type, :status,
                         :date_range_start, :date_range_end, :total_rows, :processed_rows, :error_rows,
-                        cast(:data_quality_warnings_json as jsonb), :created_by, :error_message, :created_at, :updated_at
+                        :data_quality_warnings_json, :created_by, :error_message, :created_at, :updated_at
                     )
                     returning *
                     """
@@ -248,6 +293,37 @@ class PostgresMonitoringRepository(MonitoringRepository):
                 _import_params(import_record),
             ).mappings().one()
         return _import_from_row(row)
+
+    def get_import_for_upload(
+        self,
+        *,
+        workspace_id: UUID,
+        product_id: UUID,
+        upload_id: UUID,
+        report_type: str,
+    ) -> MonitoringImport | None:
+        with self._engine.begin() as connection:
+            row = connection.execute(
+                text(
+                    """
+                    select *
+                    from monitoring_imports
+                    where workspace_id = :workspace_id
+                      and product_id = :product_id
+                      and upload_id = :upload_id
+                      and report_type = :report_type
+                    order by created_at desc
+                    limit 1
+                    """
+                ),
+                {
+                    "workspace_id": workspace_id,
+                    "product_id": product_id,
+                    "upload_id": upload_id,
+                    "report_type": report_type,
+                },
+            ).mappings().first()
+        return _import_from_row(row) if row else None
 
     def get_import(self, *, workspace_id: UUID, monitoring_import_id: UUID) -> MonitoringImport | None:
         with self._engine.begin() as connection:
@@ -288,9 +364,9 @@ class PostgresMonitoringRepository(MonitoringRepository):
                         error_rows = coalesce(:error_rows, error_rows),
                         date_range_start = coalesce(:date_range_start, date_range_start),
                         date_range_end = coalesce(:date_range_end, date_range_end),
-                        data_quality_warnings_json = coalesce(cast(:data_quality_warnings_json as jsonb), data_quality_warnings_json),
+                        data_quality_warnings_json = coalesce(:data_quality_warnings_json, data_quality_warnings_json),
                         error_message = :error_message,
-                        updated_at = now()
+                        updated_at = datetime('now')
                     where workspace_id = :workspace_id and id = :monitoring_import_id
                     returning *
                     """
@@ -312,7 +388,7 @@ class PostgresMonitoringRepository(MonitoringRepository):
             values (
                 :id, :workspace_id, :product_id, :monitoring_import_id, :upload_id, :parse_run_id, :source_row_id,
                 :campaign_name, :ad_group_name, :targeting, :match_type, :customer_search_term, :start_date, :end_date,
-                :impressions, :clicks, :spend, :sales, :orders, :units, :cpc, :ctr, :cvr, :acos, :roas, cast(:raw_metrics_json as jsonb), :created_at
+                :impressions, :clicks, :spend, :sales, :orders, :units, :cpc, :ctr, :cvr, :acos, :roas, :raw_metrics_json, :created_at
             )
             """
         )
@@ -346,9 +422,9 @@ class PostgresMonitoringRepository(MonitoringRepository):
             )
             values (
                 :id, :workspace_id, :product_id, :monitoring_import_id, :snapshot_id, :account_import_id, :entity_key,
-                :decision_source, :agent_run_id, :ai_run_id, cast(:approval_boundary as jsonb), :recommendation_type,
+                :decision_source, :agent_run_id, :ai_run_id, :approval_boundary, :recommendation_type,
                 :entity_type, :status, :priority, :confidence, :rule_version_id, :rule_name, :campaign_name, :ad_group_name, :targeting,
-                :customer_search_term, cast(:input_metrics_json as jsonb), cast(:current_metric_snapshot_json as jsonb), cast(:evidence_json as jsonb), cast(:proposed_action_json as jsonb), cast(:explanation_json as jsonb),
+                :customer_search_term, :input_metrics_json, :current_metric_snapshot_json, :evidence_json, :proposed_action_json, :explanation_json,
                 :decided_by, :decision_note, :decided_at, :created_at, :updated_at
             )
             """
@@ -369,8 +445,9 @@ class PostgresMonitoringRepository(MonitoringRepository):
             clauses.append("recommendation_type = :recommendation_type")
             params["recommendation_type"] = recommendation_type
         limit_clause = " limit :limit offset :offset" if limit is not None else ""
+        priority_expr = "priority" if self._engine.dialect.name == "sqlite" else "priority::text"
         with self._engine.begin() as connection:
-            rows = connection.execute(text(f"select * from recommendations where {' and '.join(clauses)} order by case priority::text when 'critical' then 0 when 'high' then 1 when 'medium' then 2 else 3 end, created_at desc{limit_clause}"), params).mappings().all()
+            rows = connection.execute(text(f"select * from recommendations where {' and '.join(clauses)} order by case {priority_expr} when 'critical' then 0 when 'high' then 1 when 'medium' then 2 else 3 end, created_at desc{limit_clause}"), params).mappings().all()
         return [_recommendation_from_row(row) for row in rows]
 
     def get_recommendation(self, *, workspace_id: UUID, recommendation_id: UUID) -> Recommendation | None:
@@ -379,13 +456,14 @@ class PostgresMonitoringRepository(MonitoringRepository):
         return _recommendation_from_row(row) if row else None
 
     def decide_recommendation(self, *, workspace_id: UUID, recommendation_id: UUID, decision: RecommendationStatus, actor_user_id: str, note: str) -> tuple[Recommendation | None, RecommendationDecision | None]:
+        now = datetime.now(UTC)
         with self._engine.begin() as connection:
             row = connection.execute(
                 text(
                     """
                     update recommendations
                     set status = :decision, decided_by = :actor_user_id, decision_note = :note,
-                        decided_at = now(), updated_at = now()
+                        decided_at = datetime('now'), updated_at = datetime('now')
                     where workspace_id = :workspace_id and id = :recommendation_id and status in ('pending', 'pending_approval')
                     returning *
                     """
@@ -397,12 +475,20 @@ class PostgresMonitoringRepository(MonitoringRepository):
             decision_row = connection.execute(
                 text(
                     """
-                    insert into recommendation_decisions (id, workspace_id, recommendation_id, decision, actor_user_id, note)
-                    values (:id, :workspace_id, :recommendation_id, :decision, :actor_user_id, :note)
+                    insert into recommendation_decisions (id, workspace_id, recommendation_id, decision, actor_user_id, note, created_at)
+                    values (:id, :workspace_id, :recommendation_id, :decision, :actor_user_id, :note, :created_at)
                     returning *
                     """
                 ),
-                {"id": uuid4(), "workspace_id": workspace_id, "recommendation_id": recommendation_id, "decision": decision.value, "actor_user_id": _uuid_or_none(actor_user_id), "note": note.strip()},
+                {
+                    "id": uuid4(),
+                    "workspace_id": workspace_id,
+                    "recommendation_id": recommendation_id,
+                    "decision": decision.value,
+                    "actor_user_id": _uuid_or_none(actor_user_id),
+                    "note": note.strip(),
+                    "created_at": now.isoformat(),
+                },
             ).mappings().one()
         return _recommendation_from_row(row), _decision_from_row(decision_row)
 
@@ -412,7 +498,7 @@ class PostgresMonitoringRepository(MonitoringRepository):
                 text(
                     """
                     insert into ai_runs (id, workspace_id, product_id, agent_name, provider, model, schema_version, input_hash, output_json, status, latency_ms, created_at)
-                    values (:id, :workspace_id, :product_id, :agent_name, :provider, :model, :schema_version, :input_hash, cast(:output_json as jsonb), :status, :latency_ms, :created_at)
+                    values (:id, :workspace_id, :product_id, :agent_name, :provider, :model, :schema_version, :input_hash, :output_json, :status, :latency_ms, :created_at)
                     returning *
                     """
                 ),
@@ -511,11 +597,14 @@ def new_monitoring_import(*, workspace_id: UUID, product_id: UUID, upload_id: UU
 def _import_from_row(row: RowMapping) -> MonitoringImport:
     data = dict(row)
     data["created_by"] = str(row["created_by"])
+    data["data_quality_warnings_json"] = _json_loads(data.get("data_quality_warnings_json"), default=[])
     return MonitoringImport(**data)
 
 
 def _snapshot_from_row(row: RowMapping) -> MonitoringSnapshot:
-    return MonitoringSnapshot(**dict(row))
+    data = dict(row)
+    data["raw_metrics_json"] = _json_loads(data.get("raw_metrics_json"), default={})
+    return MonitoringSnapshot(**data)
 
 
 def _recommendation_from_row(row: RowMapping) -> Recommendation:
@@ -529,6 +618,15 @@ def _recommendation_from_row(row: RowMapping) -> Recommendation:
         data["entity_type"] = "search_term"
     else:
         data["entity_type"] = str(data["entity_type"])
+    for key in [
+        "approval_boundary",
+        "input_metrics_json",
+        "current_metric_snapshot_json",
+        "evidence_json",
+        "proposed_action_json",
+        "explanation_json",
+    ]:
+        data[key] = _json_loads(data.get(key), default={})
 
     return Recommendation(**data)
 
@@ -538,7 +636,9 @@ def _decision_from_row(row: RowMapping) -> RecommendationDecision:
 
 
 def _ai_run_from_row(row: RowMapping) -> AiRun:
-    return AiRun(**dict(row))
+    data = dict(row)
+    data["output_json"] = _json_loads(data.get("output_json"), default={})
+    return AiRun(**data)
 
 
 def _import_params(import_record: MonitoringImport) -> dict:
@@ -584,3 +684,13 @@ def _json_dumps(value) -> str:
     import json
 
     return json.dumps(value, default=str)
+
+
+def _json_loads(value, *, default):
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    import json
+
+    return json.loads(value)

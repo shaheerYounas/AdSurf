@@ -11,6 +11,10 @@ from apps.api.app.core.errors import ApiError
 from apps.api.app.schemas.uploads import UploadInitRequest, UploadRecord, UploadStatus
 
 
+def _now_iso() -> str:
+    return datetime.now(UTC).isoformat()
+
+
 class UploadRepository(ABC):
     @abstractmethod
     def create_initialized(
@@ -207,23 +211,21 @@ class PostgresUploadRepository(UploadRepository):
         actor_user_id: str,
         idempotency_key: str,
     ) -> UploadRecord:
+        now = _now_iso()
         with self._engine.begin() as connection:
-            row = connection.execute(
+            connection.execute(
                 text(
                     """
-                    insert into uploads (
+                    insert or ignore into uploads (
                         id, workspace_id, product_id, uploaded_by, original_filename, storage_path,
-                        mime_type, file_size_bytes, status, source_type, idempotency_key
+                        mime_type, file_size_bytes, status, source_type, idempotency_key,
+                        created_at, updated_at
                     )
                     values (
                         :id, :workspace_id, :product_id, :uploaded_by, :original_filename, :storage_path,
-                        :mime_type, :file_size_bytes, 'initialized', :source_type, :idempotency_key
+                        :mime_type, :file_size_bytes, 'initialized', :source_type, :idempotency_key,
+                        :created_at, :updated_at
                     )
-                    on conflict (workspace_id, idempotency_key) do update
-                    set updated_at = uploads.updated_at
-                    returning id, workspace_id, product_id, uploaded_by, original_filename, storage_path,
-                        mime_type, file_size_bytes, status, source_type, idempotency_key, created_at,
-                        updated_at, confirmed_at
                     """
                 ),
                 {
@@ -237,7 +239,21 @@ class PostgresUploadRepository(UploadRepository):
                     "file_size_bytes": payload.file_size_bytes,
                     "source_type": payload.source_type,
                     "idempotency_key": idempotency_key,
+                    "created_at": now,
+                    "updated_at": now,
                 },
+            )
+            row = connection.execute(
+                text(
+                    """
+                    select id, workspace_id, product_id, uploaded_by, original_filename, storage_path,
+                        mime_type, file_size_bytes, status, source_type, idempotency_key, created_at,
+                        updated_at, confirmed_at
+                    from uploads
+                    where workspace_id = :workspace_id and idempotency_key = :idempotency_key
+                    """
+                ),
+                {"workspace_id": workspace_id, "idempotency_key": idempotency_key},
             ).mappings().one()
         return _upload_from_row(row)
 
@@ -313,39 +329,41 @@ class PostgresUploadRepository(UploadRepository):
         return [_upload_from_row(row) for row in rows], int(total)
 
     def mark_queued_for_processing(self, *, workspace_id: UUID, upload_id: UUID) -> UploadRecord | None:
+        now = _now_iso()
         with self._engine.begin() as connection:
             row = connection.execute(
                 text(
                     """
                     update uploads
                     set status = 'queued_for_processing',
-                        confirmed_at = coalesce(confirmed_at, now()),
-                        updated_at = now()
+                        confirmed_at = coalesce(confirmed_at, :now),
+                        updated_at = :now
                     where workspace_id = :workspace_id and id = :upload_id
                     returning id, workspace_id, product_id, uploaded_by, original_filename, storage_path,
                         mime_type, file_size_bytes, status, source_type, idempotency_key, created_at,
                         updated_at, confirmed_at
                     """
                 ),
-                {"workspace_id": workspace_id, "upload_id": upload_id},
+                {"workspace_id": workspace_id, "upload_id": upload_id, "now": now},
             ).mappings().first()
         return _upload_from_row(row) if row else None
 
     def update_status(self, *, workspace_id: UUID, upload_id: UUID, status: UploadStatus) -> UploadRecord | None:
+        now = _now_iso()
         with self._engine.begin() as connection:
             row = connection.execute(
                 text(
                     """
                     update uploads
                     set status = :status,
-                        updated_at = now()
+                        updated_at = :now
                     where workspace_id = :workspace_id and id = :upload_id
                     returning id, workspace_id, product_id, uploaded_by, original_filename, storage_path,
                         mime_type, file_size_bytes, status, source_type, idempotency_key, created_at,
                         updated_at, confirmed_at
                     """
                 ),
-                {"workspace_id": workspace_id, "upload_id": upload_id, "status": status.value},
+                {"workspace_id": workspace_id, "upload_id": upload_id, "status": status.value, "now": now},
             ).mappings().first()
         return _upload_from_row(row) if row else None
 
@@ -366,6 +384,7 @@ class PostgresUploadRepository(UploadRepository):
         return _upload_from_row(row) if row else None
 
     def set_file_hash(self, *, workspace_id: UUID, upload_id: UUID, file_hash: str) -> UploadRecord | None:
+        now = _now_iso()
         with self._engine.begin() as connection:
             row = connection.execute(
                 text(
@@ -373,14 +392,14 @@ class PostgresUploadRepository(UploadRepository):
                     update uploads
                     set file_hash = :file_hash,
                         file_hash_algorithm = 'sha256',
-                        updated_at = now()
+                        updated_at = :now
                     where workspace_id = :workspace_id and id = :upload_id
                     returning id, workspace_id, product_id, uploaded_by, original_filename, storage_path,
                         mime_type, file_size_bytes, status, source_type, idempotency_key, file_hash,
                         file_hash_algorithm, created_at, updated_at, confirmed_at
                     """
                 ),
-                {"workspace_id": workspace_id, "upload_id": upload_id, "file_hash": file_hash},
+                {"workspace_id": workspace_id, "upload_id": upload_id, "file_hash": file_hash, "now": now},
             ).mappings().first()
         return _upload_from_row(row) if row else None
 

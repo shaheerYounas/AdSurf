@@ -82,8 +82,17 @@ class SafeguardResult:
     warnings: list[dict] = field(default_factory=list)
     risk_labels: list[str] = field(default_factory=list)
 
-    def add(self, *, code: str, message: str, label: str = NEEDS_REVIEW, row_number: int | None = None, details: dict | None = None) -> None:
-        payload = {"code": code, "message": message, "risk_label": label}
+    def add(
+        self,
+        *,
+        code: str,
+        message: str,
+        label: str = NEEDS_REVIEW,
+        severity: str | None = None,
+        row_number: int | None = None,
+        details: dict | None = None,
+    ) -> None:
+        payload = {"code": code, "message": message, "risk_label": label, "severity": severity or _severity_for(label=label, code=code)}
         if row_number is not None:
             payload["row_number"] = row_number
         if details:
@@ -106,6 +115,7 @@ def analyze_search_term_report_rows(
             code="REPORT_TYPE_REVIEW_REQUIRED",
             message="Uploaded report is not confidently detected as a Sponsored Products Search Term Report.",
             label=HIGH_RISK,
+            severity="error",
             details={"detected_report_type": detection.detected_report_type.value, "confidence": detection.confidence.value},
         )
     if not detection.required_columns_present:
@@ -113,6 +123,7 @@ def analyze_search_term_report_rows(
             code="REQUIRED_COLUMNS_MISSING",
             message="Required report columns are missing; metric and optimization analysis must not proceed blindly.",
             label=HIGH_RISK,
+            severity="error",
             details={"missing_columns": detection.missing_columns},
         )
 
@@ -236,6 +247,7 @@ def analyze_search_term_report_rows(
             code="OPTIMIZATION_DATA_INSUFFICIENT",
             message="Most rows have too little click/order evidence for confident optimization decisions.",
             label=NOT_ENOUGH_DATA,
+            severity="warning",
             details={"low_data_rows": low_data_rows, "total_rows": len(rows)},
         )
     if not rows:
@@ -253,6 +265,7 @@ def _validate_header_shape(row: dict, result: SafeguardResult) -> None:
             code="HEADER_HIDDEN_SPACES_NORMALIZED",
             message="Column names contain leading or trailing spaces; headers were normalized before analysis.",
             label=NEEDS_REVIEW,
+            severity="info",
             details={"headers": hidden_space_headers[:25]},
         )
     aliases = []
@@ -267,7 +280,8 @@ def _validate_header_shape(row: dict, result: SafeguardResult) -> None:
         result.add(
             code="COLUMN_NAME_ALIASES_NORMALIZED",
             message="Report uses known Amazon column-name variants; aliases were mapped to canonical metrics.",
-            label=NEEDS_REVIEW,
+            label=SAFE,
+            severity="info",
             details={"aliases": aliases[:25]},
         )
 
@@ -399,18 +413,13 @@ def _validate_metric_formulas(row: dict, result: SafeguardResult, row_number: in
         result.add(code="SPEND_WITHOUT_CLICKS", message="Spend exists without clicks.", label=HIGH_RISK, row_number=row_number)
     if sales > 0 and orders == 0:
         result.add(code="SALES_WITHOUT_ORDERS", message="Sales exist without orders.", label=HIGH_RISK, row_number=row_number)
-    if spend > 0 and sales == 0:
-        result.add(code="SPEND_WITH_NO_SALES", message="Spend with zero sales must not be treated as good ACOS.", label=ZERO_SALES_SPEND, row_number=row_number)
-
     _compare_metric(row, result, row_number, "cost per click cpc", _divide(spend, clicks), "CPC_MISMATCH", "CPC should equal Spend / Clicks.")
     _compare_metric(row, result, row_number, "click thru rate ctr", _divide(clicks, impressions), "CTR_MISMATCH", "CTR should equal Clicks / Impressions.", percent=True)
     _compare_metric(row, result, row_number, "conversion rate", _divide(orders, clicks), "CVR_MISMATCH", "Conversion rate should equal Orders / Clicks.", percent=True)
     if sales > 0:
         _compare_metric(row, result, row_number, "acos", _divide(spend, sales), "ACOS_MISMATCH", "ACOS should equal Spend / Sales.", percent=True)
     elif _text(row, "acos"):
-        result.add(code="ACOS_PRESENT_WITH_ZERO_SALES", message="ACOS is present even though sales are zero; review the report value.", label=HIGH_RISK, row_number=row_number)
-    elif spend > 0:
-        result.add(code="BLANK_ACOS_WITH_ZERO_SALES_HANDLED", message="ACOS is blank because sales are zero; treat this as zero-sales spend, not efficient performance.", label=ZERO_SALES_SPEND, row_number=row_number)
+        result.add(code="ACOS_PRESENT_WITH_ZERO_SALES", message="ACOS is present even though sales are zero; review the report value.", label=NEEDS_REVIEW, severity="warning", row_number=row_number)
     _compare_metric(row, result, row_number, "roas", _divide(sales, spend), "ROAS_MISMATCH", "ROAS should equal Sales / Spend.")
 
 
@@ -488,10 +497,10 @@ def _validate_data_reliability(row: dict, result: SafeguardResult, row_number: i
     acos = _divide(spend, sales) if sales > 0 else None
     low_data = False
     if clicks < 3 and orders <= 1:
-        result.add(code="NOT_ENOUGH_DATA", message="Row has too little click/order data for confident optimization.", label=NOT_ENOUGH_DATA, row_number=row_number)
+        result.add(code="NOT_ENOUGH_DATA", message="Row has too little click/order data for confident optimization.", label=NOT_ENOUGH_DATA, severity="info", row_number=row_number)
         low_data = True
     if clicks >= 10 and orders == 0:
-        result.add(code="HIGH_CLICK_ZERO_ORDER", message="Search term has clicks but no orders.", label=ZERO_SALES_SPEND, row_number=row_number)
+        result.add(code="HIGH_CLICK_ZERO_ORDER", message="Search term has clicks but no orders.", label=ZERO_SALES_SPEND, severity="info", row_number=row_number)
     if acos is not None and acos >= Decimal("0.50"):
         result.add(code="MARGIN_RISK_DEFAULT_ACOS", message="ACOS is at or above the default 50% target; verify break-even margin before scaling.", label=MARGIN_RISK, row_number=row_number, details={"acos": str(acos.quantize(Decimal("0.0001")))})
     return low_data
@@ -530,3 +539,13 @@ def _date_sort_key(value: str | None) -> tuple[int, int, int] | None:
             if 1 <= month <= 12 and 1 <= day <= 31:
                 return (year, month, day)
     return None
+
+
+def _severity_for(*, label: str, code: str) -> str:
+    if code in {"NEGATIVE_METRIC_VALUE", "CLICKS_EXCEED_IMPRESSIONS", "ORDERS_EXCEED_CLICKS"}:
+        return "critical"
+    if label == HIGH_RISK:
+        return "error"
+    if label in {SAFE, NOT_ENOUGH_DATA, POSSIBLE_ASIN_TARGETING, POSSIBLE_DUPLICATE, ZERO_SALES_SPEND}:
+        return "info"
+    return "warning"

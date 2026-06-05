@@ -328,7 +328,7 @@ Batch 10 monitoring and recommendation endpoints:
 | Method | Route | Purpose |
 | --- | --- | --- |
 | GET | `/v1/workspaces/{workspace_id}/dashboard-summary` | Single-request dashboard payload with product count/list, upload counts, pending recommendation count, and top recommendations. |
-| POST | `/v1/workspaces/{workspace_id}/products/{product_id}/monitoring-imports` | Create a monitoring import from a processed Sponsored Products Search Term report upload and enqueue rule evaluation. |
+| POST | `/v1/workspaces/{workspace_id}/products/{product_id}/monitoring-imports` | Create or return the existing monitoring import for a processed Sponsored Products Search Term report upload and enqueue rule evaluation only for a new import. |
 | POST | `/v1/workspaces/{workspace_id}/products/{product_id}/monitoring/imports` | Alias for monitoring import creation. |
 | POST | `/v1/workspaces/{workspace_id}/monitoring/imports/{import_id}/run-analysis` | Requeue a queued or failed monitoring import analysis job. |
 | GET | `/v1/workspaces/{workspace_id}/products/{product_id}/monitoring` | Read monitoring import status, recommendation counts, top recommendations, and latest deterministic stakeholder summary. |
@@ -340,7 +340,7 @@ Batch 10 monitoring and recommendation endpoints:
 | POST | `/v1/workspaces/{workspace_id}/recommendations/{recommendation_id}/reject` | Reject a recommendation with a required note. |
 | GET | `/v1/workspaces/{workspace_id}/products/{product_id}/agent-runs` | List structured explanation and summary agent runs for a product. |
 
-Monitoring import creation requires `owner`, `admin`, or `analyst`, a processed upload with source type `amazon_ads_sp_search_term_report`, and a succeeded parse run. Recommendation reads use workspace read roles. Recommendation decisions require `owner`, `admin`, `analyst`, or `approver`. `viewer` cannot decide recommendations.
+Monitoring import creation requires `owner`, `admin`, or `analyst`, a processed upload with source type `amazon_ads_sp_search_term_report`, and a succeeded parse run. One import is allowed per `workspace_id + product_id + upload_id + report_type`; duplicate create requests return the existing import with `already_imported: true` and do not create another job. Recommendation reads use workspace read roles. Recommendation decisions require `owner`, `admin`, `analyst`, or `approver`. `viewer` cannot decide recommendations.
 
 Monitoring import request:
 
@@ -359,6 +359,8 @@ Recommendation decision request:
 ```
 
 Recommendation records expose `recommendation_type`, `entity_type`, `status`, `priority`, `confidence`, campaign/ad group/target/search-term identity, `rule_version`, `rule_name`, `current_metric_snapshot_json`, `input_metrics_json`, `evidence_json`, `proposed_action_json`, and `explanation_json`. Recommendation types are `keep_running`, `increase_bid`, `decrease_bid`, `pause_review`, `add_negative_exact`, `add_negative_phrase`, `move_to_exact`, `watch_lock`, `data_quality_review`, and `budget_review`. List reads support `page` and `page_size` with a safe default page size of 250. Approval and rejection only update app state and audit history. They do not call Amazon Ads, change bids, pause entities, add negatives, or generate a bulk sheet by themselves.
+
+Product monitoring summary responses include `summary_metrics`, `action_recommendation_counts`, `non_action_insight_counts`, `issue_counts`, and `detected_product_groups` in addition to imports, recommendation counts, top recommendations, and latest agent summary. `summary_metrics` must distinguish report rows from recommendations and include total spend, total sales, overall ACOS, zero-order spend, actionable recommendations, watch insights, data-quality checks, budget review notes, detected products, and no-live-change flags.
 
 Local/test dev helper:
 
@@ -451,8 +453,8 @@ Local/test dev helper:
 | `POST /v1/workspaces/{workspace_id}/products/{product_id}/campaign-plans` | approved_keyword_set_id, rule_version_id optional | campaign_plan id, status, job_id optional |
 | `POST /v1/workspaces/{workspace_id}/campaign-plans/{plan_id}/exports` | approval_id or approval_note, format | export id, status, job_id |
 | `GET /v1/workspaces/{workspace_id}/exports/{export_id}/download` | none | CSV file |
-| `POST /v1/workspaces/{workspace_id}/products/{product_id}/monitoring-imports` | upload_id | monitoring import record and job_id |
-| `GET /v1/workspaces/{workspace_id}/products/{product_id}/monitoring` | none | imports, recommendation_counts, top_recommendations, agent_summary |
+| `POST /v1/workspaces/{workspace_id}/products/{product_id}/monitoring-imports` | upload_id | monitoring import record, optional job_id, already_imported, message |
+| `GET /v1/workspaces/{workspace_id}/products/{product_id}/monitoring` | none | imports, recommendation_counts, action_recommendation_counts, non_action_insight_counts, issue_counts, detected_product_groups, summary_metrics, top_recommendations, agent_summary |
 | `GET /v1/workspaces/{workspace_id}/recommendations` | product_id, status, recommendation_type | recommendation list with evidence and explanation |
 | `POST /v1/workspaces/{workspace_id}/recommendations/{recommendation_id}/approve` | note | updated recommendation status and decision audit side effect |
 | `POST /v1/workspaces/{workspace_id}/recommendations/{recommendation_id}/reject` | note | updated recommendation status and decision audit side effect |

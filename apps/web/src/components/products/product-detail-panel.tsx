@@ -29,7 +29,8 @@ export function ProductDetailPanel({ productId }: { productId: string }) {
     }, {});
   }, [uploads]);
 
-  const latestProcessedUpload = uploads.find((upload) => upload.status === "processed");
+  const latestAdsReport = uploads.find((upload) => upload.status === "processed" && upload.source_type === "amazon_ads_sp_search_term_report");
+  const latestCompetitorUpload = uploads.find((upload) => upload.status === "processed" && upload.source_type === "competitor_keyword_research");
 
   async function loadProduct() {
     setError(null);
@@ -107,11 +108,11 @@ export function ProductDetailPanel({ productId }: { productId: string }) {
           status={uploads.length ? "Ready" : "Next step"}
         />
         <WorkflowCard
-          href={latestProcessedUpload ? `/products/${productId}/uploads/${latestProcessedUpload.id}/mapping` : `/products/${productId}/uploads`}
+          href={latestCompetitorUpload ? `/products/${productId}/uploads/${latestCompetitorUpload.id}/mapping` : `/products/${productId}/uploads`}
           icon={<FileSpreadsheet aria-hidden="true" size={18} />}
           label="Map and score keywords"
-          meta={latestProcessedUpload ? latestProcessedUpload.original_filename : "Needs processed upload"}
-          status={latestProcessedUpload ? "Open" : "Waiting"}
+          meta={latestCompetitorUpload ? latestCompetitorUpload.original_filename : "Upload a competitor keyword file first"}
+          status={latestCompetitorUpload ? "Open" : "Waiting"}
         />
         <WorkflowCard
           href={`/products/${productId}/competitors`}
@@ -124,15 +125,15 @@ export function ProductDetailPanel({ productId }: { productId: string }) {
           href={`/products/${productId}/monitoring`}
           icon={<FileSpreadsheet aria-hidden="true" size={18} />}
           label="Monitor running ads"
-          meta="Import SP Search Term reports"
-          status={latestProcessedUpload ? "Ready" : "Needs processed upload"}
+          meta={latestAdsReport ? latestAdsReport.original_filename : "Upload a Search Term report first"}
+          status={latestAdsReport ? "Ready" : "Next step"}
         />
         <WorkflowCard
-          href={latestProcessedUpload ? `/products/${productId}/uploads/${latestProcessedUpload.id}/mapping` : `/products/${productId}/uploads`}
+          href={latestCompetitorUpload ? `/products/${productId}/uploads/${latestCompetitorUpload.id}/mapping` : `/products/${productId}/uploads`}
           icon={<CheckCircle2 aria-hidden="true" size={18} />}
           label="Campaign plan and export"
           meta="Approval-controlled bulk CSV"
-          status={latestProcessedUpload ? "Available after keyword set" : "Waiting"}
+          status={latestCompetitorUpload ? "Available after keyword set" : "Waiting"}
         />
       </div>
 
@@ -161,7 +162,7 @@ function WorkspaceInput({ onChange, value }: { onChange: (value: string) => void
   return (
     <label className="space-y-1 text-sm font-medium text-slate-700 dark:text-slate-200">
       Workspace ID
-      <input className="block w-72 rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => onChange(event.target.value)} value={value} />
+      <input id="product-detail-workspace-id" name="product_detail_workspace_id" className="block w-72 rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => onChange(event.target.value)} value={value} />
     </label>
   );
 }

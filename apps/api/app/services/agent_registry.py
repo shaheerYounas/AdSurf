@@ -14,9 +14,9 @@ AGENT_WORKFLOW_ORDER = [
     "risk_policy_validator_agent",
     "ai_recommendation_brain_agent",
     "bulk_change_compiler_agent",
-    "human_approval_agent",
     "learning_feedback_agent",
     "stakeholder_reporting_agent",
+    "human_approval_agent",
 ]
 
 

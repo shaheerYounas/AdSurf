@@ -240,13 +240,15 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
             <input
               accept=".csv"
               className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-3 file:py-1 file:text-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:file:bg-white dark:file:text-slate-950"
+              id="competitor-research-file"
+              name="competitor_research_file"
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               type="file"
             />
           </label>
           <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
             Workspace ID
-            <input className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setWorkspaceId(event.target.value)} value={workspaceId} />
+            <input id="competitor-workspace-id" name="competitor_workspace_id" className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setWorkspaceId(event.target.value)} value={workspaceId} />
           </label>
         </div>
         <div className="mt-4 flex flex-wrap gap-2">
@@ -267,7 +269,7 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
         <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
           <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
             Existing upload ID for phase 2
-            <input className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setExistingUploadId(event.target.value)} placeholder="Paste competitor upload ID" value={existingUploadId} />
+            <input id="existing-competitor-upload-id" name="existing_competitor_upload_id" className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setExistingUploadId(event.target.value)} placeholder="Paste competitor upload ID" value={existingUploadId} />
           </label>
           <Button className="mt-7 inline-flex items-center gap-2" disabled={isWorking} onClick={handleLoadExistingUpload} type="button" variant="secondary">
             <FileSearch aria-hidden="true" size={16} />
@@ -282,11 +284,11 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
         <div className="grid gap-4 lg:grid-cols-2">
           <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
             Original competitors
-            <textarea className="min-h-28 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setCompetitorsText(event.target.value)} placeholder="Competitor A, Competitor B, Competitor C" value={competitorsText} />
+            <textarea id="competitor-reference-list" name="competitor_reference_list" className="min-h-28 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setCompetitorsText(event.target.value)} placeholder="Competitor A, Competitor B, Competitor C" value={competitorsText} />
           </label>
           <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
             Marketplace
-            <select className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setMarketplace(event.target.value)} value={marketplace}>
+            <select id="competitor-marketplace" name="competitor_marketplace" className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setMarketplace(event.target.value)} value={marketplace}>
               <option value="US">Amazon US</option>
               <option value="CA">Amazon CA</option>
               <option value="UK">Amazon UK</option>
@@ -307,7 +309,7 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
             </div>
             <label className="space-y-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
               Max keywords
-              <input className="block w-24 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" max={100} min={1} onChange={(event) => setMaxKeywords(Number(event.target.value))} type="number" value={maxKeywords} />
+              <input id="competitor-max-keywords" name="competitor_max_keywords" className="block w-24 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" max={100} min={1} onChange={(event) => setMaxKeywords(Number(event.target.value))} type="number" value={maxKeywords} />
             </label>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -414,7 +416,7 @@ export function CompetitorWorkflow({ productId }: CompetitorWorkflowProps) {
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
             <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
               Campaign name for phase 3
-              <input className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setMonitoringCampaignName(event.target.value)} placeholder="Product / SP / Manual / Exact / keyword / Jun 2" value={monitoringCampaignName} />
+              <input id="monitoring-campaign-name" name="monitoring_campaign_name" className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setMonitoringCampaignName(event.target.value)} placeholder="Product / SP / Manual / Exact / keyword / Jun 2" value={monitoringCampaignName} />
             </label>
             <Button className="mt-7 inline-flex items-center gap-2" disabled={isWorking} onClick={handleSimulateMonitoring} type="button" variant="secondary">
               <Activity aria-hidden="true" size={16} />

@@ -296,7 +296,7 @@ class PostgresColumnMappingRepository(ColumnMappingRepository):
                             values (
                                 :id, :workspace_id, :product_id, :upload_id, :parse_run_id, :column_profile_id,
                                 :original_column_name, :normalized_column_name, :column_index, :non_null_count,
-                                cast(:sample_values_json as jsonb), :inferred_data_type
+                                :sample_values_json, :inferred_data_type
                             )
                             """
                         ),
@@ -344,8 +344,8 @@ class PostgresColumnMappingRepository(ColumnMappingRepository):
                     )
                     values (
                         :id, :workspace_id, :product_id, :upload_id, :parse_run_id, :column_profile_id,
-                        :status, :mapping_version, 'manual', cast(:mapping_json as jsonb),
-                        cast(:validation_errors_json as jsonb), :created_by
+                        :status, :mapping_version, 'manual', :mapping_json,
+                        :validation_errors_json, :created_by
                     )
                     returning *
                     """
@@ -420,7 +420,7 @@ class PostgresColumnMappingRepository(ColumnMappingRepository):
                 text(
                     """
                     update upload_column_mappings
-                    set status = 'approved', approved_at = now()
+                    set status = 'approved', approved_at = datetime('now')
                     where id = :mapping_id
                     returning *
                     """

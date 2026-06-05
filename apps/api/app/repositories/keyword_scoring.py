@@ -9,7 +9,13 @@ from sqlalchemy.engine import Engine, RowMapping
 from apps.api.app.core.config import get_settings
 from apps.api.app.core.database import get_database_engine
 from apps.api.app.core.errors import ApiError
+
+
 from apps.api.app.schemas.column_mapping import ColumnMapping
+
+
+def _now_iso() -> str:
+    return datetime.now(UTC).isoformat()
 from apps.api.app.schemas.keyword_scoring import (
     KeywordCandidate,
     KeywordCandidateStatus,
@@ -227,25 +233,27 @@ class PostgresKeywordScoringRepository(KeywordScoringRepository):
         approved_count = sum(1 for candidate in candidates if candidate.scoring_status == KeywordCandidateStatus.APPROVED)
         rejected_count = sum(1 for candidate in candidates if candidate.scoring_status == KeywordCandidateStatus.REJECTED)
         error_count = sum(1 for candidate in candidates if candidate.scoring_status == KeywordCandidateStatus.ERROR)
+        now = _now_iso()
         with self._engine.begin() as connection:
             for candidate in candidates:
                 connection.execute(
                     text(
                         """
-                        insert into keyword_candidates (
+                        insert or ignore into keyword_candidates (
                             id, workspace_id, product_id, upload_id, parse_run_id, column_mapping_id,
                             scoring_run_id, source_row_id, search_term, search_volume,
-                            competitor_rank_values_json, relevance_score, scoring_status, rejection_reason
+                            competitor_rank_values_json, relevance_score, scoring_status, rejection_reason,
+                            created_at, updated_at
                         )
                         values (
                             :id, :workspace_id, :product_id, :upload_id, :parse_run_id, :column_mapping_id,
                             :scoring_run_id, :source_row_id, :search_term, :search_volume,
-                            cast(:competitor_rank_values_json as jsonb), :relevance_score, :scoring_status,
-                            :rejection_reason
+                            :competitor_rank_values_json, :relevance_score, :scoring_status,
+                            :rejection_reason, :created_at, :updated_at
                         )
                         """
                     ),
-                    _candidate_params(run, candidate),
+                    {**_candidate_params(run, candidate), "created_at": now, "updated_at": now},
                 )
             row = connection.execute(
                 text(
@@ -257,8 +265,8 @@ class PostgresKeywordScoringRepository(KeywordScoringRepository):
                         approved_count = :approved_count,
                         rejected_count = :rejected_count,
                         error_count = :error_count,
-                        completed_at = now(),
-                        updated_at = now()
+                        completed_at = :now,
+                        updated_at = :now
                     where id = :id
                     returning *
                     """
@@ -270,22 +278,24 @@ class PostgresKeywordScoringRepository(KeywordScoringRepository):
                     "approved_count": approved_count,
                     "rejected_count": rejected_count,
                     "error_count": error_count,
+                    "now": now,
                 },
             ).mappings().one()
         return _run_from_row(row)
 
     def fail_run(self, *, run: KeywordScoringRun, error_message: str) -> KeywordScoringRun:
+        now = _now_iso()
         with self._engine.begin() as connection:
             row = connection.execute(
                 text(
                     """
                     update keyword_scoring_runs
-                    set status = 'failed', error_message = :error_message, completed_at = now(), updated_at = now()
+                    set status = 'failed', error_message = :error_message, completed_at = :now, updated_at = :now
                     where id = :id
                     returning *
                     """
                 ),
-                {"id": run.id, "error_message": error_message},
+                {"id": run.id, "error_message": error_message, "now": now},
             ).mappings().one()
         return _run_from_row(row)
 
@@ -334,7 +344,7 @@ class PostgresKeywordScoringRepository(KeywordScoringRepository):
             clauses.append("relevance_score <= :max_relevance_score")
             params["max_relevance_score"] = max_relevance_score
         if search_term:
-            clauses.append("search_term ilike :search_term")
+            clauses.append("search_term LIKE :search_term")
             params["search_term"] = f"%{search_term.strip()}%"
         where_clause = " and ".join(clauses)
         with self._engine.begin() as connection:

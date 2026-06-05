@@ -221,8 +221,8 @@ class PostgresAgentControlRepository(AgentControlRepository):
                     f"""
                     update agent_configs
                     set {", ".join(f"{column} = :{column}" for column in update_columns)},
-                        updated_at = now()
-                    where workspace_id = :workspace_id and agent_id = :agent_id and product_id is not distinct from :product_id
+                        updated_at = datetime('now')
+                    where workspace_id = :workspace_id and agent_id = :agent_id and product_id IS :product_id
                     returning *
                     """
                 ),
@@ -253,7 +253,7 @@ class PostgresAgentControlRepository(AgentControlRepository):
                     insert into agent_control_actions (
                         id, workspace_id, agent_id, agent_run_id, monitoring_import_id, action, actor_user_id, reason, metadata_json
                     )
-                    values (:id, :workspace_id, :agent_id, :agent_run_id, :monitoring_import_id, :action, :actor_user_id, :reason, cast(:metadata_json as jsonb))
+                    values (:id, :workspace_id, :agent_id, :agent_run_id, :monitoring_import_id, :action, :actor_user_id, :reason, :metadata_json)
                     """
                 ),
                 {"id": uuid4(), "workspace_id": workspace_id, "agent_id": agent_id, "agent_run_id": agent_run_id, "monitoring_import_id": monitoring_import_id, "action": action, "actor_user_id": _uuid_or_none(actor_user_id), "reason": reason, "metadata_json": _json_dumps(metadata_json)},
@@ -278,7 +278,7 @@ class PostgresAgentControlRepository(AgentControlRepository):
                     insert into agent_run_events (
                         id, workspace_id, agent_id, agent_run_id, monitoring_import_id, event_type, message, metadata_json, created_at
                     )
-                    values (:id, :workspace_id, :agent_id, :agent_run_id, :monitoring_import_id, :event_type, :message, cast(:metadata_json as jsonb), :created_at)
+                    values (:id, :workspace_id, :agent_id, :agent_run_id, :monitoring_import_id, :event_type, :message, :metadata_json, :created_at)
                     returning *
                     """
                 ),
@@ -347,7 +347,9 @@ def _config_from_row(row: RowMapping) -> AgentConfig:
 
 
 def _event_from_row(row: RowMapping) -> AgentRunEvent:
-    return AgentRunEvent(**dict(row))
+    data = dict(row)
+    data["metadata_json"] = _json_loads(data.get("metadata_json"), default={})
+    return AgentRunEvent(**data)
 
 
 def _config_params(params: dict) -> dict:
@@ -370,3 +372,13 @@ def _json_dumps(value: dict) -> str:
     import json
 
     return json.dumps(value, default=str)
+
+
+def _json_loads(value, *, default):
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    import json
+
+    return json.loads(value)

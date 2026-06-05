@@ -63,7 +63,10 @@ def get_dashboard_summary(
 ) -> dict:
     principal.ensure_workspace(workspace_id)
     principal.require_role(PRODUCT_PROFILE_READ_ROLES)
-    if get_settings().database_url:
+    database_url = get_settings().database_url
+    if database_url and database_url.startswith("sqlite"):
+        return success_response(data=_sqlite_dashboard_summary(workspace_id=workspace_id))
+    if database_url:
         return success_response(data=_postgres_dashboard_summary(workspace_id=workspace_id))
     products = product_repository.list(workspace_id=workspace_id)
     uploads, upload_total = upload_repository.list(workspace_id=workspace_id, product_id=None, status=None, page=1, page_size=1000)
@@ -177,12 +180,106 @@ def _postgres_dashboard_summary(*, workspace_id: UUID) -> dict:
     }
 
 
+def _sqlite_dashboard_summary(*, workspace_id: UUID) -> dict:
+    with get_database_engine().begin() as connection:
+        product_rows = connection.execute(
+            text(
+                """
+                select id, workspace_id, product_name, asin, sku, marketplace, currency,
+                    target_acos, default_budget, default_bid, status, created_at, updated_at
+                from product_profiles
+                where workspace_id = :workspace_id
+                order by created_at desc
+                limit 6
+                """
+            ),
+            {"workspace_id": workspace_id},
+        ).mappings().all()
+        product_count = connection.execute(
+            text("select count(*) from product_profiles where workspace_id = :workspace_id"),
+            {"workspace_id": workspace_id},
+        ).scalar_one()
+        upload_rows = connection.execute(
+            text(
+                """
+                select status, count(*) as total
+                from uploads
+                where workspace_id = :workspace_id
+                group by status
+                """
+            ),
+            {"workspace_id": workspace_id},
+        ).mappings().all()
+        recommendation_rows = connection.execute(
+            text(
+                """
+                select status as summary_key, count(*) as total
+                from recommendations
+                where workspace_id = :workspace_id
+                group by status
+                union all
+                select recommendation_type as summary_key, count(*) as total
+                from recommendations
+                where workspace_id = :workspace_id
+                group by recommendation_type
+                """
+            ),
+            {"workspace_id": workspace_id},
+        ).mappings().all()
+        pending_recommendation_count = connection.execute(
+            text(
+                """
+                select count(*)
+                from recommendations
+                where workspace_id = :workspace_id
+                    and status in ('pending_approval', 'pending')
+                """
+            ),
+            {"workspace_id": workspace_id},
+        ).scalar_one()
+        top_recommendation_rows = connection.execute(
+            text(
+                """
+                select id, product_id, recommendation_type, status, priority, rule_name,
+                    campaign_name, ad_group_name, targeting, customer_search_term, created_at
+                from recommendations
+                where workspace_id = :workspace_id
+                order by case priority when 'critical' then 0 when 'high' then 1 when 'medium' then 2 else 3 end,
+                    created_at desc
+                limit 5
+                """
+            ),
+            {"workspace_id": workspace_id},
+        ).mappings().all()
+
+    upload_counts = {row["status"]: int(row["total"]) for row in upload_rows}
+    recommendation_counts = {row["summary_key"]: int(row["total"]) for row in recommendation_rows}
+    return {
+        "products": [_dashboard_product(row) for row in product_rows],
+        "product_count": int(product_count),
+        "upload_count": sum(upload_counts.values()),
+        "upload_counts": upload_counts,
+        "pending_recommendation_count": int(pending_recommendation_count),
+        "recommendation_counts": recommendation_counts,
+        "top_recommendations": [_dashboard_recommendation(row) for row in top_recommendation_rows],
+    }
+
+
 def _json_value(value, fallback):
     if value is None:
         return fallback
     if isinstance(value, str):
         return json.loads(value)
     return value
+
+
+def _dashboard_product(row) -> dict:
+    return {
+        **dict(row),
+        "target_acos": f"{float(row['target_acos']):.4f}",
+        "default_budget": f"{float(row['default_budget']):.4f}",
+        "default_bid": f"{float(row['default_bid']):.4f}",
+    }
 
 
 def _dashboard_recommendation(row) -> dict:

@@ -43,7 +43,7 @@ export function UploadList({ productId }: { productId: string }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <label className="space-y-1 text-sm font-medium text-slate-700 dark:text-slate-200">
           Workspace ID
-          <input className="block rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setWorkspaceId(event.target.value)} value={workspaceId} />
+          <input id="upload-list-workspace-id" name="upload_list_workspace_id" className="block rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white" onChange={(event) => setWorkspaceId(event.target.value)} value={workspaceId} />
         </label>
         <button className="rounded-md bg-slate-700 px-4 py-2 text-sm font-medium text-white" onClick={loadUploads} type="button">
           Refresh uploads
@@ -70,9 +70,9 @@ export function UploadList({ productId }: { productId: string }) {
               </div>
               <Link
                 className={upload.status === "processed" ? "rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white dark:bg-indigo-300 dark:text-indigo-950" : "rounded-md bg-slate-200 px-4 py-2 text-sm font-medium text-slate-600 dark:bg-white/10 dark:text-slate-300"}
-                href={upload.status === "processed" ? `/products/${productId}/uploads/${upload.id}/mapping` : `/products/${productId}/uploads`}
+                href={workflowHref(upload, productId)}
               >
-                {upload.status === "processed" ? "Open workflow" : "Waiting"}
+                {upload.status === "processed" ? workflowLabel(upload) : "Waiting"}
               </Link>
             </li>
           ))}
@@ -82,4 +82,15 @@ export function UploadList({ productId }: { productId: string }) {
       )}
     </div>
   );
+}
+
+function workflowHref(upload: UploadRecord, productId: string) {
+  if (upload.status !== "processed") return `/products/${productId}/uploads`;
+  if (upload.source_type === "amazon_ads_sp_search_term_report") return `/products/${productId}/monitoring`;
+  return `/products/${productId}/uploads/${upload.id}/mapping`;
+}
+
+function workflowLabel(upload: UploadRecord) {
+  if (upload.source_type === "amazon_ads_sp_search_term_report") return "Open monitoring";
+  return "Open workflow";
 }

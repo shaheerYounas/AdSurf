@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -11,6 +11,10 @@ from apps.api.app.core.errors import ApiError
 from apps.api.app.domain.uploads import PROCESS_UPLOAD_JOB_TYPE
 from apps.api.app.schemas.jobs import JobRecord, JobStatus
 from apps.api.app.schemas.uploads import UploadRecord
+
+
+def _now_iso() -> str:
+    return datetime.now(UTC).isoformat()
 
 
 class JobRepository(ABC):
@@ -172,26 +176,26 @@ class PostgresJobRepository(JobRepository):
 
     def enqueue_process_upload(self, *, upload: UploadRecord) -> tuple[JobRecord, bool]:
         idempotency_key = _process_upload_idempotency_key(upload.id)
+        now = _now_iso()
+        job_id = uuid4()
         with self._engine.begin() as connection:
-            row = connection.execute(
+            result = connection.execute(
                 text(
                     """
-                    insert into job_queue (id, workspace_id, job_type, status, payload_json, idempotency_key)
-                    values (:id, :workspace_id, :job_type, 'queued', cast(:payload_json as jsonb), :idempotency_key)
-                    on conflict (workspace_id, job_type, idempotency_key) do nothing
-                    returning id, workspace_id, job_type, status, payload_json, idempotency_key, created_at, updated_at
+                    insert or ignore into job_queue (id, workspace_id, job_type, status, payload_json, idempotency_key, created_at, updated_at)
+                    values (:id, :workspace_id, :job_type, 'queued', :payload_json, :idempotency_key, :created_at, :updated_at)
                     """
                 ),
                 {
-                    "id": uuid4(),
+                    "id": job_id,
                     "workspace_id": upload.workspace_id,
                     "job_type": PROCESS_UPLOAD_JOB_TYPE,
                     "payload_json": _json_dumps(_process_upload_payload(upload)),
                     "idempotency_key": idempotency_key,
+                    "created_at": now,
+                    "updated_at": now,
                 },
-            ).mappings().first()
-            if row is not None:
-                return _job_from_row(row), True
+            )
             existing = connection.execute(
                 text(
                     """
@@ -208,7 +212,7 @@ class PostgresJobRepository(JobRepository):
                     "idempotency_key": idempotency_key,
                 },
             ).mappings().one()
-        return _job_from_row(existing), False
+        return _job_from_row(existing), bool(result.rowcount)
 
     def enqueue_process_monitoring_import(
         self,
@@ -229,26 +233,26 @@ class PostgresJobRepository(JobRepository):
             "parse_run_id": str(parse_run_id),
         }
         idempotency_key = f"process_monitoring_import:{monitoring_import_id}"
+        now = _now_iso()
+        job_id = uuid4()
         with self._engine.begin() as connection:
-            row = connection.execute(
+            result = connection.execute(
                 text(
                     """
-                    insert into job_queue (id, workspace_id, job_type, status, payload_json, idempotency_key)
-                    values (:id, :workspace_id, :job_type, 'queued', cast(:payload_json as jsonb), :idempotency_key)
-                    on conflict (workspace_id, job_type, idempotency_key) do nothing
-                    returning id, workspace_id, job_type, status, payload_json, idempotency_key, created_at, updated_at
+                    insert or ignore into job_queue (id, workspace_id, job_type, status, payload_json, idempotency_key, created_at, updated_at)
+                    values (:id, :workspace_id, :job_type, 'queued', :payload_json, :idempotency_key, :created_at, :updated_at)
                     """
                 ),
                 {
-                    "id": uuid4(),
+                    "id": job_id,
                     "workspace_id": workspace_id,
                     "job_type": PROCESS_MONITORING_IMPORT_JOB_TYPE,
                     "payload_json": _json_dumps(payload),
                     "idempotency_key": idempotency_key,
+                    "created_at": now,
+                    "updated_at": now,
                 },
-            ).mappings().first()
-            if row is not None:
-                return _job_from_row(row), True
+            )
             existing = connection.execute(
                 text(
                     """
@@ -259,7 +263,7 @@ class PostgresJobRepository(JobRepository):
                 ),
                 {"workspace_id": workspace_id, "job_type": PROCESS_MONITORING_IMPORT_JOB_TYPE, "idempotency_key": idempotency_key},
             ).mappings().one()
-        return _job_from_row(existing), False
+        return _job_from_row(existing), bool(result.rowcount)
 
     def get(self, *, workspace_id: UUID, job_id: UUID) -> JobRecord | None:
         with self._engine.begin() as connection:
@@ -296,32 +300,51 @@ class PostgresJobRepository(JobRepository):
         return _job_from_row(row) if row else None
 
     def claim_next(self, *, job_type: str, worker_id: str) -> JobRecord | None:
+        now = _now_iso()
+        stale_before = (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
         with self._engine.begin() as connection:
+            # SQLite doesn't support FOR UPDATE SKIP LOCKED, so we use a simple
+            # SELECT + UPDATE pattern with commit-level serialization.
+            job_row = connection.execute(
+                text(
+                    """
+                    select id, workspace_id, job_type, status, payload_json, idempotency_key, created_at, updated_at
+                    from job_queue
+                    where job_type = :job_type
+                      and (
+                        status = 'queued'
+                        or (status = 'running' and locked_at is not null and locked_at < :stale_before)
+                      )
+                    order by case status when 'running' then 0 else 1 end, created_at asc
+                    limit 1
+                    """
+                ),
+                {"job_type": job_type, "stale_before": stale_before},
+            ).mappings().first()
+            if job_row is None:
+                return None
             row = connection.execute(
                 text(
                     """
-                    with next_job as (
-                        select id
-                        from job_queue
-                        where job_type = :job_type and status = 'queued'
-                        order by created_at asc
-                        for update skip locked
-                        limit 1
-                    )
                     update job_queue
                     set status = 'running',
-                        locked_at = now(),
+                        locked_at = :now,
                         locked_by = :worker_id,
-                        updated_at = now()
-                    where id = (select id from next_job)
+                        updated_at = :now
+                    where id = :job_id
+                      and (
+                        status = 'queued'
+                        or (status = 'running' and locked_at is not null and locked_at < :stale_before)
+                      )
                     returning id, workspace_id, job_type, status, payload_json, idempotency_key, created_at, updated_at
                     """
                 ),
-                {"job_type": job_type, "worker_id": worker_id},
+                {"job_id": job_row["id"], "worker_id": worker_id, "now": now, "stale_before": stale_before},
             ).mappings().first()
         return _job_from_row(row) if row else None
 
     def update_status(self, *, workspace_id: UUID, job_id: UUID, status: JobStatus, last_error: str | None = None) -> JobRecord | None:
+        now = _now_iso()
         with self._engine.begin() as connection:
             row = connection.execute(
                 text(
@@ -329,12 +352,12 @@ class PostgresJobRepository(JobRepository):
                     update job_queue
                     set status = :status,
                         last_error = :last_error,
-                        updated_at = now()
+                        updated_at = :now
                     where workspace_id = :workspace_id and id = :job_id
                     returning id, workspace_id, job_type, status, payload_json, idempotency_key, created_at, updated_at
                     """
                 ),
-                {"workspace_id": workspace_id, "job_id": job_id, "status": status.value, "last_error": last_error},
+                {"workspace_id": workspace_id, "job_id": job_id, "status": status.value, "last_error": last_error, "now": now},
             ).mappings().first()
         return _job_from_row(row) if row else None
 
@@ -345,10 +368,10 @@ class PostgresJobRepository(JobRepository):
                     """
                     delete from job_queue
                     where workspace_id = :workspace_id
-                      and payload_json ->> 'upload_id' = :upload_id
+                      and payload_json like :upload_pattern
                     """
                 ),
-                {"workspace_id": workspace_id, "upload_id": str(upload_id)},
+                {"workspace_id": workspace_id, "upload_pattern": f'%"upload_id":"{upload_id}"%'},
             )
         return int(deleted.rowcount or 0)
 
@@ -399,7 +422,7 @@ def _job_from_row(row: RowMapping) -> JobRecord:
         workspace_id=row["workspace_id"],
         job_type=row["job_type"],
         status=row["status"],
-        payload_json=row["payload_json"],
+        payload_json=_json_loads(row["payload_json"]),
         idempotency_key=row["idempotency_key"],
         created_at=row["created_at"],
         updated_at=row["updated_at"],
@@ -410,3 +433,13 @@ def _json_dumps(value: dict) -> str:
     import json
 
     return json.dumps(value)
+
+
+def _json_loads(value) -> dict:
+    if isinstance(value, dict):
+        return value
+    if not value:
+        return {}
+    import json
+
+    return json.loads(value)

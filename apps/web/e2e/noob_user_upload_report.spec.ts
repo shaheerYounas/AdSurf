@@ -4,6 +4,10 @@ import { expect, test } from "@playwright/test";
 
 const dirname = path.dirname(fileURLToPath(import.meta.url));
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("adsurf-onboarding-completed", "true"));
+});
+
 test("noob user can upload an account report or sees a clear error", async ({ page }) => {
   await page.goto("/agents");
   await page.getByLabel("Report file").setInputFiles(path.resolve(dirname, "../../../tests/fixtures/amazon_ads_search_term_report.csv"));

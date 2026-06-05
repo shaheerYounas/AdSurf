@@ -1,0 +1,102 @@
+- generic [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]:
+            - paragraph [ref=e11]: Control Center
+            - heading "AdSurf AI" [level=1] [ref=e12]
+        - button "Switch to light mode" [active] [ref=e133] [cursor=pointer]:
+          - img [ref=e134]
+      - navigation "Main navigation" [ref=e16]:
+        - link "Dashboard Workspace overview" [ref=e17] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e19]
+          - generic [ref=e24]:
+            - generic [ref=e25]: Dashboard
+            - generic [ref=e26]: Workspace overview
+        - link "Agents Control AI workflow" [ref=e27] [cursor=pointer]:
+          - /url: /agents
+          - img [ref=e29]
+          - generic [ref=e32]:
+            - generic [ref=e33]: Agents
+            - generic [ref=e34]: Control AI workflow
+        - link "Reports Files and analysis" [ref=e35] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e37]
+          - generic [ref=e40]:
+            - generic [ref=e41]: Reports
+            - generic [ref=e42]: Files and analysis
+        - link "Products ASIN profiles" [ref=e43] [cursor=pointer]:
+          - /url: /products
+          - img [ref=e45]
+          - generic [ref=e51]:
+            - generic [ref=e52]: Products
+            - generic [ref=e53]: ASIN profiles
+        - link "New product Start setup" [ref=e54] [cursor=pointer]:
+          - /url: /products/new
+          - img [ref=e56]
+          - generic [ref=e58]:
+            - generic [ref=e59]: New product
+            - generic [ref=e60]: Start setup
+        - link "Recommendations Approval queue" [ref=e61] [cursor=pointer]:
+          - /url: /recommendations
+          - img [ref=e63]
+          - generic [ref=e66]:
+            - generic [ref=e67]: Recommendations
+            - generic [ref=e68]: Approval queue
+    - main [ref=e69]:
+      - generic [ref=e70]:
+        - navigation "Page history" [ref=e71]:
+          - link "Previous page" [ref=e131] [cursor=pointer]:
+            - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/monitoring
+            - img [ref=e74]
+            - generic [ref=e76]: Previous page
+        - generic [ref=e78]:
+          - generic [ref=e80]:
+            - paragraph [ref=e81]: Product setup
+            - heading "New product" [level=2] [ref=e82]
+            - paragraph [ref=e83]: Batch 1 provides the form shell only. Persistence is handled by the backend product profile API.
+          - generic [ref=e84]:
+            - generic [ref=e85]:
+              - text: Product name
+              - textbox "Product name" [ref=e86]
+            - generic [ref=e87]:
+              - text: ASIN
+              - textbox "ASIN" [ref=e88]
+            - generic [ref=e89]:
+              - text: SKU
+              - textbox "SKU" [ref=e90]
+            - generic [ref=e91]:
+              - text: Marketplace
+              - textbox "Marketplace" [ref=e92]: US
+            - generic [ref=e93]:
+              - text: Currency
+              - textbox "Currency" [ref=e94]: USD
+            - generic [ref=e95]:
+              - text: Target ACOS
+              - spinbutton "Target ACOS" [ref=e96]: "0.50"
+            - generic [ref=e97]:
+              - text: Default budget
+              - spinbutton "Default budget" [ref=e98]: "10.00"
+            - generic [ref=e99]:
+              - text: Default bid
+              - spinbutton "Default bid" [ref=e100]: "1.00"
+            - button "Save product" [ref=e102] [cursor=pointer]
+        - generic [ref=e104]:
+          - generic [ref=e105]:
+            - img [ref=e106]
+            - text: Recommendation only
+          - generic [ref=e109]:
+            - img [ref=e110]
+            - text: Requires human approval
+          - generic [ref=e112]:
+            - img [ref=e113]
+            - text: No live Amazon Ads change executed
+  - button "Replay tour" [ref=e116] [cursor=pointer]:
+    - img [ref=e117]
+    - text: Replay tour
+  - button "Open Next.js Dev Tools" [ref=e124] [cursor=pointer]:
+    - img [ref=e125]
+  - alert [ref=e132]

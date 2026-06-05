@@ -82,11 +82,11 @@ class PostgresAuditLogRepository(AuditLogRepository):
                 text(
                     """
                     insert into audit_logs (
-                        id, workspace_id, actor_user_id, event_type, object_type, object_id, metadata_json
+                        id, workspace_id, actor_user_id, event_type, object_type, object_id, metadata_json, created_at
                     )
                     values (
                         :id, :workspace_id, :actor_user_id, :event_type, :object_type, :object_id,
-                        cast(:metadata_json as jsonb)
+                        :metadata_json, :created_at
                     )
                     """
                 ),
@@ -98,6 +98,7 @@ class PostgresAuditLogRepository(AuditLogRepository):
                     "object_type": entity_type,
                     "object_id": entity_id,
                     "metadata_json": _json_dumps(details),
+                    "created_at": datetime.now(UTC).isoformat(),
                 },
             )
 

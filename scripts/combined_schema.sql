@@ -656,6 +656,7 @@ CREATE TABLE monitoring_imports (
     error_message TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (workspace_id, product_id, upload_id, report_type),
     CONSTRAINT monitoring_imports_product_fk
         FOREIGN KEY (product_id, workspace_id)
         REFERENCES product_profiles(id, workspace_id)
@@ -774,6 +775,7 @@ CREATE TABLE ai_runs (
 );
 
 CREATE INDEX monitoring_imports_workspace_product_idx ON monitoring_imports(workspace_id, product_id, created_at DESC);
+CREATE INDEX monitoring_imports_upload_report_idx ON monitoring_imports(workspace_id, product_id, upload_id, report_type);
 CREATE INDEX monitoring_snapshots_workspace_product_idx ON monitoring_snapshots(workspace_id, product_id);
 CREATE INDEX recommendations_workspace_status_idx ON recommendations(workspace_id, status, priority);
 CREATE INDEX recommendations_workspace_type_idx ON recommendations(workspace_id, recommendation_type);

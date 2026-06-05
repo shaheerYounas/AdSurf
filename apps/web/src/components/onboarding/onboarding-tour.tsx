@@ -223,7 +223,7 @@ function ReplayTourButton() {
   const onClick = () => window.dispatchEvent(new CustomEvent(RESTART_EVENT));
   return (
     <button
-      aria-label="Replay onboarding tour"
+      aria-label="Replay tour"
       className="fixed bottom-4 right-4 z-30 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/95 px-3 py-2 text-xs font-semibold text-slate-700 shadow-lg shadow-slate-950/10 backdrop-blur transition hover:-translate-y-0.5 hover:border-indigo-300 hover:text-indigo-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 dark:border-white/10 dark:bg-slate-900/90 dark:text-slate-200 dark:hover:border-indigo-300/40 dark:hover:text-white"
       onClick={onClick}
       title="Replay onboarding tour"

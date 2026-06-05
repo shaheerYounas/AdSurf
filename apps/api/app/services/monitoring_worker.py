@@ -62,8 +62,8 @@ class MonitoringWorker:
             import_record = self._monitoring_repository.get_import(workspace_id=job.workspace_id, monitoring_import_id=monitoring_import_id)
             if import_record is None:
                 raise ApiError(code="MONITORING_IMPORT_NOT_FOUND", message="Monitoring import was not found.", status_code=404)
-            if import_record.status != MonitoringImportStatus.QUEUED:
-                raise ApiError(code="MONITORING_IMPORT_NOT_PROCESSABLE", message="Monitoring import is not queued.", status_code=409)
+            if import_record.status not in {MonitoringImportStatus.QUEUED, MonitoringImportStatus.PROCESSING}:
+                raise ApiError(code="MONITORING_IMPORT_NOT_PROCESSABLE", message="Monitoring import is not queued or processing.", status_code=409)
             product = self._product_repository.get(workspace_id=import_record.workspace_id, product_id=import_record.product_id)
             if product is None:
                 raise ApiError(code="PRODUCT_NOT_FOUND", message="Product profile was not found.", status_code=404)
@@ -88,7 +88,7 @@ class MonitoringWorker:
                     status=MonitoringImportStatus.FAILED,
                     total_rows=total,
                     processed_rows=len(snapshots),
-                    error_rows=len(warnings),
+                    error_rows=_blocking_issue_count(warnings),
                     data_quality_warnings_json=warnings,
                     error_message="AI recommendation generation failed validation or provider checks.",
                 )
@@ -142,7 +142,7 @@ class MonitoringWorker:
                 status=MonitoringImportStatus.SUCCEEDED,
                 total_rows=total,
                 processed_rows=len(snapshots),
-                error_rows=len(warnings),
+                error_rows=_blocking_issue_count(warnings),
                 date_range_start=date_range_start,
                 date_range_end=date_range_end,
                 data_quality_warnings_json=warnings,
@@ -167,11 +167,11 @@ class MonitoringWorker:
             )
             return MonitoringWorkerResult(job=job, import_record=import_record, processed=True)
         except Exception as exc:
-            message = exc.message if isinstance(exc, ApiError) else "Monitoring import failed."
+            message = exc.message if isinstance(exc, ApiError) else str(exc) or "Monitoring import failed."
             if import_record is not None:
                 warnings = []
                 if isinstance(exc, ApiError):
-                    warnings = [{"code": exc.code, "message": exc.message, "details": exc.details}]
+                    warnings = [{"code": exc.code, "severity": "error", "message": exc.message, "details": exc.details}]
                     failed_run = build_failed_import_agent_run(
                         workspace_id=import_record.workspace_id,
                         product_id=import_record.product_id,
@@ -222,7 +222,7 @@ class MonitoringWorker:
                 message="AI Recommendation Brain was disabled or stopped before execution.",
                 metadata_json={"enabled": brain_config.enabled, "execution_boundary": "no_live_amazon_change"},
             )
-            return fallback, local_runs, FALLBACK_DECISION_SOURCE, [{"code": "AGENT_SKIPPED", "message": "AI Recommendation Brain was disabled or stopped before execution.", "details": {"agent_id": "ai_recommendation_brain_agent"}}]
+            return fallback, local_runs, FALLBACK_DECISION_SOURCE, [{"code": "AGENT_SKIPPED", "severity": "info", "message": "AI Recommendation Brain was disabled or stopped before execution.", "details": {"agent_id": "ai_recommendation_brain_agent"}}]
         baseline = None
         if mode == "hybrid":
             baseline = build_deterministic_recommendations(product=product, import_record=import_record, snapshots=snapshots)
@@ -254,6 +254,7 @@ class MonitoringWorker:
             {
                 "code": "AI_RECOMMENDATION_FAILED",
                 "message": "AI recommendation generation failed validation or provider checks.",
+                "severity": "warning",
                 "details": {"validation_errors": result.validation_errors, "mode": mode},
             }
         ]
@@ -362,3 +363,7 @@ class MonitoringWorker:
 
 def _related_recommendation_ids(*, agent_id: str, recommendation_ids: list[str]) -> list[str]:
     return recommendation_ids if agent_id in {"bid_optimization_agent", "negative_keyword_agent", "pause_review_agent", "stakeholder_reporting_agent"} else []
+
+
+def _blocking_issue_count(warnings: list[dict]) -> int:
+    return sum(1 for warning in warnings if str(warning.get("severity", "")).lower() in {"error", "critical"})

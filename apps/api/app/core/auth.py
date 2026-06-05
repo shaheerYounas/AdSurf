@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from enum import StrEnum
 from uuid import UUID
@@ -102,6 +103,12 @@ class ProductionJwtAuthAdapter(AuthAdapter):
         authorization = request.headers.get("authorization")
         if not authorization:
             raise ApiError(code="UNAUTHENTICATED", message="Authentication is required.", status_code=401)
+        if not os.getenv("SUPABASE_JWT_SECRET"):
+            raise ApiError(
+                code="AUTH_NOT_CONFIGURED",
+                message="SUPABASE_JWT_SECRET must be configured before deployed authentication is enabled.",
+                status_code=503,
+            )
 
         raise ApiError(
             code="AUTH_NOT_IMPLEMENTED",

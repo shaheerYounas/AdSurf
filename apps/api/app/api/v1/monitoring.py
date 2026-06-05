@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -30,6 +31,18 @@ RECOMMENDATION_DECISION_ROLES = {
     WorkspaceRole.ANALYST,
     WorkspaceRole.APPROVER,
 }
+
+ACTION_RECOMMENDATION_TYPES = {
+    "increase_bid",
+    "decrease_bid",
+    "add_negative_exact",
+    "add_negative_phrase",
+    "move_to_exact",
+    "pause_review",
+}
+NON_ACTION_INSIGHT_TYPES = {"keep_running", "watch_lock"}
+DATA_QUALITY_TYPES = {"data_quality_review", "data_quality_warning"}
+BUDGET_REVIEW_TYPES = {"budget_review"}
 
 
 @router.post("/workspaces/{workspace_id}/products/{product_id}/monitoring-imports")
@@ -67,6 +80,34 @@ def create_monitoring_import(
     if parse_run is None:
         raise ApiError(code="PARSE_RUN_NOT_FOUND", message="Monitoring import requires a succeeded parse run.", status_code=409)
 
+    existing_import = monitoring_repository.get_import_for_upload(
+        workspace_id=workspace_id,
+        product_id=product_id,
+        upload_id=upload.id,
+        report_type="sponsored_products_search_term",
+    )
+    if existing_import is not None:
+        audit_repository.record(
+            workspace_id=workspace_id,
+            actor_user_id=principal.user_id,
+            action="monitoring_import.duplicate_reused",
+            entity_type="monitoring_import",
+            entity_id=existing_import.id,
+            details={
+                "upload_id": str(upload.id),
+                "parse_run_id": str(parse_run.id),
+                "already_imported": True,
+                "execution_boundary": "no_live_amazon_change",
+            },
+        )
+        response = MonitoringImportResponse(
+            import_record=existing_import,
+            job_id=None,
+            already_imported=True,
+            message="This upload was already imported. View the existing import or explicitly re-run analysis.",
+        )
+        return success_response(data=response.model_dump(mode="json"))
+
     import_record = monitoring_repository.create_import(
         import_record=new_monitoring_import(
             workspace_id=workspace_id,
@@ -91,7 +132,7 @@ def create_monitoring_import(
         entity_id=import_record.id,
         details={"upload_id": str(upload.id), "parse_run_id": str(parse_run.id), "job_created": created},
     )
-    response = MonitoringImportResponse(import_record=import_record, job_id=job.id)
+    response = MonitoringImportResponse(import_record=import_record, job_id=job.id, already_imported=False)
     return success_response(data=response.model_dump(mode="json"))
 
 
@@ -147,23 +188,40 @@ def get_product_monitoring(
     from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=4) as pool:
         imports_future = pool.submit(monitoring_repository.list_imports, workspace_id=workspace_id, product_id=product_id)
-        recommendations_future = pool.submit(monitoring_repository.list_recommendations, workspace_id=workspace_id, product_id=product_id, limit=500)
+        recommendations_future = pool.submit(monitoring_repository.list_recommendations, workspace_id=workspace_id, product_id=product_id)
         ai_brain_future = pool.submit(monitoring_repository.list_ai_runs, workspace_id=workspace_id, product_id=product_id, agent_name=AI_RECOMMENDATION_AGENT_NAME, limit=1)
         product_summaries_future = pool.submit(monitoring_repository.list_ai_runs, workspace_id=workspace_id, product_id=product_id, agent_name="stakeholder_reporting_agent", limit=1)
         imports = imports_future.result()
         recommendations = recommendations_future.result()
         ai_brain_runs = ai_brain_future.result()
         product_summaries = product_summaries_future.result()
+    latest_import = imports[0] if imports else None
+    snapshots = (
+        monitoring_repository.list_snapshots(workspace_id=workspace_id, product_id=product_id, monitoring_import_id=latest_import.id)
+        if latest_import
+        else []
+    )
     latest_summary = ai_brain_runs[0] if ai_brain_runs and ai_brain_runs[0].status == "succeeded" else product_summaries[0] if product_summaries else None
     counts: dict[str, int] = {}
     for recommendation in recommendations:
         counts[recommendation.status.value] = counts.get(recommendation.status.value, 0) + 1
         counts[recommendation.recommendation_type.value] = counts.get(recommendation.recommendation_type.value, 0) + 1
+    detected_product_groups = _detected_product_groups(snapshots)
     summary = MonitoringSummary(
         imports=imports[:10],
         recommendation_counts=counts,
         top_recommendations=recommendations[:10],
         agent_summary=_dashboard_summary_from_ai_run(latest_summary) if latest_summary else None,
+        summary_metrics=_summary_metrics(
+            latest_import=latest_import,
+            snapshots=snapshots,
+            recommendations=recommendations,
+            detected_product_groups=detected_product_groups,
+        ),
+        action_recommendation_counts=_counts_for(recommendations, ACTION_RECOMMENDATION_TYPES),
+        non_action_insight_counts=_counts_for(recommendations, NON_ACTION_INSIGHT_TYPES),
+        issue_counts=_issue_counts(latest_import.data_quality_warnings_json if latest_import else []),
+        detected_product_groups=detected_product_groups,
     )
     return success_response(data=summary.model_dump(mode="json"))
 
@@ -319,3 +377,145 @@ def _dashboard_summary_from_ai_run(ai_run) -> dict:
             "ai_schema_version": ai_run.schema_version,
         }
     return output
+
+
+def _counts_for(recommendations, recommendation_types: set[str]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for recommendation in recommendations:
+        rec_type = recommendation.recommendation_type.value
+        if rec_type in recommendation_types:
+            counts[rec_type] = counts.get(rec_type, 0) + 1
+    return counts
+
+
+def _issue_counts(messages: list[dict]) -> dict[str, int]:
+    counts = {"info": 0, "warning": 0, "error": 0, "critical": 0}
+    for message in messages:
+        severity = str(message.get("severity") or _severity_from_legacy_label(message.get("risk_label"))).lower()
+        if severity not in counts:
+            severity = "warning"
+        counts[severity] += 1
+    return counts
+
+
+def _severity_from_legacy_label(label: object) -> str:
+    label_text = str(label or "").lower()
+    if label_text == "high_risk":
+        return "critical"
+    if label_text in {"not_enough_data", "possible_duplicate", "possible_asin_targeting"}:
+        return "info"
+    if label_text == "safe":
+        return "info"
+    return "warning"
+
+
+def _summary_metrics(*, latest_import, snapshots, recommendations, detected_product_groups: list[dict]) -> dict:
+    total_spend = sum((snapshot.spend for snapshot in snapshots), Decimal("0"))
+    total_sales = sum((snapshot.sales for snapshot in snapshots), Decimal("0"))
+    total_orders = sum(snapshot.orders for snapshot in snapshots)
+    total_clicks = sum(snapshot.clicks for snapshot in snapshots)
+    total_impressions = sum(snapshot.impressions for snapshot in snapshots)
+    zero_order_spend = sum((snapshot.spend for snapshot in snapshots if snapshot.orders == 0), Decimal("0"))
+    pending = sum(1 for item in recommendations if item.status.value == "pending_approval")
+    actionable = sum(1 for item in recommendations if item.recommendation_type.value in ACTION_RECOMMENDATION_TYPES)
+    watch = sum(1 for item in recommendations if item.recommendation_type.value in NON_ACTION_INSIGHT_TYPES)
+    data_quality = sum(1 for item in recommendations if item.recommendation_type.value in DATA_QUALITY_TYPES)
+    budget = sum(1 for item in recommendations if item.recommendation_type.value in BUDGET_REVIEW_TYPES)
+    return {
+        "rows_analyzed": latest_import.processed_rows if latest_import else len(snapshots),
+        "report_rows": latest_import.total_rows if latest_import else len(snapshots),
+        "recommendations_generated": len(recommendations),
+        "pending_human_review": pending,
+        "actionable_recommendations": actionable,
+        "watch_insights": watch,
+        "data_quality_checks": data_quality,
+        "budget_review_notes": budget,
+        "total_spend": _money_str(total_spend),
+        "total_sales": _money_str(total_sales),
+        "total_orders": total_orders,
+        "total_clicks": total_clicks,
+        "total_impressions": total_impressions,
+        "overall_acos": _rate_str(total_spend / total_sales) if total_sales > 0 else None,
+        "zero_order_spend": _money_str(zero_order_spend),
+        "detected_products": len(detected_product_groups),
+        "no_live_amazon_changes": True,
+        "manual_export_required": True,
+    }
+
+
+def _detected_product_groups(snapshots) -> list[dict]:
+    groups: dict[str, dict] = {}
+    for snapshot in snapshots:
+        identifiers = _product_identifiers_from_raw(snapshot.raw_metrics_json)
+        key = identifiers.get("asin") or identifiers.get("sku")
+        if not key:
+            continue
+        group = groups.setdefault(
+            key,
+            {
+                "key": key,
+                "asin": identifiers.get("asin"),
+                "sku": identifiers.get("sku"),
+                "rows": 0,
+                "spend": Decimal("0"),
+                "sales": Decimal("0"),
+                "orders": 0,
+                "campaigns": set(),
+                "source": identifiers.get("source"),
+            },
+        )
+        group["rows"] += 1
+        group["spend"] += snapshot.spend
+        group["sales"] += snapshot.sales
+        group["orders"] += snapshot.orders
+        group["campaigns"].add(snapshot.campaign_name)
+    output = []
+    for group in sorted(groups.values(), key=lambda item: item["spend"], reverse=True):
+        output.append(
+            {
+                "key": group["key"],
+                "asin": group["asin"],
+                "sku": group["sku"],
+                "rows": group["rows"],
+                "spend": _money_str(group["spend"]),
+                "sales": _money_str(group["sales"]),
+                "orders": group["orders"],
+                "campaign_count": len(group["campaigns"]),
+                "source": group["source"],
+            }
+        )
+    return output
+
+
+def _product_identifiers_from_raw(row: dict) -> dict[str, str | None]:
+    normalized = {_normalize_header(key): value for key, value in row.items()}
+    for asin_key in ("advertised asin", "advertised asin  asin", "campaign owned asin", "asin"):
+        asin = _clean_identifier(normalized.get(asin_key))
+        if asin:
+            return {"asin": asin.upper(), "sku": _clean_identifier(normalized.get("advertised sku") or normalized.get("sku")), "source": asin_key}
+    for sku_key in ("advertised sku", "sku"):
+        sku = _clean_identifier(normalized.get(sku_key))
+        if sku:
+            return {"asin": None, "sku": sku, "source": sku_key}
+    return {"asin": None, "sku": None, "source": None}
+
+
+def _clean_identifier(value: object) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _normalize_header(value: object) -> str:
+    import re
+
+    return re.sub(r"[^a-z0-9]+", " ", str(value).strip().lower()).strip()
+
+
+def _money_str(value: Decimal) -> str:
+    return str(value.quantize(Decimal("0.0001")))
+
+
+def _rate_str(value: Decimal) -> str:
+    return str(value.quantize(Decimal("0.0001")))

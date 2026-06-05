@@ -1,0 +1,950 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - button "Main menu" [ref=e6] [cursor=pointer]:
+            - img [ref=e7]
+            - text: Main menu
+          - button "Switch to dark mode" [ref=e185] [cursor=pointer]:
+            - img [ref=e186]
+        - generic [ref=e12]:
+          - img [ref=e14]
+          - generic [ref=e16]:
+            - paragraph [ref=e17]: AdSurf
+            - paragraph [ref=e18]: Agent Ops
+        - generic [ref=e19]:
+          - paragraph [ref=e20]: Workspace
+          - paragraph [ref=e21]: 00000000-0000-0000-0000-000000000001
+      - navigation "Agent Ops navigation" [ref=e22]:
+        - link "Workspace" [ref=e23] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e24]
+          - text: Workspace
+        - link "Reports" [ref=e29] [cursor=pointer]:
+          - /url: /agents#reports
+          - img [ref=e30]
+          - text: Reports
+        - link "Agents" [ref=e33] [cursor=pointer]:
+          - /url: /agents
+          - img [ref=e34]
+          - text: Agents
+        - link "Workflows" [ref=e37] [cursor=pointer]:
+          - /url: /agents#workflow-canvas
+          - img [ref=e38]
+          - text: Workflows
+        - link "Recommendations" [ref=e42] [cursor=pointer]:
+          - /url: /recommendations
+          - img [ref=e43]
+          - text: Recommendations
+        - link "Approvals" [ref=e45] [cursor=pointer]:
+          - /url: /agents#approval-checkpoints
+          - img [ref=e46]
+          - text: Approvals
+        - link "Settings" [ref=e50] [cursor=pointer]:
+          - /url: /agents#agent-settings
+          - img [ref=e51]
+          - text: Settings
+    - main [ref=e54]:
+      - generic [ref=e55]:
+        - navigation "Page history" [ref=e56]:
+          - link "Previous page" [ref=e188] [cursor=pointer]:
+            - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc
+            - img [ref=e59]
+            - generic [ref=e61]: Previous page
+        - generic [ref=e63]:
+          - heading "Agent Control Center" [level=1] [ref=e64]
+          - main [ref=e65]:
+            - generic [ref=e67]:
+              - generic [ref=e68]:
+                - heading "Agent Control Center" [level=1] [ref=e69]
+                - paragraph [ref=e70]: Upload Amazon Ads reports and review AI recommendations before any action is taken.
+              - generic [ref=e71]:
+                - button "Hybrid" [ref=e73] [cursor=pointer]:
+                  - generic [ref=e74]: Hybrid
+                  - img [ref=e75]
+                - button "Run analysis" [ref=e77] [cursor=pointer]:
+                  - img [ref=e78]
+                  - text: Run analysis
+                - button "Bulk" [ref=e81] [cursor=pointer]:
+                  - img [ref=e82]
+                  - generic [ref=e85]: Bulk
+                  - img [ref=e86]
+                - button "Approvals" [ref=e88] [cursor=pointer]:
+                  - img [ref=e89]
+                  - text: Approvals
+            - generic [ref=e93]:
+              - generic [ref=e95]:
+                - generic [ref=e96]:
+                  - generic [ref=e97]:
+                    - img [ref=e98]
+                    - text: Start analysis
+                  - heading "Upload Amazon Ads Report" [level=2] [ref=e101]
+                  - paragraph [ref=e102]: Upload an account-level report or bulk sheet. AdSurf detects report types, groups entities, and prepares AI recommendations — all behind human approval.
+                  - generic [ref=e103]:
+                    - generic [ref=e104]:
+                      - paragraph [ref=e105]: Completed
+                      - paragraph [ref=e106]: "5"
+                    - generic [ref=e107]:
+                      - paragraph [ref=e108]: Running
+                      - paragraph [ref=e109]: "0"
+                    - generic [ref=e110]:
+                      - paragraph [ref=e111]: Failed
+                      - paragraph [ref=e112]: "0"
+                    - generic [ref=e113]:
+                      - paragraph [ref=e114]: Needs approval
+                      - paragraph [ref=e115]: "14"
+                - generic [ref=e116]:
+                  - generic [ref=e117]:
+                    - text: Report file
+                    - button "Report file" [ref=e118]
+                  - button "Upload report" [disabled]:
+                    - img
+                    - text: Upload report
+                  - generic [ref=e119]:
+                    - paragraph [ref=e120]: Agent view
+                    - tablist "Agent view mode" [ref=e121]:
+                      - tab "Simple Mode" [selected] [ref=e122] [cursor=pointer]:
+                        - img [ref=e123]
+                        - text: Simple Pipeline
+                      - tab "Advanced Mode" [ref=e126] [cursor=pointer]:
+                        - img [ref=e127]
+                        - text: Visual Canvas
+                    - paragraph [ref=e131]: A clean step-by-step view of the agent pipeline. Click any agent card to open its full details.
+              - generic [ref=e189]:
+                - generic [ref=e190]:
+                  - generic [ref=e191]:
+                    - paragraph [ref=e192]: Agent Pipeline
+                    - heading "Step-by-step analysis pipeline" [level=2] [ref=e193]
+                    - paragraph [ref=e194]: Agents run in sequence. Click any card for full details, configuration, and recommendations.
+                  - generic [ref=e195]: Approval-controlled workflow
+                - generic [ref=e196]:
+                  - generic [ref=e197]:
+                    - button [ref=e199] [cursor=pointer]:
+                      - img [ref=e200]
+                    - button "Report Upload Waiting Start Waiting for report upload 0 recommendations" [ref=e204] [cursor=pointer]:
+                      - generic [ref=e205]:
+                        - heading "Report Upload" [level=3] [ref=e206]
+                        - generic [ref=e207]: Waiting
+                        - generic [ref=e208]: Start
+                      - paragraph [ref=e209]: Waiting for report upload
+                      - generic [ref=e211]: 0 recommendations
+                  - generic [ref=e212]:
+                    - button [ref=e214] [cursor=pointer]:
+                      - img [ref=e215]
+                    - button "Import & Data Quality Agent Completed Validation Validate report rows, columns, and data quality 0 recommendations 6/4/2026" [ref=e219] [cursor=pointer]:
+                      - generic [ref=e220]:
+                        - heading "Import & Data Quality Agent" [level=3] [ref=e221]
+                        - generic [ref=e222]: Completed
+                        - generic [ref=e223]: Validation
+                      - paragraph [ref=e224]: Validate report rows, columns, and data quality
+                      - generic [ref=e225]:
+                        - generic [ref=e226]: 0 recommendations
+                        - generic [ref=e227]: 6/4/2026
+                  - generic [ref=e228]:
+                    - button [ref=e230] [cursor=pointer]:
+                      - img [ref=e231]
+                    - button "Entity Resolution Agent Idle Mapping Map campaigns, ad groups, ASINs, SKUs, and search terms 0 recommendations" [ref=e236] [cursor=pointer]:
+                      - generic [ref=e237]:
+                        - heading "Entity Resolution Agent" [level=3] [ref=e238]
+                        - generic [ref=e239]: Idle
+                        - generic [ref=e240]: Mapping
+                      - paragraph [ref=e241]: Map campaigns, ad groups, ASINs, SKUs, and search terms
+                      - generic [ref=e243]: 0 recommendations
+                  - generic [ref=e244]:
+                    - button [ref=e246] [cursor=pointer]:
+                      - img [ref=e247]
+                    - button "Metrics Normalization Agent Completed Analysis Calculate CPC, CTR, CVR, ACOS, ROAS deterministically 0 recommendations 6/4/2026" [ref=e250] [cursor=pointer]:
+                      - generic [ref=e251]:
+                        - heading "Metrics Normalization Agent" [level=3] [ref=e252]
+                        - generic [ref=e253]: Completed
+                        - generic [ref=e254]: Analysis
+                      - paragraph [ref=e255]: Calculate CPC, CTR, CVR, ACOS, ROAS deterministically
+                      - generic [ref=e256]:
+                        - generic [ref=e257]: 0 recommendations
+                        - generic [ref=e258]: 6/4/2026
+                  - generic [ref=e259]:
+                    - button [ref=e261] [cursor=pointer]:
+                      - img [ref=e262]
+                    - button "Account Strategy Agent Idle Strategy Determine optimization goal and risk policy 0 recommendations" [ref=e266] [cursor=pointer]:
+                      - generic [ref=e267]:
+                        - heading "Account Strategy Agent" [level=3] [ref=e268]
+                        - generic [ref=e269]: Idle
+                        - generic [ref=e270]: Strategy
+                      - paragraph [ref=e271]: Determine optimization goal and risk policy
+                      - generic [ref=e273]: 0 recommendations
+                  - generic [ref=e274]:
+                    - button [ref=e276] [cursor=pointer]:
+                      - img [ref=e277]
+                    - 'button "Search Term Mining Agent Idle Analysis Classify search terms: harvest, negative, watch, ignore 0 recommendations" [ref=e281] [cursor=pointer]':
+                      - generic [ref=e282]:
+                        - heading "Search Term Mining Agent" [level=3] [ref=e283]
+                        - generic [ref=e284]: Idle
+                        - generic [ref=e285]: Analysis
+                      - paragraph [ref=e286]: "Classify search terms: harvest, negative, watch, ignore"
+                      - generic [ref=e288]: 0 recommendations
+                  - generic [ref=e289]:
+                    - button [ref=e291] [cursor=pointer]:
+                      - img [ref=e292]
+                    - button "Bid Optimization Agent Completed Decision Recommend bid increase/decrease with evidence 2 recommendations 6/4/2026" [ref=e296] [cursor=pointer]:
+                      - generic [ref=e297]:
+                        - heading "Bid Optimization Agent" [level=3] [ref=e298]
+                        - generic [ref=e299]: Completed
+                        - generic [ref=e300]: Decision
+                      - paragraph [ref=e301]: Recommend bid increase/decrease with evidence
+                      - generic [ref=e302]:
+                        - generic [ref=e303]: 2 recommendations
+                        - generic [ref=e304]: 6/4/2026
+                  - generic [ref=e305]:
+                    - button [ref=e307] [cursor=pointer]:
+                      - img [ref=e308]
+                    - button "Negative Keyword Agent Completed Decision Recommend negative exact/phrase candidates 2 recommendations 6/4/2026" [ref=e312] [cursor=pointer]:
+                      - generic [ref=e313]:
+                        - heading "Negative Keyword Agent" [level=3] [ref=e314]
+                        - generic [ref=e315]: Completed
+                        - generic [ref=e316]: Decision
+                      - paragraph [ref=e317]: Recommend negative exact/phrase candidates
+                      - generic [ref=e318]:
+                        - generic [ref=e319]: 2 recommendations
+                        - generic [ref=e320]: 6/4/2026
+                  - generic [ref=e321]:
+                    - button [ref=e323] [cursor=pointer]:
+                      - img [ref=e324]
+                    - button "Budget Reallocation Agent Idle Decision Recommend budget shifts across campaigns 0 recommendations" [ref=e328] [cursor=pointer]:
+                      - generic [ref=e329]:
+                        - heading "Budget Reallocation Agent" [level=3] [ref=e330]
+                        - generic [ref=e331]: Idle
+                        - generic [ref=e332]: Decision
+                      - paragraph [ref=e333]: Recommend budget shifts across campaigns
+                      - generic [ref=e335]: 0 recommendations
+                  - generic [ref=e336]:
+                    - button [ref=e338] [cursor=pointer]:
+                      - img [ref=e339]
+                    - button "Campaign Structure Agent Idle Decision Recommend structural campaign changes 0 recommendations" [ref=e343] [cursor=pointer]:
+                      - generic [ref=e344]:
+                        - heading "Campaign Structure Agent" [level=3] [ref=e345]
+                        - generic [ref=e346]: Idle
+                        - generic [ref=e347]: Decision
+                      - paragraph [ref=e348]: Recommend structural campaign changes
+                      - generic [ref=e350]: 0 recommendations
+                  - generic [ref=e351]:
+                    - button [ref=e353] [cursor=pointer]:
+                      - img [ref=e354]
+                    - button "Risk & Policy Validator Agent Idle Validation Validate every recommendation against safety rules 0 recommendations" [ref=e358] [cursor=pointer]:
+                      - generic [ref=e359]:
+                        - heading "Risk & Policy Validator Agent" [level=3] [ref=e360]
+                        - generic [ref=e361]: Idle
+                        - generic [ref=e362]: Validation
+                      - paragraph [ref=e363]: Validate every recommendation against safety rules
+                      - generic [ref=e365]: 0 recommendations
+                  - generic [ref=e366]:
+                    - button [ref=e368] [cursor=pointer]:
+                      - img [ref=e369]
+                    - button "Human Approval Agent Idle Approval Route recommendations to approval queue 0 recommendations" [ref=e374] [cursor=pointer]:
+                      - generic [ref=e375]:
+                        - heading "Human Approval Agent" [level=3] [ref=e376]
+                        - generic [ref=e377]: Idle
+                        - generic [ref=e378]: Approval
+                      - paragraph [ref=e379]: Route recommendations to approval queue
+                      - generic [ref=e381]: 0 recommendations
+                  - generic [ref=e382]:
+                    - button [ref=e384] [cursor=pointer]:
+                      - img [ref=e385]
+                    - button "Bulk Change Compiler Agent Idle Export Compile approved changes into Amazon bulk export 0 recommendations" [ref=e389] [cursor=pointer]:
+                      - generic [ref=e390]:
+                        - heading "Bulk Change Compiler Agent" [level=3] [ref=e391]
+                        - generic [ref=e392]: Idle
+                        - generic [ref=e393]: Export
+                      - paragraph [ref=e394]: Compile approved changes into Amazon bulk export
+                      - generic [ref=e396]: 0 recommendations
+                  - generic [ref=e397]:
+                    - button [ref=e399] [cursor=pointer]:
+                      - img [ref=e400]
+                    - button "Learning & Feedback Agent Idle Analysis Compare prior recommendations with new metrics 0 recommendations" [ref=e404] [cursor=pointer]:
+                      - generic [ref=e405]:
+                        - heading "Learning & Feedback Agent" [level=3] [ref=e406]
+                        - generic [ref=e407]: Idle
+                        - generic [ref=e408]: Analysis
+                      - paragraph [ref=e409]: Compare prior recommendations with new metrics
+                      - generic [ref=e411]: 0 recommendations
+                  - generic [ref=e412]:
+                    - button [ref=e414] [cursor=pointer]:
+                      - img [ref=e415]
+                    - button "Stakeholder Reporting Agent Completed Reporting Create summaries and approver notes 2 recommendations 6/4/2026" [ref=e418] [cursor=pointer]:
+                      - generic [ref=e419]:
+                        - heading "Stakeholder Reporting Agent" [level=3] [ref=e420]
+                        - generic [ref=e421]: Completed
+                        - generic [ref=e422]: Reporting
+                      - paragraph [ref=e423]: Create summaries and approver notes
+                      - generic [ref=e424]:
+                        - generic [ref=e425]: 2 recommendations
+                        - generic [ref=e426]: 6/4/2026
+              - generic [ref=e140]:
+                - generic [ref=e141]:
+                  - generic [ref=e142]:
+                    - paragraph [ref=e143]: Human Approval Checkpoints
+                    - heading "14 recommendations waiting approval" [level=2] [ref=e427]
+                  - generic [ref=e145]:
+                    - generic [ref=e146]: 0 high priority
+                    - generic [ref=e147]: 1 risky actions
+                    - generic [ref=e148]: Requires human approval
+                    - generic [ref=e149]: AI confidence visible
+                - generic [ref=e150]:
+                  - article [ref=e428]:
+                    - generic [ref=e429]:
+                      - generic [ref=e430]:
+                        - img [ref=e431]
+                        - text: Recommendation
+                      - generic [ref=e434]:
+                        - img [ref=e435]
+                        - text: "Priority: Medium"
+                      - generic [ref=e437]: "Confidence: Medium"
+                    - heading "Negative keyword candidate" [level=3] [ref=e438]
+                    - paragraph [ref=e439]: Camp1
+                    - generic [ref=e440]:
+                      - img [ref=e441]
+                      - text: Add as exact negative keyword
+                    - paragraph [ref=e443]: Deterministic account workflow found metric evidence for a review-only recommendation.
+                    - generic [ref=e444]:
+                      - 'generic "Impressions: 80" [ref=e445]':
+                        - generic [ref=e446]: Impressions
+                        - generic [ref=e447]: "80"
+                      - 'generic "Clicks: 7" [ref=e448]':
+                        - generic [ref=e449]: Clicks
+                        - generic [ref=e450]: "7"
+                      - 'generic "Spend: $9.50" [ref=e451]':
+                        - generic [ref=e452]: Spend
+                        - generic [ref=e453]: $9.50
+                      - 'generic "Sales: $0.00" [ref=e454]':
+                        - generic [ref=e455]: Sales
+                        - generic [ref=e456]: $0.00
+                      - 'generic "Orders: 0" [ref=e457]':
+                        - generic [ref=e458]: Orders
+                        - generic [ref=e459]: "0"
+                      - 'generic "Units: 0" [ref=e460]':
+                        - generic [ref=e461]: Units
+                        - generic [ref=e462]: "0"
+                    - generic [ref=e463]:
+                      - generic [ref=e464]:
+                        - img [ref=e465]
+                        - generic [ref=e467]: Product not linked — review required before export.
+                      - generic [ref=e468]:
+                        - img [ref=e469]
+                        - generic [ref=e471]: Generated by deterministic rules from uploaded report metrics.
+                    - generic [ref=e472]:
+                      - img [ref=e473]
+                      - text: Approving this recommendation adds it to your approved export/review list. It will not change Amazon Ads automatically.
+                    - button "View advanced details IDs, source, thresholds" [ref=e477] [cursor=pointer]:
+                      - generic [ref=e478]:
+                        - img [ref=e479]
+                        - text: View advanced details
+                      - generic [ref=e481]: IDs, source, thresholds
+                    - generic [ref=e482]:
+                      - button "Approve recommendation" [ref=e483] [cursor=pointer]:
+                        - img [ref=e484]
+                        - text: Approve recommendation
+                      - button "Reject recommendation" [ref=e487] [cursor=pointer]:
+                        - img [ref=e488]
+                        - text: Reject recommendation
+                  - article [ref=e490]:
+                    - generic [ref=e491]:
+                      - generic [ref=e492]:
+                        - img [ref=e493]
+                        - text: Recommendation
+                      - generic [ref=e496]:
+                        - img [ref=e497]
+                        - text: "Priority: Medium"
+                      - generic [ref=e499]: "Confidence: High"
+                    - heading "High ACOS campaign needs review" [level=3] [ref=e500]
+                    - paragraph [ref=e501]: Camp1
+                    - generic [ref=e502]:
+                      - img [ref=e503]
+                      - text: Review budget allocation
+                    - paragraph [ref=e505]: Deterministic account workflow found metric evidence for a review-only recommendation.
+                    - generic [ref=e506]:
+                      - 'generic "Impressions: 180" [ref=e507]':
+                        - generic [ref=e508]: Impressions
+                        - generic [ref=e509]: "180"
+                      - 'generic "Clicks: 12" [ref=e510]':
+                        - generic [ref=e511]: Clicks
+                        - generic [ref=e512]: "12"
+                      - 'generic "Spend: $14.50" [ref=e513]':
+                        - generic [ref=e514]: Spend
+                        - generic [ref=e515]: $14.50
+                      - 'generic "Sales: $20.00" [ref=e516]':
+                        - generic [ref=e517]: Sales
+                        - generic [ref=e518]: $20.00
+                      - 'generic "Orders: 1" [ref=e519]':
+                        - generic [ref=e520]: Orders
+                        - generic [ref=e521]: "1"
+                      - 'generic "Units: 0" [ref=e522]':
+                        - generic [ref=e523]: Units
+                        - generic [ref=e524]: "0"
+                    - generic [ref=e525]:
+                      - generic [ref=e526]:
+                        - img [ref=e527]
+                        - generic [ref=e529]: Product not linked — review required before export.
+                      - generic [ref=e530]:
+                        - img [ref=e531]
+                        - generic [ref=e533]: "Review-only: no automatic change will be made."
+                      - generic [ref=e534]:
+                        - img [ref=e535]
+                        - generic [ref=e537]: Generated by deterministic rules from uploaded report metrics.
+                    - generic [ref=e538]:
+                      - img [ref=e539]
+                      - text: Approving this recommendation adds it to your approved export/review list. It will not change Amazon Ads automatically.
+                    - button "View advanced details IDs, source, thresholds" [ref=e543] [cursor=pointer]:
+                      - generic [ref=e544]:
+                        - img [ref=e545]
+                        - text: View advanced details
+                      - generic [ref=e547]: IDs, source, thresholds
+                    - generic [ref=e548]:
+                      - button "Approve recommendation" [ref=e549] [cursor=pointer]:
+                        - img [ref=e550]
+                        - text: Approve recommendation
+                      - button "Reject recommendation" [ref=e553] [cursor=pointer]:
+                        - img [ref=e554]
+                        - text: Reject recommendation
+                  - article [ref=e556]:
+                    - generic [ref=e557]:
+                      - generic [ref=e558]:
+                        - img [ref=e559]
+                        - text: Recommendation
+                      - generic [ref=e562]:
+                        - img [ref=e563]
+                        - text: "Priority: Low"
+                      - generic [ref=e565]: "Confidence: Medium"
+                    - heading "Keep Running" [level=3] [ref=e566]
+                    - paragraph [ref=e567]: Camp1
+                    - generic [ref=e568]:
+                      - img [ref=e569]
+                      - text: Review and decide
+                    - paragraph [ref=e571]: Performance is within the current rule thresholds; keep monitoring without changing ads.
+                    - generic [ref=e572]:
+                      - 'generic "Impressions: 100" [ref=e573]':
+                        - generic [ref=e574]: Impressions
+                        - generic [ref=e575]: "100"
+                      - 'generic "Clicks: 5" [ref=e576]':
+                        - generic [ref=e577]: Clicks
+                        - generic [ref=e578]: "5"
+                      - 'generic "Spend: $5.00" [ref=e579]':
+                        - generic [ref=e580]: Spend
+                        - generic [ref=e581]: $5.00
+                      - 'generic "Sales: $20.00" [ref=e582]':
+                        - generic [ref=e583]: Sales
+                        - generic [ref=e584]: $20.00
+                      - 'generic "Orders: 1" [ref=e585]':
+                        - generic [ref=e586]: Orders
+                        - generic [ref=e587]: "1"
+                      - 'generic "Units: —" [ref=e588]':
+                        - generic [ref=e589]: Units
+                        - generic [ref=e590]: —
+                    - generic [ref=e592]:
+                      - img [ref=e593]
+                      - generic [ref=e595]: Generated by deterministic rules from uploaded report metrics.
+                    - generic [ref=e596]:
+                      - img [ref=e597]
+                      - text: Approving this recommendation adds it to your approved export/review list. It will not change Amazon Ads automatically.
+                    - button "View advanced details IDs, source, thresholds" [ref=e601] [cursor=pointer]:
+                      - generic [ref=e602]:
+                        - img [ref=e603]
+                        - text: View advanced details
+                      - generic [ref=e605]: IDs, source, thresholds
+                    - generic [ref=e606]:
+                      - button "Approve recommendation" [ref=e607] [cursor=pointer]:
+                        - img [ref=e608]
+                        - text: Approve recommendation
+                      - button "Reject recommendation" [ref=e611] [cursor=pointer]:
+                        - img [ref=e612]
+                        - text: Reject recommendation
+                  - article [ref=e614]:
+                    - generic [ref=e615]:
+                      - generic [ref=e616]:
+                        - img [ref=e617]
+                        - text: Recommendation
+                      - generic [ref=e620]:
+                        - img [ref=e621]
+                        - text: "Priority: Low"
+                      - generic [ref=e623]: "Confidence: Medium"
+                    - heading "Keep Running" [level=3] [ref=e624]
+                    - paragraph [ref=e625]: Camp1
+                    - generic [ref=e626]:
+                      - img [ref=e627]
+                      - text: Review and decide
+                    - paragraph [ref=e629]: Performance is within the current rule thresholds; keep monitoring without changing ads.
+                    - generic [ref=e630]:
+                      - 'generic "Impressions: 80" [ref=e631]':
+                        - generic [ref=e632]: Impressions
+                        - generic [ref=e633]: "80"
+                      - 'generic "Clicks: 7" [ref=e634]':
+                        - generic [ref=e635]: Clicks
+                        - generic [ref=e636]: "7"
+                      - 'generic "Spend: $9.50" [ref=e637]':
+                        - generic [ref=e638]: Spend
+                        - generic [ref=e639]: $9.50
+                      - 'generic "Sales: $0.00" [ref=e640]':
+                        - generic [ref=e641]: Sales
+                        - generic [ref=e642]: $0.00
+                      - 'generic "Orders: 0" [ref=e643]':
+                        - generic [ref=e644]: Orders
+                        - generic [ref=e645]: "0"
+                      - 'generic "Units: —" [ref=e646]':
+                        - generic [ref=e647]: Units
+                        - generic [ref=e648]: —
+                    - generic [ref=e650]:
+                      - img [ref=e651]
+                      - generic [ref=e653]: Generated by deterministic rules from uploaded report metrics.
+                    - generic [ref=e654]:
+                      - img [ref=e655]
+                      - text: Approving this recommendation adds it to your approved export/review list. It will not change Amazon Ads automatically.
+                    - button "View advanced details IDs, source, thresholds" [ref=e659] [cursor=pointer]:
+                      - generic [ref=e660]:
+                        - img [ref=e661]
+                        - text: View advanced details
+                      - generic [ref=e663]: IDs, source, thresholds
+                    - generic [ref=e664]:
+                      - button "Approve recommendation" [ref=e665] [cursor=pointer]:
+                        - img [ref=e666]
+                        - text: Approve recommendation
+                      - button "Reject recommendation" [ref=e669] [cursor=pointer]:
+                        - img [ref=e670]
+                        - text: Reject recommendation
+              - generic [ref=e153]:
+                - generic [ref=e155]:
+                  - heading "Trace Timeline" [level=2] [ref=e156]
+                  - paragraph [ref=e157]: Execution feed across model calls, validation, fallback, and approval checkpoints.
+                - list [ref=e672]:
+                  - listitem [ref=e673]:
+                    - group [ref=e674]:
+                      - generic "Agent Succeeded Stakeholder Reporting Agent 6/4/2026, 5:48:05 PM stakeholder_reporting_agent finished with status succeeded." [ref=e675] [cursor=pointer]:
+                        - img [ref=e677]
+                        - generic [ref=e680]:
+                          - generic [ref=e681]:
+                            - generic [ref=e682]: Agent Succeeded
+                            - generic [ref=e683]: Stakeholder Reporting Agent
+                            - generic [ref=e684]: 6/4/2026, 5:48:05 PM
+                          - generic [ref=e685]: stakeholder_reporting_agent finished with status succeeded.
+                        - img [ref=e686]
+                  - listitem [ref=e688]:
+                    - group [ref=e689]:
+                      - generic "Agent Succeeded Bid Optimization Agent 6/4/2026, 5:48:05 PM pause_review_agent finished with status succeeded." [ref=e690] [cursor=pointer]:
+                        - img [ref=e692]
+                        - generic [ref=e695]:
+                          - generic [ref=e696]:
+                            - generic [ref=e697]: Agent Succeeded
+                            - generic [ref=e698]: Bid Optimization Agent
+                            - generic [ref=e699]: 6/4/2026, 5:48:05 PM
+                          - generic [ref=e700]: pause_review_agent finished with status succeeded.
+                        - img [ref=e701]
+                  - listitem [ref=e703]:
+                    - group [ref=e704]:
+                      - generic "Agent Succeeded Negative Keyword Agent 6/4/2026, 5:48:05 PM negative_keyword_agent finished with status succeeded." [ref=e705] [cursor=pointer]:
+                        - img [ref=e707]
+                        - generic [ref=e710]:
+                          - generic [ref=e711]:
+                            - generic [ref=e712]: Agent Succeeded
+                            - generic [ref=e713]: Negative Keyword Agent
+                            - generic [ref=e714]: 6/4/2026, 5:48:05 PM
+                          - generic [ref=e715]: negative_keyword_agent finished with status succeeded.
+                        - img [ref=e716]
+                  - listitem [ref=e718]:
+                    - group [ref=e719]:
+                      - generic "Agent Succeeded Bid Optimization Agent 6/4/2026, 5:48:05 PM bid_optimization_agent finished with status succeeded." [ref=e720] [cursor=pointer]:
+                        - img [ref=e722]
+                        - generic [ref=e725]:
+                          - generic [ref=e726]:
+                            - generic [ref=e727]: Agent Succeeded
+                            - generic [ref=e728]: Bid Optimization Agent
+                            - generic [ref=e729]: 6/4/2026, 5:48:05 PM
+                          - generic [ref=e730]: bid_optimization_agent finished with status succeeded.
+                        - img [ref=e731]
+                  - listitem [ref=e733]:
+                    - group [ref=e734]:
+                      - generic "Agent Succeeded Metrics Normalization Agent 6/4/2026, 5:48:05 PM metrics_analysis_agent finished with status succeeded." [ref=e735] [cursor=pointer]:
+                        - img [ref=e737]
+                        - generic [ref=e740]:
+                          - generic [ref=e741]:
+                            - generic [ref=e742]: Agent Succeeded
+                            - generic [ref=e743]: Metrics Normalization Agent
+                            - generic [ref=e744]: 6/4/2026, 5:48:05 PM
+                          - generic [ref=e745]: metrics_analysis_agent finished with status succeeded.
+                        - img [ref=e746]
+                  - listitem [ref=e748]:
+                    - group [ref=e749]:
+                      - generic "Agent Succeeded Import Data Quality Agent 6/4/2026, 5:48:05 PM performance_import_agent finished with status succeeded." [ref=e750] [cursor=pointer]:
+                        - img [ref=e752]
+                        - generic [ref=e755]:
+                          - generic [ref=e756]:
+                            - generic [ref=e757]: Agent Succeeded
+                            - generic [ref=e758]: Import Data Quality Agent
+                            - generic [ref=e759]: 6/4/2026, 5:48:05 PM
+                          - generic [ref=e760]: performance_import_agent finished with status succeeded.
+                        - img [ref=e761]
+                  - listitem [ref=e763]:
+                    - group [ref=e764]:
+                      - generic "Agent Failed Ai Recommendation Brain Agent 6/4/2026, 5:48:05 PM monitoring_recommendation_brain finished with status failed." [ref=e765] [cursor=pointer]:
+                        - img [ref=e767]
+                        - generic [ref=e769]:
+                          - generic [ref=e770]:
+                            - generic [ref=e771]: Agent Failed
+                            - generic [ref=e772]: Ai Recommendation Brain Agent
+                            - generic [ref=e773]: 6/4/2026, 5:48:05 PM
+                          - generic [ref=e774]: monitoring_recommendation_brain finished with status failed.
+                        - img [ref=e775]
+                  - listitem [ref=e777]:
+                    - group [ref=e778]:
+                      - generic "Agent Succeeded Stakeholder Reporting Agent 6/4/2026, 4:37:35 PM stakeholder_reporting_agent finished with status succeeded." [ref=e779] [cursor=pointer]:
+                        - img [ref=e781]
+                        - generic [ref=e784]:
+                          - generic [ref=e785]:
+                            - generic [ref=e786]: Agent Succeeded
+                            - generic [ref=e787]: Stakeholder Reporting Agent
+                            - generic [ref=e788]: 6/4/2026, 4:37:35 PM
+                          - generic [ref=e789]: stakeholder_reporting_agent finished with status succeeded.
+                        - img [ref=e790]
+                  - listitem [ref=e792]:
+                    - group [ref=e793]:
+                      - generic "Agent Succeeded Bid Optimization Agent 6/4/2026, 4:37:35 PM pause_review_agent finished with status succeeded." [ref=e794] [cursor=pointer]:
+                        - img [ref=e796]
+                        - generic [ref=e799]:
+                          - generic [ref=e800]:
+                            - generic [ref=e801]: Agent Succeeded
+                            - generic [ref=e802]: Bid Optimization Agent
+                            - generic [ref=e803]: 6/4/2026, 4:37:35 PM
+                          - generic [ref=e804]: pause_review_agent finished with status succeeded.
+                        - img [ref=e805]
+                  - listitem [ref=e807]:
+                    - group [ref=e808]:
+                      - generic "Agent Succeeded Negative Keyword Agent 6/4/2026, 4:37:35 PM negative_keyword_agent finished with status succeeded." [ref=e809] [cursor=pointer]:
+                        - img [ref=e811]
+                        - generic [ref=e814]:
+                          - generic [ref=e815]:
+                            - generic [ref=e816]: Agent Succeeded
+                            - generic [ref=e817]: Negative Keyword Agent
+                            - generic [ref=e818]: 6/4/2026, 4:37:35 PM
+                          - generic [ref=e819]: negative_keyword_agent finished with status succeeded.
+                        - img [ref=e820]
+                  - listitem [ref=e822]:
+                    - group [ref=e823]:
+                      - generic "Agent Succeeded Bid Optimization Agent 6/4/2026, 4:37:35 PM bid_optimization_agent finished with status succeeded." [ref=e824] [cursor=pointer]:
+                        - img [ref=e826]
+                        - generic [ref=e829]:
+                          - generic [ref=e830]:
+                            - generic [ref=e831]: Agent Succeeded
+                            - generic [ref=e832]: Bid Optimization Agent
+                            - generic [ref=e833]: 6/4/2026, 4:37:35 PM
+                          - generic [ref=e834]: bid_optimization_agent finished with status succeeded.
+                        - img [ref=e835]
+                  - listitem [ref=e837]:
+                    - group [ref=e838]:
+                      - generic "Agent Succeeded Metrics Normalization Agent 6/4/2026, 4:37:35 PM metrics_analysis_agent finished with status succeeded." [ref=e839] [cursor=pointer]:
+                        - img [ref=e841]
+                        - generic [ref=e844]:
+                          - generic [ref=e845]:
+                            - generic [ref=e846]: Agent Succeeded
+                            - generic [ref=e847]: Metrics Normalization Agent
+                            - generic [ref=e848]: 6/4/2026, 4:37:35 PM
+                          - generic [ref=e849]: metrics_analysis_agent finished with status succeeded.
+                        - img [ref=e850]
+                  - listitem [ref=e852]:
+                    - group [ref=e853]:
+                      - generic "Agent Succeeded Import Data Quality Agent 6/4/2026, 4:37:35 PM performance_import_agent finished with status succeeded." [ref=e854] [cursor=pointer]:
+                        - img [ref=e856]
+                        - generic [ref=e859]:
+                          - generic [ref=e860]:
+                            - generic [ref=e861]: Agent Succeeded
+                            - generic [ref=e862]: Import Data Quality Agent
+                            - generic [ref=e863]: 6/4/2026, 4:37:35 PM
+                          - generic [ref=e864]: performance_import_agent finished with status succeeded.
+                        - img [ref=e865]
+                  - listitem [ref=e867]:
+                    - group [ref=e868]:
+                      - generic "Agent Failed Ai Recommendation Brain Agent 6/4/2026, 4:37:35 PM monitoring_recommendation_brain finished with status failed." [ref=e869] [cursor=pointer]:
+                        - img [ref=e871]
+                        - generic [ref=e873]:
+                          - generic [ref=e874]:
+                            - generic [ref=e875]: Agent Failed
+                            - generic [ref=e876]: Ai Recommendation Brain Agent
+                            - generic [ref=e877]: 6/4/2026, 4:37:35 PM
+                          - generic [ref=e878]: monitoring_recommendation_brain finished with status failed.
+                        - img [ref=e879]
+                  - listitem [ref=e881]:
+                    - group [ref=e882]:
+                      - generic "Agent Succeeded Stakeholder Reporting Agent 6/4/2026, 4:36:56 PM stakeholder_reporting_agent finished with status succeeded." [ref=e883] [cursor=pointer]:
+                        - img [ref=e885]
+                        - generic [ref=e888]:
+                          - generic [ref=e889]:
+                            - generic [ref=e890]: Agent Succeeded
+                            - generic [ref=e891]: Stakeholder Reporting Agent
+                            - generic [ref=e892]: 6/4/2026, 4:36:56 PM
+                          - generic [ref=e893]: stakeholder_reporting_agent finished with status succeeded.
+                        - img [ref=e894]
+                  - listitem [ref=e896]:
+                    - group [ref=e897]:
+                      - generic "Agent Succeeded Bid Optimization Agent 6/4/2026, 4:36:56 PM pause_review_agent finished with status succeeded." [ref=e898] [cursor=pointer]:
+                        - img [ref=e900]
+                        - generic [ref=e903]:
+                          - generic [ref=e904]:
+                            - generic [ref=e905]: Agent Succeeded
+                            - generic [ref=e906]: Bid Optimization Agent
+                            - generic [ref=e907]: 6/4/2026, 4:36:56 PM
+                          - generic [ref=e908]: pause_review_agent finished with status succeeded.
+                        - img [ref=e909]
+                  - listitem [ref=e911]:
+                    - group [ref=e912]:
+                      - generic "Agent Succeeded Negative Keyword Agent 6/4/2026, 4:36:56 PM negative_keyword_agent finished with status succeeded." [ref=e913] [cursor=pointer]:
+                        - img [ref=e915]
+                        - generic [ref=e918]:
+                          - generic [ref=e919]:
+                            - generic [ref=e920]: Agent Succeeded
+                            - generic [ref=e921]: Negative Keyword Agent
+                            - generic [ref=e922]: 6/4/2026, 4:36:56 PM
+                          - generic [ref=e923]: negative_keyword_agent finished with status succeeded.
+                        - img [ref=e924]
+                  - listitem [ref=e926]:
+                    - group [ref=e927]:
+                      - generic "Agent Succeeded Bid Optimization Agent 6/4/2026, 4:36:56 PM bid_optimization_agent finished with status succeeded." [ref=e928] [cursor=pointer]:
+                        - img [ref=e930]
+                        - generic [ref=e933]:
+                          - generic [ref=e934]:
+                            - generic [ref=e935]: Agent Succeeded
+                            - generic [ref=e936]: Bid Optimization Agent
+                            - generic [ref=e937]: 6/4/2026, 4:36:56 PM
+                          - generic [ref=e938]: bid_optimization_agent finished with status succeeded.
+                        - img [ref=e939]
+                  - listitem [ref=e941]:
+                    - group [ref=e942]:
+                      - generic "Agent Succeeded Metrics Normalization Agent 6/4/2026, 4:36:56 PM metrics_analysis_agent finished with status succeeded." [ref=e943] [cursor=pointer]:
+                        - img [ref=e945]
+                        - generic [ref=e948]:
+                          - generic [ref=e949]:
+                            - generic [ref=e950]: Agent Succeeded
+                            - generic [ref=e951]: Metrics Normalization Agent
+                            - generic [ref=e952]: 6/4/2026, 4:36:56 PM
+                          - generic [ref=e953]: metrics_analysis_agent finished with status succeeded.
+                        - img [ref=e954]
+                  - listitem [ref=e956]:
+                    - group [ref=e957]:
+                      - generic "Agent Succeeded Import Data Quality Agent 6/4/2026, 4:36:56 PM performance_import_agent finished with status succeeded." [ref=e958] [cursor=pointer]:
+                        - img [ref=e960]
+                        - generic [ref=e963]:
+                          - generic [ref=e964]:
+                            - generic [ref=e965]: Agent Succeeded
+                            - generic [ref=e966]: Import Data Quality Agent
+                            - generic [ref=e967]: 6/4/2026, 4:36:56 PM
+                          - generic [ref=e968]: performance_import_agent finished with status succeeded.
+                        - img [ref=e969]
+                  - listitem [ref=e971]:
+                    - group [ref=e972]:
+                      - generic "Agent Failed Ai Recommendation Brain Agent 6/4/2026, 4:36:56 PM monitoring_recommendation_brain finished with status failed." [ref=e973] [cursor=pointer]:
+                        - img [ref=e975]
+                        - generic [ref=e977]:
+                          - generic [ref=e978]:
+                            - generic [ref=e979]: Agent Failed
+                            - generic [ref=e980]: Ai Recommendation Brain Agent
+                            - generic [ref=e981]: 6/4/2026, 4:36:56 PM
+                          - generic [ref=e982]: monitoring_recommendation_brain finished with status failed.
+                        - img [ref=e983]
+                  - listitem [ref=e985]:
+                    - group [ref=e986]:
+                      - generic "Agent Succeeded Stakeholder Reporting Agent 6/4/2026, 4:36:16 PM stakeholder_reporting_agent finished with status succeeded." [ref=e987] [cursor=pointer]:
+                        - img [ref=e989]
+                        - generic [ref=e992]:
+                          - generic [ref=e993]:
+                            - generic [ref=e994]: Agent Succeeded
+                            - generic [ref=e995]: Stakeholder Reporting Agent
+                            - generic [ref=e996]: 6/4/2026, 4:36:16 PM
+                          - generic [ref=e997]: stakeholder_reporting_agent finished with status succeeded.
+                        - img [ref=e998]
+                  - listitem [ref=e1000]:
+                    - group [ref=e1001]:
+                      - generic "Agent Succeeded Bid Optimization Agent 6/4/2026, 4:36:16 PM pause_review_agent finished with status succeeded." [ref=e1002] [cursor=pointer]:
+                        - img [ref=e1004]
+                        - generic [ref=e1007]:
+                          - generic [ref=e1008]:
+                            - generic [ref=e1009]: Agent Succeeded
+                            - generic [ref=e1010]: Bid Optimization Agent
+                            - generic [ref=e1011]: 6/4/2026, 4:36:16 PM
+                          - generic [ref=e1012]: pause_review_agent finished with status succeeded.
+                        - img [ref=e1013]
+                  - listitem [ref=e1015]:
+                    - group [ref=e1016]:
+                      - generic "Agent Succeeded Negative Keyword Agent 6/4/2026, 4:36:16 PM negative_keyword_agent finished with status succeeded." [ref=e1017] [cursor=pointer]:
+                        - img [ref=e1019]
+                        - generic [ref=e1022]:
+                          - generic [ref=e1023]:
+                            - generic [ref=e1024]: Agent Succeeded
+                            - generic [ref=e1025]: Negative Keyword Agent
+                            - generic [ref=e1026]: 6/4/2026, 4:36:16 PM
+                          - generic [ref=e1027]: negative_keyword_agent finished with status succeeded.
+                        - img [ref=e1028]
+                  - listitem [ref=e1030]:
+                    - group [ref=e1031]:
+                      - generic "Agent Succeeded Bid Optimization Agent 6/4/2026, 4:36:16 PM bid_optimization_agent finished with status succeeded." [ref=e1032] [cursor=pointer]:
+                        - img [ref=e1034]
+                        - generic [ref=e1037]:
+                          - generic [ref=e1038]:
+                            - generic [ref=e1039]: Agent Succeeded
+                            - generic [ref=e1040]: Bid Optimization Agent
+                            - generic [ref=e1041]: 6/4/2026, 4:36:16 PM
+                          - generic [ref=e1042]: bid_optimization_agent finished with status succeeded.
+                        - img [ref=e1043]
+                  - listitem [ref=e1045]:
+                    - group [ref=e1046]:
+                      - generic "Agent Succeeded Metrics Normalization Agent 6/4/2026, 4:36:16 PM metrics_analysis_agent finished with status succeeded." [ref=e1047] [cursor=pointer]:
+                        - img [ref=e1049]
+                        - generic [ref=e1052]:
+                          - generic [ref=e1053]:
+                            - generic [ref=e1054]: Agent Succeeded
+                            - generic [ref=e1055]: Metrics Normalization Agent
+                            - generic [ref=e1056]: 6/4/2026, 4:36:16 PM
+                          - generic [ref=e1057]: metrics_analysis_agent finished with status succeeded.
+                        - img [ref=e1058]
+                  - listitem [ref=e1060]:
+                    - group [ref=e1061]:
+                      - generic "Agent Succeeded Import Data Quality Agent 6/4/2026, 4:36:16 PM performance_import_agent finished with status succeeded." [ref=e1062] [cursor=pointer]:
+                        - img [ref=e1064]
+                        - generic [ref=e1067]:
+                          - generic [ref=e1068]:
+                            - generic [ref=e1069]: Agent Succeeded
+                            - generic [ref=e1070]: Import Data Quality Agent
+                            - generic [ref=e1071]: 6/4/2026, 4:36:16 PM
+                          - generic [ref=e1072]: performance_import_agent finished with status succeeded.
+                        - img [ref=e1073]
+                  - listitem [ref=e1075]:
+                    - group [ref=e1076]:
+                      - generic "Agent Failed Ai Recommendation Brain Agent 6/4/2026, 4:36:16 PM monitoring_recommendation_brain finished with status failed." [ref=e1077] [cursor=pointer]:
+                        - img [ref=e1079]
+                        - generic [ref=e1081]:
+                          - generic [ref=e1082]:
+                            - generic [ref=e1083]: Agent Failed
+                            - generic [ref=e1084]: Ai Recommendation Brain Agent
+                            - generic [ref=e1085]: 6/4/2026, 4:36:16 PM
+                          - generic [ref=e1086]: monitoring_recommendation_brain finished with status failed.
+                        - img [ref=e1087]
+                  - listitem [ref=e1089]:
+                    - group [ref=e1090]:
+                      - generic "Agent Succeeded Stakeholder Reporting Agent 6/4/2026, 4:31:19 PM stakeholder_reporting_agent finished with status succeeded." [ref=e1091] [cursor=pointer]:
+                        - img [ref=e1093]
+                        - generic [ref=e1096]:
+                          - generic [ref=e1097]:
+                            - generic [ref=e1098]: Agent Succeeded
+                            - generic [ref=e1099]: Stakeholder Reporting Agent
+                            - generic [ref=e1100]: 6/4/2026, 4:31:19 PM
+                          - generic [ref=e1101]: stakeholder_reporting_agent finished with status succeeded.
+                        - img [ref=e1102]
+                  - listitem [ref=e1104]:
+                    - group [ref=e1105]:
+                      - generic "Agent Succeeded Bid Optimization Agent 6/4/2026, 4:31:19 PM pause_review_agent finished with status succeeded." [ref=e1106] [cursor=pointer]:
+                        - img [ref=e1108]
+                        - generic [ref=e1111]:
+                          - generic [ref=e1112]:
+                            - generic [ref=e1113]: Agent Succeeded
+                            - generic [ref=e1114]: Bid Optimization Agent
+                            - generic [ref=e1115]: 6/4/2026, 4:31:19 PM
+                          - generic [ref=e1116]: pause_review_agent finished with status succeeded.
+                        - img [ref=e1117]
+                  - listitem [ref=e1119]:
+                    - group [ref=e1120]:
+                      - generic "Agent Succeeded Negative Keyword Agent 6/4/2026, 4:31:19 PM negative_keyword_agent finished with status succeeded." [ref=e1121] [cursor=pointer]:
+                        - img [ref=e1123]
+                        - generic [ref=e1126]:
+                          - generic [ref=e1127]:
+                            - generic [ref=e1128]: Agent Succeeded
+                            - generic [ref=e1129]: Negative Keyword Agent
+                            - generic [ref=e1130]: 6/4/2026, 4:31:19 PM
+                          - generic [ref=e1131]: negative_keyword_agent finished with status succeeded.
+                        - img [ref=e1132]
+                  - listitem [ref=e1134]:
+                    - group [ref=e1135]:
+                      - generic "Agent Succeeded Bid Optimization Agent 6/4/2026, 4:31:19 PM bid_optimization_agent finished with status succeeded." [ref=e1136] [cursor=pointer]:
+                        - img [ref=e1138]
+                        - generic [ref=e1141]:
+                          - generic [ref=e1142]:
+                            - generic [ref=e1143]: Agent Succeeded
+                            - generic [ref=e1144]: Bid Optimization Agent
+                            - generic [ref=e1145]: 6/4/2026, 4:31:19 PM
+                          - generic [ref=e1146]: bid_optimization_agent finished with status succeeded.
+                        - img [ref=e1147]
+                  - listitem [ref=e1149]:
+                    - group [ref=e1150]:
+                      - generic "Agent Succeeded Metrics Normalization Agent 6/4/2026, 4:31:19 PM metrics_analysis_agent finished with status succeeded." [ref=e1151] [cursor=pointer]:
+                        - img [ref=e1153]
+                        - generic [ref=e1156]:
+                          - generic [ref=e1157]:
+                            - generic [ref=e1158]: Agent Succeeded
+                            - generic [ref=e1159]: Metrics Normalization Agent
+                            - generic [ref=e1160]: 6/4/2026, 4:31:19 PM
+                          - generic [ref=e1161]: metrics_analysis_agent finished with status succeeded.
+                        - img [ref=e1162]
+                  - listitem [ref=e1164]:
+                    - group [ref=e1165]:
+                      - generic "Agent Succeeded Import Data Quality Agent 6/4/2026, 4:31:19 PM performance_import_agent finished with status succeeded." [ref=e1166] [cursor=pointer]:
+                        - img [ref=e1168]
+                        - generic [ref=e1171]:
+                          - generic [ref=e1172]:
+                            - generic [ref=e1173]: Agent Succeeded
+                            - generic [ref=e1174]: Import Data Quality Agent
+                            - generic [ref=e1175]: 6/4/2026, 4:31:19 PM
+                          - generic [ref=e1176]: performance_import_agent finished with status succeeded.
+                        - img [ref=e1177]
+                  - listitem [ref=e1179]:
+                    - group [ref=e1180]:
+                      - generic "Agent Failed Ai Recommendation Brain Agent 6/4/2026, 4:31:19 PM monitoring_recommendation_brain finished with status failed." [ref=e1181] [cursor=pointer]:
+                        - img [ref=e1183]
+                        - generic [ref=e1185]:
+                          - generic [ref=e1186]:
+                            - generic [ref=e1187]: Agent Failed
+                            - generic [ref=e1188]: Ai Recommendation Brain Agent
+                            - generic [ref=e1189]: 6/4/2026, 4:31:19 PM
+                          - generic [ref=e1190]: monitoring_recommendation_brain finished with status failed.
+                        - img [ref=e1191]
+                  - listitem [ref=e1193]:
+                    - group [ref=e1194]:
+                      - generic "Agent Failed Import Data Quality Agent 6/4/2026, 4:23:01 PM performance_import_agent finished with status failed." [ref=e1195] [cursor=pointer]:
+                        - img [ref=e1197]
+                        - generic [ref=e1199]:
+                          - generic [ref=e1200]:
+                            - generic [ref=e1201]: Agent Failed
+                            - generic [ref=e1202]: Import Data Quality Agent
+                            - generic [ref=e1203]: 6/4/2026, 4:23:01 PM
+                          - generic [ref=e1204]: performance_import_agent finished with status failed.
+                        - img [ref=e1205]
+                  - listitem [ref=e1207]:
+                    - group [ref=e1208]:
+                      - generic "Agent Failed Import Data Quality Agent 6/4/2026, 4:17:33 PM performance_import_agent finished with status failed." [ref=e1209] [cursor=pointer]:
+                        - img [ref=e1211]
+                        - generic [ref=e1213]:
+                          - generic [ref=e1214]:
+                            - generic [ref=e1215]: Agent Failed
+                            - generic [ref=e1216]: Import Data Quality Agent
+                            - generic [ref=e1217]: 6/4/2026, 4:17:33 PM
+                          - generic [ref=e1218]: performance_import_agent finished with status failed.
+                        - img [ref=e1219]
+                  - listitem [ref=e1221]:
+                    - group [ref=e1222]:
+                      - generic "Agent Failed Import Data Quality Agent 6/4/2026, 4:15:58 PM performance_import_agent finished with status failed." [ref=e1223] [cursor=pointer]:
+                        - img [ref=e1225]
+                        - generic [ref=e1227]:
+                          - generic [ref=e1228]:
+                            - generic [ref=e1229]: Agent Failed
+                            - generic [ref=e1230]: Import Data Quality Agent
+                            - generic [ref=e1231]: 6/4/2026, 4:15:58 PM
+                          - generic [ref=e1232]: performance_import_agent finished with status failed.
+                        - img [ref=e1233]
+        - generic [ref=e161]:
+          - generic [ref=e162]:
+            - img [ref=e163]
+            - text: Recommendation only
+          - generic [ref=e166]:
+            - img [ref=e167]
+            - text: Requires human approval
+          - generic [ref=e169]:
+            - img [ref=e170]
+            - text: No live Amazon Ads change executed
+  - button "Replay tour" [ref=e173] [cursor=pointer]:
+    - img [ref=e174]
+    - text: Replay tour
+  - button "Open Next.js Dev Tools" [ref=e181] [cursor=pointer]:
+    - img [ref=e182]
+  - alert [ref=e1235]

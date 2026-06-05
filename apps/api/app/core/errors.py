@@ -50,8 +50,8 @@ def register_error_handlers(app: FastAPI) -> None:
             content=error_response(
                 code="DATABASE_UNREACHABLE",
                 message=(
-                    "Database could not be reached. For Supabase local development, use the IPv4-compatible "
-                    "Supabase pooler connection string in DATABASE_URL when the direct db.<project>.supabase.co host is unavailable."
+                    "Database could not be reached. Verify DATABASE_URL points to the intended local SQLite "
+                    "file or reachable database server."
                 ),
                 details={"reason": str(getattr(exc, "orig", exc))[:500]},
             ),
@@ -63,7 +63,7 @@ def register_error_handlers(app: FastAPI) -> None:
             status_code=503,
             content=error_response(
                 code="DATABASE_OPERATION_FAILED",
-                message="Database operation failed. Check that all Supabase migrations are applied and retry the action.",
+                message="Database operation failed. Check that the local SQLite schema is initialized or database migrations are applied.",
                 details={"reason": str(getattr(exc, "orig", exc))[:500]},
             ),
         )

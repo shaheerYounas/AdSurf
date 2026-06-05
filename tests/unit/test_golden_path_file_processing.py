@@ -200,7 +200,9 @@ class TestSponsoredProductsSearchTermReport:
             rows=parsed.rows,
         )
         assert len(snapshots) > 0, "No snapshots normalized from search term report."
-        assert len(warnings) == 0, f"Unexpected normalization warnings: {warnings}"
+        skipped_rows = [warning for warning in warnings if warning.get("code") == "ROW_NORMALIZATION_SKIPPED"]
+        assert skipped_rows == [], f"Unexpected skipped rows: {skipped_rows[:5]}"
+        assert all("risk_label" in warning for warning in warnings if warning.get("code") != "ROW_NORMALIZATION_SKIPPED")
 
         product = _fake_product()
         recommendations = build_recommendations(

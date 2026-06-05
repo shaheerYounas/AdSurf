@@ -199,7 +199,7 @@ _MODEL_PRICING: dict[str, tuple[float, float]] = {
     "gpt-4-turbo": (10.00, 30.00),
     "claude-3.5-sonnet": (3.00, 15.00),
     "claude-3-haiku": (0.25, 1.25),
-    "FRE-5.5": (0.0, 0.0),  # Free tier
+    "fre-5.5": (0.0, 0.0),  # Free tier
 }
 
 

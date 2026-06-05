@@ -756,7 +756,7 @@ function HeroUpload({ accountImport, completedCount, failedCount, activeCount, p
         <div className="min-w-0 rounded-3xl border border-slate-200 bg-slate-50 p-5 dark:border-white/10 dark:bg-white/5">
           <label className="block text-sm font-semibold text-slate-900 dark:text-white">
             Report file
-            <input className="mt-2 block min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-3 file:py-1 file:text-white focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-white/10 dark:bg-slate-950/70 dark:text-white dark:file:bg-white dark:file:text-slate-950" onChange={(event) => onFileChange(event.target.files?.[0] ?? null)} type="file" accept=".csv,.xls,.xlsx" />
+            <input id="agent-report-file" name="agent_report_file" className="mt-2 block min-h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-950 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-3 file:py-1 file:text-white focus:outline-none focus:ring-2 focus:ring-indigo-300 dark:border-white/10 dark:bg-slate-950/70 dark:text-white dark:file:bg-white dark:file:text-slate-950" onChange={(event) => onFileChange(event.target.files?.[0] ?? null)} type="file" accept=".csv,.xls,.xlsx" />
           </label>
           <Button className="mt-3 w-full" disabled={!selectedFile || isUploading} onClick={onUpload} type="button">
             {isUploading ? <Loader2 className="animate-spin" size={16} /> : <UploadCloud size={16} />}

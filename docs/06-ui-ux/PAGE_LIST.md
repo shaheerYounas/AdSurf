@@ -13,8 +13,8 @@
 | `/products/[productId]/keywords` | Keyword Review | Filter, approve, reject, and override keyword candidates. |
 | `/products/[productId]/campaign-plan` | Campaign Plan Detail | Inspect Hero, groups, campaigns, negatives, bids, and budgets. |
 | `/products/[productId]/exports` | Bulk Exports | Validate, approve, and download bulk sheets. |
-| `/products/[productId]/monitoring` | Performance Report To Recommendations | Create monitoring imports from processed Sponsored Products Search Term reports, run local processing, view status, data quality warnings, recommendation counts, and top agent explanations. |
-| `/recommendations` | Agent Recommendations | Filter rule-backed recommendations, review evidence, and approve or reject with required notes. |
+| `/products/[productId]/monitoring` | Performance Report To Recommendations | Create or reuse monitoring imports from processed Sponsored Products Search Term reports, view rows analyzed vs recommendations generated, spend/sales/ACOS and zero-order spend, import health, detected advertised product groups, action/watch/data-quality/budget breakdowns, and top explanations. |
+| `/recommendations` | Agent Recommendations | Review recommendation summary counts, filter by action class/export eligibility/evidence thresholds, inspect seller-friendly evidence, and approve or reject with required notes. |
 | `/approvals` | Approvals | Review pending and historical approval decisions. |
 | `/settings/team` | Team Settings | Manage workspace members and roles. |
 | `/settings/billing` | Billing Settings | Later scope placeholder for billing and plan management. |
@@ -61,7 +61,7 @@ Every implemented page receives the shared previous-page control from the root a
 | Campaign Plan Detail | owner/admin/analyst/approver | Inspect Hero, groups, campaigns, negatives. |
 | Bulk Export Detail | admin | Validate, approve, and download export. |
 | Monitoring | owner/admin/analyst/approver/viewer | View monitoring imports, recommendation counts, and stakeholder summaries; owner/admin/analyst can create imports. |
-| Recommendation Queue | owner/admin/analyst/approver | Approve or reject recommendations with notes; viewer can read only. |
+| Recommendation Queue | owner/admin/analyst/approver | Triage actionable vs review-only recommendations, inspect export eligibility and details, approve or reject pending records with notes; viewer can read only. |
 | Audit Log | owner/admin/approver/viewer | Trace decisions and approvals. |
 | Settings | owner | Manage workspace, users, and defaults. |
 

@@ -52,7 +52,7 @@ Batch 4 does not implement workers for column mapping, scoring, campaign generat
 ## Batch 10 Process Monitoring Import Lifecycle
 `process_monitoring_import` is created when a user creates a monitoring import from a processed Sponsored Products Search Term report upload. The payload contains `workspace_id`, `product_id`, `monitoring_import_id`, `upload_id`, and `parse_run_id`.
 
-1. Claim one queued `process_monitoring_import` job and mark it `running`.
+1. Claim one queued `process_monitoring_import` job and mark it `running`. In local SQLite development, a stale `running` monitoring job whose lock is older than five minutes can also be reclaimed.
 2. Load the monitoring import, product, succeeded parse run, and parsed rows.
 3. Mark the monitoring import `processing`.
 4. Validate required Sponsored Products Search Term report columns.
@@ -69,6 +69,8 @@ Batch 10 does not execute live Amazon Ads actions. Approved recommendations mean
 
 ## Worker Locking
 Workers claim jobs using a database transaction that sets `locked_at`, `locked_by`, `status = running`, and increments or records attempt metadata. A worker may only process a job it successfully claimed.
+
+The local SQLite worker claim path treats five-minute-old `running` locks as stale so interrupted local browser/API debugging sessions do not strand uploads or monitoring imports indefinitely. Reclaimed monitoring imports may continue from `queued` or `processing`; the worker still only creates recommendation-only records and never executes live Amazon Ads mutations.
 
 ## Retry, Timeout, And Dead Letter
 | Policy | Decision |

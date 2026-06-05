@@ -1,0 +1,93 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - img [ref=e8]
+          - generic [ref=e10]:
+            - paragraph [ref=e11]: Control Center
+            - heading "AdSurf AI" [level=1] [ref=e12]
+        - button "Toggle theme" [ref=e13] [cursor=pointer]:
+          - img [ref=e14]
+      - navigation "Main navigation" [ref=e16]:
+        - link "Dashboard Workspace overview" [ref=e17] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e19]
+          - generic [ref=e24]:
+            - generic [ref=e25]: Dashboard
+            - generic [ref=e26]: Workspace overview
+        - link "Agents Control AI workflow" [ref=e27] [cursor=pointer]:
+          - /url: /agents
+          - img [ref=e29]
+          - generic [ref=e32]:
+            - generic [ref=e33]: Agents
+            - generic [ref=e34]: Control AI workflow
+        - link "Reports Files and analysis" [ref=e35] [cursor=pointer]:
+          - /url: /reports
+          - img [ref=e37]
+          - generic [ref=e40]:
+            - generic [ref=e41]: Reports
+            - generic [ref=e42]: Files and analysis
+        - link "Products ASIN profiles" [ref=e43] [cursor=pointer]:
+          - /url: /products
+          - img [ref=e45]
+          - generic [ref=e51]:
+            - generic [ref=e52]: Products
+            - generic [ref=e53]: ASIN profiles
+        - link "New product Start setup" [ref=e54] [cursor=pointer]:
+          - /url: /products/new
+          - img [ref=e56]
+          - generic [ref=e58]:
+            - generic [ref=e59]: New product
+            - generic [ref=e60]: Start setup
+        - link "Recommendations Approval queue" [ref=e61] [cursor=pointer]:
+          - /url: /recommendations
+          - img [ref=e63]
+          - generic [ref=e66]:
+            - generic [ref=e67]: Recommendations
+            - generic [ref=e68]: Approval queue
+    - main [ref=e69]:
+      - generic [ref=e70]:
+        - navigation "Page history" [ref=e71]:
+          - link "Back to Uploads" [ref=e72] [cursor=pointer]:
+            - /url: /products/610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc/uploads
+            - img [ref=e74]
+            - generic [ref=e76]: Previous page
+            - generic [ref=e77]: "Fallback: Uploads"
+        - generic [ref=e78]:
+          - generic [ref=e80]:
+            - paragraph [ref=e81]: Manual column mapping
+            - heading "Map parsed columns" [level=2] [ref=e82]
+            - paragraph [ref=e83]: Review discovered columns and save a manual mapping snapshot for later keyword scoring.
+          - generic [ref=e85]:
+            - paragraph [ref=e86]: AI analyzes your column profile and recommends the best mapping. You can accept, adjust, or override the suggestion before saving. Deterministic rules validate every mapping.
+            - paragraph [ref=e87]: Manual column mapping is available here. After approving a valid mapping, you can run deterministic keyword relevance scoring. Then create an approved keyword set before campaign plan generation.
+            - paragraph [ref=e88]: Then create an approved keyword set, generate a campaign plan, approve it, and download a bulk export CSV.
+            - generic [ref=e89]:
+              - generic [ref=e90]:
+                - text: Workspace ID
+                - textbox "Workspace ID" [ref=e91]:
+                  - /placeholder: Workspace UUID
+                  - text: 00000000-0000-0000-0000-000000000001
+              - button "Generate profile" [ref=e92] [cursor=pointer]:
+                - img [ref=e93]
+                - text: Generate profile
+              - button "Load profile" [ref=e98] [cursor=pointer]:
+                - img [ref=e99]
+                - text: Load profile
+            - paragraph [ref=e102]: Product 610f65ff-daf6-4fc2-bdb5-4a35cf1fdadc / Upload e01c3fcf-8a1a-4e82-bc2c-0a6950907827
+        - generic [ref=e104]:
+          - generic [ref=e105]:
+            - img [ref=e106]
+            - text: Recommendation only
+          - generic [ref=e109]:
+            - img [ref=e110]
+            - text: Requires human approval
+          - generic [ref=e112]:
+            - img [ref=e113]
+            - text: No live Amazon Ads change executed
+  - button "Replay tour" [ref=e116] [cursor=pointer]:
+    - img [ref=e117]
+    - text: Replay tour
+  - button "Open Next.js Dev Tools" [ref=e124] [cursor=pointer]:
+    - img [ref=e125]

@@ -9,7 +9,7 @@ type ModalProps = {
   title?: string;
   description?: string;
   children: ReactNode;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg" | "xl";
 };
 
 export function Modal({ open, onClose, title, description, children, size = "md" }: ModalProps) {
@@ -28,7 +28,7 @@ export function Modal({ open, onClose, title, description, children, size = "md"
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div
-        className={`relative w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/20 dark:border-white/10 dark:bg-slate-950 ${size === "sm" ? "max-w-md" : "max-w-lg"}`}
+        className={`relative max-h-[92vh] w-full overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-950/20 dark:border-white/10 dark:bg-slate-950 ${modalSizeClass(size)}`}
         role="dialog"
         aria-modal="true"
       >
@@ -50,8 +50,15 @@ export function Modal({ open, onClose, title, description, children, size = "md"
             </div>
           </div>
         )}
-        <div className="px-6 py-5">{children}</div>
+        <div className="max-h-[calc(92vh-7rem)] overflow-y-auto px-6 py-5">{children}</div>
       </div>
     </div>
   );
+}
+
+function modalSizeClass(size: NonNullable<ModalProps["size"]>) {
+  if (size === "sm") return "max-w-md";
+  if (size === "lg") return "max-w-2xl";
+  if (size === "xl") return "max-w-4xl";
+  return "max-w-lg";
 }

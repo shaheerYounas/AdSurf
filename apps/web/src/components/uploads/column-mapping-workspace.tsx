@@ -471,6 +471,12 @@ export function ColumnMappingWorkspace({ productId, uploadId }: ColumnMappingWor
           AI analyzes your column profile and recommends the best mapping. You can accept, adjust, or override the
           suggestion before saving. Deterministic rules validate every mapping.
         </p>
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+          Manual column mapping is available here. After approving a valid mapping, you can run deterministic keyword relevance scoring. Then create an approved keyword set before campaign plan generation.
+        </p>
+        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+          Then create an approved keyword set, generate a campaign plan, approve it, and download a bulk export CSV.
+        </p>
         <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]">
           <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
             Workspace ID

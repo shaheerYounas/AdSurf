@@ -109,7 +109,7 @@ class PostgresAccountImportRepository(AccountImportRepository):
                     values (
                         :id, :workspace_id, :upload_id, :parse_run_id, :report_type, :status,
                         :detected_report_type, :detection_confidence, :total_rows, :processed_rows,
-                        :error_rows, cast(:data_quality_warnings_json as jsonb), :created_by, :error_message, :created_at, :updated_at
+                        :error_rows, :data_quality_warnings_json, :created_by, :error_message, :created_at, :updated_at
                     )
                     returning *
                     """
@@ -131,7 +131,7 @@ class PostgresAccountImportRepository(AccountImportRepository):
             values (
                 :id, :workspace_id, :account_import_id, :product_id, :asin, :sku, :product_name,
                 :campaign_name, :ad_group_name, :targeting, :customer_search_term, :entity_type,
-                :entity_key, :resolution_status, cast(:metrics_json as jsonb), cast(:raw_row_refs_json as jsonb), :created_at
+                :entity_key, :resolution_status, :metrics_json, :raw_row_refs_json, :created_at
             )
             """
         )
@@ -257,11 +257,15 @@ def _import_from_row(row: RowMapping) -> AccountImport:
     data = dict(row)
     if data.get("created_by") is not None:
         data["created_by"] = str(data["created_by"])
+    data["data_quality_warnings_json"] = _json_loads(data.get("data_quality_warnings_json"), default=[])
     return AccountImport(**data)
 
 
 def _entity_from_row(row: RowMapping) -> AccountImportEntity:
-    return AccountImportEntity(**dict(row))
+    data = dict(row)
+    data["metrics_json"] = _json_loads(data.get("metrics_json"), default={})
+    data["raw_row_refs_json"] = _json_loads(data.get("raw_row_refs_json"), default=[])
+    return AccountImportEntity(**data)
 
 
 def _suggestion_from_row(row: RowMapping) -> ProductMappingSuggestion:
@@ -307,3 +311,13 @@ def _json_dumps(value) -> str:
     import json
 
     return json.dumps(value, default=str)
+
+
+def _json_loads(value, *, default):
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    import json
+
+    return json.loads(value)

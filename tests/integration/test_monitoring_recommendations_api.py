@@ -25,6 +25,17 @@ def test_monitoring_import_creates_recommendations_and_agent_summary(monkeypatch
     assert import_response.status_code == 200
     import_body = import_response.json()["data"]
 
+    duplicate_response = client.post(
+        f"/v1/workspaces/{workspace_id}/products/{product_id}/monitoring-imports",
+        headers=auth_headers(workspace_id, role="analyst"),
+        json={"upload_id": upload_id},
+    )
+    assert duplicate_response.status_code == 200
+    duplicate_body = duplicate_response.json()["data"]
+    assert duplicate_body["already_imported"] is True
+    assert duplicate_body["import_record"]["id"] == import_body["import_record"]["id"]
+    assert duplicate_body["job_id"] is None
+
     result = MonitoringWorker().process_one()
     assert result.processed is True
     assert result.import_record.status == "succeeded"
@@ -55,7 +66,13 @@ def test_monitoring_import_creates_recommendations_and_agent_summary(monkeypatch
 
     monitoring = client.get(f"/v1/workspaces/{workspace_id}/products/{product_id}/monitoring", headers=auth_headers(workspace_id))
     assert monitoring.status_code == 200
-    assert "No AI final decision" in monitoring.json()["data"]["agent_summary"]["stakeholder_note"]
+    monitoring_data = monitoring.json()["data"]
+    assert "No AI final decision" in monitoring_data["agent_summary"]["stakeholder_note"]
+    assert monitoring_data["summary_metrics"]["rows_analyzed"] == 11
+    assert monitoring_data["summary_metrics"]["recommendations_generated"] == len(recommendations)
+    assert monitoring_data["summary_metrics"]["no_live_amazon_changes"] is True
+    assert monitoring_data["action_recommendation_counts"]["add_negative_exact"] == 1
+    assert monitoring_data["issue_counts"]["info"] >= 1
 
     agent_runs = client.get(f"/v1/workspaces/{workspace_id}/products/{product_id}/agent-runs", headers=auth_headers(workspace_id))
     assert agent_runs.status_code == 200
@@ -193,12 +210,12 @@ def _sp_report_csv() -> str:
     rows = [
         "2026-05-01,2026-05-07,,USD,Camp A,Group A,Amazon,US,asin=\"b001\",exact,pause term,100,25,0.25,1.00,25,0,,0,0,0,0,0,0,0,0",
         "2026-05-01,2026-05-07,,USD,Camp A,Group A,Amazon,US,asin=\"b002\",broad,negative phrase term,80,16,0.20,0.63,10,0,,0,0,0,0,0,0,0,0",
-        "2026-05-01,2026-05-07,,USD,Camp A,Group A,Amazon,US,keyword=\"exact waste\",exact,negative exact term,80,12,0.15,0.67,8,0,,0,0,0,0,0,0,0,0",
+        "2026-05-01,2026-05-07,,USD,Camp A,Group A,Amazon,US,keyword=\"exact waste\",exact,negative exact term,80,16,0.20,0.75,12,0,,0,0,0,0,0,0,0,0",
         "2026-05-01,2026-05-07,,USD,Camp B,Group B,Amazon,US,keyword=\"x\",exact,decrease term,100,12,0.12,0.67,8,10,0.8,1.25,1,1,0.08,1,0,10,0",
         "2026-05-01,2026-05-07,,USD,Camp B,Group B,Amazon,US,keyword=\"move\",broad,move exact term,100,8,0.08,0.63,5,20,0.25,4,2,2,0.25,2,0,20,0",
         "2026-05-01,2026-05-07,,USD,Camp B,Group B,Amazon,US,keyword=\"y\",exact,watch term,100,8,0.08,0.63,5,20,0.25,4,2,2,0.25,2,0,20,0",
         "2026-05-01,2026-05-07,,USD,Camp C,Group C,Amazon,US,keyword=\"z\",broad,increase term,20,1,0.05,1.00,1,0,,0,0,0,0,0,0,0,0",
-        "2026-05-01,2026-05-07,,USD,Camp C,Group C,Amazon,US,keyword=\"scale\",exact,scaling term,50,5,0.10,0.40,2,10,0.2,5,1,1,0.20,1,0,10,0",
+        "2026-05-01,2026-05-07,,USD,Camp C,Group C,Amazon,US,keyword=\"scale\",exact,scaling term,80,8,0.10,0.50,4,20,0.2,5,2,2,0.25,2,0,20,0",
         "2026-05-01,2026-05-07,,USD,Camp C,Group C,Amazon,US,keyword=\"budget\",exact,budget term,100,20,0.20,0.45,9,30,0.3,3.3333,3,3,0.15,3,0,30,0",
         "2026-05-01,2026-05-07,,USD,Camp C,Group C,Amazon,US,keyword=\"keep\",exact,keep term,100,5,0.05,0.60,3,5,0.6,1.6667,1,1,0.20,1,0,5,0",
         "2026-05-01,2026-05-07,,USD,Camp D,Group D,Amazon,US,keyword=\"quality\",exact,quality term,5,10,2.00,0.20,2,0,,0,0,0,0,0,0,0,0",

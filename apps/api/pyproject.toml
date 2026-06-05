@@ -6,7 +6,6 @@ requires-python = ">=3.12"
 dependencies = [
   "fastapi",
   "langgraph",
-  "psycopg[binary]",
   "python-multipart",
   "python-dotenv",
   "pydantic",

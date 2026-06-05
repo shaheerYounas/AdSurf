@@ -209,17 +209,18 @@ class PostgresUploadParsingRepository(UploadParsingRepository):
         self._engine = engine
 
     def create_run(self, *, upload: UploadRecord, job_id: UUID, detected_file_type: str) -> UploadParseRun:
+        now = datetime.now(UTC).isoformat()
         with self._engine.begin() as connection:
             row = connection.execute(
                 text(
                     """
                     insert into upload_parse_runs (
                         id, workspace_id, product_id, upload_id, job_id, status, parser_version,
-                        original_filename, storage_path, detected_file_type
+                        original_filename, storage_path, detected_file_type, started_at, created_at, updated_at
                     )
                     values (
                         :id, :workspace_id, :product_id, :upload_id, :job_id, 'running', :parser_version,
-                        :original_filename, :storage_path, :detected_file_type
+                        :original_filename, :storage_path, :detected_file_type, :started_at, :created_at, :updated_at
                     )
                     returning *
                     """
@@ -234,6 +235,9 @@ class PostgresUploadParsingRepository(UploadParsingRepository):
                     "original_filename": upload.original_filename,
                     "storage_path": upload.storage_path,
                     "detected_file_type": detected_file_type,
+                    "started_at": now,
+                    "created_at": now,
+                    "updated_at": now,
                 },
             ).mappings().one()
         return _run_from_row(row)
@@ -259,14 +263,14 @@ class PostgresUploadParsingRepository(UploadParsingRepository):
                     update upload_parse_runs
                     set status = :status,
                         detected_file_type = :detected_file_type,
-                        detected_sheet_names = cast(:detected_sheet_names as jsonb),
+                        detected_sheet_names = :detected_sheet_names,
                         selected_sheet_name = :selected_sheet_name,
                         total_rows = :total_rows,
                         total_columns = :total_columns,
                         parsed_rows_count = :parsed_rows_count,
                         error_rows_count = :error_rows_count,
-                        completed_at = now(),
-                        updated_at = now(),
+                        completed_at = datetime('now'),
+                        updated_at = datetime('now'),
                         error_message = :error_message
                     where id = :parse_run_id
                     returning *
@@ -290,38 +294,40 @@ class PostgresUploadParsingRepository(UploadParsingRepository):
     def insert_rows(self, *, parse_run: UploadParseRun, rows: list[ParsedUploadRow]) -> None:
         if not rows:
             return
+        now = datetime.now(UTC).isoformat()
         statement = text(
             """
             insert into upload_parsed_rows (
                 id, workspace_id, product_id, upload_id, parse_run_id, row_number,
-                row_data_json, row_hash
+                row_data_json, row_hash, created_at
             )
             values (
                 :id, :workspace_id, :product_id, :upload_id, :parse_run_id, :row_number,
-                cast(:row_data_json as jsonb), :row_hash
+                :row_data_json, :row_hash, :created_at
             )
             """
         )
-        params = [_row_params(parse_run, row) for row in rows]
+        params = [_row_params(parse_run, row, created_at=now) for row in rows]
         with self._engine.begin() as connection:
             connection.execute(statement, params)
 
     def insert_errors(self, *, parse_run: UploadParseRun, errors: list[UploadParseError]) -> None:
         if not errors:
             return
+        now = datetime.now(UTC).isoformat()
         statement = text(
             """
             insert into upload_parse_errors (
                 id, workspace_id, product_id, upload_id, parse_run_id, row_number,
-                error_code, error_message, raw_value_json
+                error_code, error_message, raw_value_json, created_at
             )
             values (
                 :id, :workspace_id, :product_id, :upload_id, :parse_run_id, :row_number,
-                :error_code, :error_message, cast(:raw_value_json as jsonb)
+                :error_code, :error_message, :raw_value_json, :created_at
             )
             """
         )
-        params = [_error_params(parse_run, error) for error in errors]
+        params = [_error_params(parse_run, error, created_at=now) for error in errors]
         with self._engine.begin() as connection:
             connection.execute(statement, params)
 
@@ -435,7 +441,7 @@ def _run_from_row(row: RowMapping) -> UploadParseRun:
         original_filename=row["original_filename"],
         storage_path=row["storage_path"],
         detected_file_type=row["detected_file_type"],
-        detected_sheet_names=row["detected_sheet_names"],
+        detected_sheet_names=_json_loads(row["detected_sheet_names"], default=[]),
         selected_sheet_name=row["selected_sheet_name"],
         total_rows=row["total_rows"],
         total_columns=row["total_columns"],
@@ -457,7 +463,7 @@ def _parsed_row_from_row(row: RowMapping) -> ParsedUploadRow:
         upload_id=row["upload_id"],
         parse_run_id=row["parse_run_id"],
         row_number=row["row_number"],
-        row_data_json=row["row_data_json"],
+        row_data_json=_json_loads(row["row_data_json"], default={}),
         row_hash=row["row_hash"],
         created_at=row["created_at"],
     )
@@ -473,12 +479,12 @@ def _parse_error_from_row(row: RowMapping) -> UploadParseError:
         row_number=row["row_number"],
         error_code=row["error_code"],
         error_message=row["error_message"],
-        raw_value_json=row["raw_value_json"],
+        raw_value_json=_json_loads(row["raw_value_json"], default=None),
         created_at=row["created_at"],
     )
 
 
-def _row_params(parse_run: UploadParseRun, row: ParsedUploadRow) -> dict:
+def _row_params(parse_run: UploadParseRun, row: ParsedUploadRow, *, created_at: str) -> dict:
     return {
         "id": uuid4(),
         "workspace_id": parse_run.workspace_id,
@@ -488,10 +494,11 @@ def _row_params(parse_run: UploadParseRun, row: ParsedUploadRow) -> dict:
         "row_number": row.row_number,
         "row_data_json": _json_dumps(row.row_data_json),
         "row_hash": row.row_hash,
+        "created_at": created_at,
     }
 
 
-def _error_params(parse_run: UploadParseRun, error: UploadParseError) -> dict:
+def _error_params(parse_run: UploadParseRun, error: UploadParseError, *, created_at: str) -> dict:
     return {
         "id": uuid4(),
         "workspace_id": parse_run.workspace_id,
@@ -502,6 +509,7 @@ def _error_params(parse_run: UploadParseRun, error: UploadParseError) -> dict:
         "error_code": error.error_code,
         "error_message": error.error_message,
         "raw_value_json": _json_dumps(error.raw_value_json),
+        "created_at": created_at,
     }
 
 
@@ -509,3 +517,13 @@ def _json_dumps(value) -> str:
     import json
 
     return json.dumps(value)
+
+
+def _json_loads(value, *, default):
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    import json
+
+    return json.loads(value)

@@ -20,7 +20,9 @@ pending_approval, approved, rejected, superseded.
 Approved means approved for manual action or later export. It does not mean the app changed Amazon Ads live.
 
 ## Evidence
-Every recommendation displays decision source, AI provider/model when present, normalized metric evidence, `evidence_json` rollups, proposed action, priority, confidence, reasoning summary, and the approval boundary.
+The main approval queue displays seller-facing action labels, action class, export eligibility, priority, confidence, normalized metric evidence, a user-friendly reason, status, and the approval boundary.
+
+Advanced details remain available behind `View details`, including decision source, AI provider/model when present, raw rule name, raw technical reason, `evidence_json` rollups, proposed action payload, recommendation/import IDs, export eligibility reason, and approval/rejection history when returned by the API.
 
 `evidence_json` includes search-term, target, ad-group, campaign, and full-report performance. AI recommendations also record `decision_source=deepseek_ai`, `ai_run_id`, `ai_provider`, `ai_model`, `ai_schema_version`, `ai_evidence`, and explicit flags showing that approval does not execute live Amazon Ads changes. Fallback recommendations record `decision_source=fallback_rules`.
 

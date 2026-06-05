@@ -51,11 +51,14 @@ def build_failed_import_agent_run(*, workspace_id: UUID, product_id: UUID, impor
 
 
 def _quality_summary(*, import_record: MonitoringImport, snapshots: list[MonitoringSnapshot], warnings: list[dict]) -> dict:
+    issue_counts = _issue_counts(warnings)
     return {
         "report_quality_summary": f"{len(snapshots)} rows normalized for monitoring import {import_record.id}.",
         "missing_columns": [],
         "warnings": warnings,
-        "can_generate_recommendations": not warnings and bool(snapshots),
+        "issue_counts": issue_counts,
+        "import_health": "Good" if issue_counts["critical"] == 0 and issue_counts["error"] == 0 else "Needs review",
+        "can_generate_recommendations": issue_counts["critical"] == 0 and issue_counts["error"] == 0 and bool(snapshots),
         "refusal_boundary": _refusal_boundary(),
     }
 
@@ -97,13 +100,19 @@ def _recommendation_explanations(recommendations: list[Recommendation], category
 def _stakeholder_summary(*, recommendations: list[Recommendation], snapshots: list[MonitoringSnapshot]) -> dict:
     counts = _counts_by_type(recommendations)
     pending = sum(1 for item in recommendations if item.status == "pending_approval")
+    actionable = sum(1 for item in recommendations if item.recommendation_type in {"increase_bid", "decrease_bid", "add_negative_exact", "add_negative_phrase", "move_to_exact", "pause_review"})
+    watch = sum(1 for item in recommendations if item.recommendation_type in {"keep_running", "watch_lock"})
+    data_quality = sum(1 for item in recommendations if item.recommendation_type in {"data_quality_review", "data_quality_warning"})
+    budget = sum(1 for item in recommendations if item.recommendation_type == "budget_review")
     total_spend = sum((snapshot.spend for snapshot in snapshots), Decimal("0"))
     total_sales = sum((snapshot.sales for snapshot in snapshots), Decimal("0"))
+    zero_order_spend = sum((snapshot.spend for snapshot in snapshots if snapshot.orders == 0), Decimal("0"))
+    acos = total_spend / total_sales if total_sales > 0 else None
     return {
-        "headline": f"{pending} recommendations need human review before any Amazon Ads change.",
-        "dashboard_summary": f"{pending} recommendations are pending approval from uploaded Amazon Ads report data.",
-        "executive_summary": f"Spend {total_spend}, sales {total_sales}, with no live Amazon Ads changes executed.",
-        "analyst_notes": ["Review high and critical priority items first.", "Inspect data-quality recommendations before optimization decisions."],
+        "headline": f"{len(snapshots)} report rows analyzed. {pending} recommendations generated for human review.",
+        "dashboard_summary": f"{actionable} actionable recommendations, {watch} watch/monitoring insights, {data_quality} data quality checks, and {budget} budget review notes.",
+        "executive_summary": f"Spend {total_spend}, sales {total_sales}, account ACOS {acos:.2%}." if acos is not None else f"Spend {total_spend}, sales {total_sales}, ACOS unavailable because sales are zero.",
+        "analyst_notes": ["Review high-priority action recommendations first.", "Inspect data-quality recommendations before optimization decisions."],
         "approver_notes": ["Approval records an app decision only.", "Manual Amazon Console or later approved export workflow remains separate."],
         "next_best_actions": ["Review critical waste/data-quality items.", "Approve or reject each recommendation with notes."],
         "next_step": "Review critical and high priority recommendations, then approve or reject with notes.",
@@ -111,6 +120,11 @@ def _stakeholder_summary(*, recommendations: list[Recommendation], snapshots: li
         "total_spend": str(total_spend),
         "total_sales": str(total_sales),
         "total_orders": sum(snapshot.orders for snapshot in snapshots),
+        "zero_order_spend": str(zero_order_spend),
+        "actionable_recommendations": actionable,
+        "watch_insights": watch,
+        "data_quality_checks": data_quality,
+        "budget_review_notes": budget,
         "stakeholder_note": "No AI final decision, bid change, pause, negative keyword, export, or Amazon Ads mutation has been executed.",
         "refusal_boundary": _refusal_boundary(),
     }
@@ -152,6 +166,16 @@ def _counts_by_type(recommendations: list[Recommendation]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for recommendation in recommendations:
         counts[recommendation.recommendation_type.value] = counts.get(recommendation.recommendation_type.value, 0) + 1
+    return counts
+
+
+def _issue_counts(warnings: list[dict]) -> dict[str, int]:
+    counts = {"info": 0, "warning": 0, "error": 0, "critical": 0}
+    for warning in warnings:
+        severity = str(warning.get("severity") or "warning").lower()
+        if severity not in counts:
+            severity = "warning"
+        counts[severity] += 1
     return counts
 
 

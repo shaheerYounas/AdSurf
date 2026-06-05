@@ -1,6 +1,7 @@
 """Repository layer for custom agent builder entities."""
 
 from datetime import UTC, datetime
+import json
 from uuid import UUID, uuid4
 
 from sqlalchemy import text
@@ -101,15 +102,15 @@ class CustomAgentRepository:
                 COALESCE(sa.sub_agent_count, 0) AS sub_agent_count,
                 COALESCE(th.thread_count, 0) AS thread_count
             FROM custom_agents ca
-            LEFT JOIN LATERAL (
-                SELECT COUNT(*) AS tool_count FROM agent_tools WHERE agent_id = ca.id
-            ) t ON true
-            LEFT JOIN LATERAL (
-                SELECT COUNT(*) AS sub_agent_count FROM sub_agents WHERE parent_agent_id = ca.id
-            ) sa ON true
-            LEFT JOIN LATERAL (
-                SELECT COUNT(*) AS thread_count FROM agent_threads WHERE agent_id = ca.id
-            ) th ON true
+            LEFT JOIN (
+                SELECT agent_id, COUNT(*) AS tool_count FROM agent_tools GROUP BY agent_id
+            ) t ON t.agent_id = ca.id
+            LEFT JOIN (
+                SELECT parent_agent_id, COUNT(*) AS sub_agent_count FROM sub_agents GROUP BY parent_agent_id
+            ) sa ON sa.parent_agent_id = ca.id
+            LEFT JOIN (
+                SELECT agent_id, COUNT(*) AS thread_count FROM agent_threads GROUP BY agent_id
+            ) th ON th.agent_id = ca.id
             WHERE ca.workspace_id = :workspace_id
             ORDER BY ca.updated_at DESC
         """)
@@ -183,11 +184,11 @@ class CustomAgentRepository:
             memory_enabled=bool(agent.get("memory_enabled", False)),
             memory_ttl_days=agent.get("memory_ttl_days", 30),
             output_format=agent.get("output_format", "text"),
-            output_schema=agent.get("output_schema"),
+            output_schema=_json_value(agent.get("output_schema"), {}),
             workflow_type=agent.get("workflow_type", "sequential"),
-            workflow_graph=agent.get("workflow_graph"),
+            workflow_graph=_json_value(agent.get("workflow_graph"), {}),
             status=agent.get("status", "draft"),
-            metadata_json=agent.get("metadata_json") or {},
+            metadata_json=_json_value(agent.get("metadata_json"), {}),
             created_by=agent.get("created_by"), updated_by=agent.get("updated_by"),
             created_at=agent["created_at"], updated_at=agent["updated_at"],
             tools=tools, sub_agents=sub_agents, knowledge_base_ids=kb_ids,
@@ -207,6 +208,8 @@ class ToolRepository:
 
     def create(self, payload: AgentToolCreate) -> AgentToolResponse:
         engine = get_database_engine()
+        agent = CustomAgentRepository().get_by_id(payload.agent_id)
+        workspace_id = agent.workspace_id if agent else UUID("00000000-0000-0000-0000-000000000000")
         with engine.begin() as conn:
             conn.execute(
                 text("""
@@ -218,7 +221,7 @@ class ToolRepository:
                         :allowed_domains, :allowed_actions, :created_at, :updated_at)
                 """),
                 dict(
-                    id=uuid4(), workspace_id=UUID("00000000-0000-0000-0000-000000000000"),
+                    id=uuid4(), workspace_id=workspace_id,
                     agent_id=payload.agent_id, tool_name=payload.tool_name,
                     tool_config=_jsonb(payload.tool_config),
                     enabled=payload.enabled, permission_level=payload.permission_level.value,
@@ -384,9 +387,8 @@ class KnowledgeBaseRepository:
         with engine.begin() as conn:
             conn.execute(
                 text("""
-                    INSERT INTO agent_knowledge_bases (id, workspace_id, agent_id, knowledge_base_id, created_at)
+                    INSERT OR IGNORE INTO agent_knowledge_bases (id, workspace_id, agent_id, knowledge_base_id, created_at)
                     VALUES (:id, :workspace_id, :agent_id, :kb_id, :created_at)
-                    ON CONFLICT (agent_id, knowledge_base_id) DO NOTHING
                 """),
                 dict(id=uuid4(), workspace_id=workspace_id, agent_id=agent_id, kb_id=kb_id,
                      created_at=datetime.now(UTC)),
@@ -417,6 +419,8 @@ class SubAgentRepository:
         sa_id = uuid4()
         now = datetime.now(UTC)
         engine = get_database_engine()
+        agent = CustomAgentRepository().get_by_id(payload.parent_agent_id)
+        workspace_id = agent.workspace_id if agent else UUID("00000000-0000-0000-0000-000000000000")
         with engine.begin() as conn:
             conn.execute(
                 text("""
@@ -428,7 +432,7 @@ class SubAgentRepository:
                         :requires_approval, :created_at, :updated_at)
                 """),
                 dict(
-                    id=sa_id, workspace_id=UUID("00000000-0000-0000-0000-000000000000"),
+                    id=sa_id, workspace_id=workspace_id,
                     parent_agent_id=payload.parent_agent_id, name=payload.name,
                     role=payload.role, instructions=payload.instructions,
                     model_provider=payload.model_provider.value if payload.model_provider else None,
@@ -777,17 +781,17 @@ class CustomAgentRunRepository:
             id=row["id"], workspace_id=row["workspace_id"], agent_id=row["agent_id"],
             thread_id=row.get("thread_id"), status=row["status"],
             model_provider=row.get("model_provider"), model_name=row.get("model_name"),
-            input_json=row.get("input_json") or {},
-            output_json=row.get("output_json") or {},
-            error_json=row.get("error_json") or {},
+            input_json=_json_value(row.get("input_json"), {}),
+            output_json=_json_value(row.get("output_json"), {}),
+            error_json=_json_value(row.get("error_json"), {}),
             tokens_input=row.get("tokens_input", 0),
             tokens_output=row.get("tokens_output", 0),
             cost_usd=float(row.get("cost_usd", 0)),
             latency_ms=row.get("latency_ms"),
-            sub_agent_runs_json=row.get("sub_agent_runs_json") or [],
+            sub_agent_runs_json=_json_value(row.get("sub_agent_runs_json"), []),
             tool_call_count=row.get("tool_call_count", 0),
             knowledge_chunks_retrieved=row.get("knowledge_chunks_retrieved", 0),
-            metadata_json=row.get("metadata_json") or {},
+            metadata_json=_json_value(row.get("metadata_json"), {}),
             started_at=row.get("started_at"),
             completed_at=row.get("completed_at"),
             created_at=row["created_at"],
@@ -841,13 +845,13 @@ def _agent_row(row: dict) -> dict:
 def _tool_row(row: dict) -> AgentToolResponse:
     return AgentToolResponse(
         id=row["id"], workspace_id=row["workspace_id"], agent_id=row["agent_id"],
-        tool_name=row["tool_name"], tool_config=row.get("tool_config") or {},
+        tool_name=row["tool_name"], tool_config=_json_value(row.get("tool_config"), {}),
         enabled=bool(row.get("enabled", True)),
         permission_level=row.get("permission_level", "read"),
         requires_approval=bool(row.get("requires_approval", False)),
         rate_limit_per_day=row.get("rate_limit_per_day"),
-        allowed_domains=row.get("allowed_domains"),
-        allowed_actions=row.get("allowed_actions"),
+        allowed_domains=_json_value(row.get("allowed_domains"), None),
+        allowed_actions=_json_value(row.get("allowed_actions"), None),
         created_at=row["created_at"], updated_at=row["updated_at"],
     )
 
@@ -886,7 +890,7 @@ def _sub_row(row: dict) -> SubAgentResponse:
         name=row["name"], role=row["role"], instructions=row["instructions"],
         model_provider=row.get("model_provider"),
         model_name=row.get("model_name"),
-        tools_json=row.get("tools_json") or [],
+        tools_json=_json_value(row.get("tools_json"), []),
         execution_order=row.get("execution_order", 1),
         enabled=bool(row.get("enabled", True)),
         requires_approval=bool(row.get("requires_approval", False)),
@@ -898,7 +902,7 @@ def _thread_row(row: dict) -> AgentThreadResponse:
     return AgentThreadResponse(
         id=row["id"], workspace_id=row["workspace_id"], agent_id=row["agent_id"],
         title=row.get("title"), status=row.get("status", "active"),
-        metadata_json=row.get("metadata_json") or {},
+        metadata_json=_json_value(row.get("metadata_json"), {}),
         created_by=row.get("created_by"),
         created_at=row["created_at"], updated_at=row["updated_at"],
         message_count=row.get("message_count", 0),
@@ -911,11 +915,11 @@ def _msg_row(row: dict) -> AgentMessageResponse:
         id=row["id"], workspace_id=row["workspace_id"],
         thread_id=row["thread_id"], agent_id=row.get("agent_id"),
         role=row["role"], content=row.get("content"),
-        tool_calls_json=row.get("tool_calls_json"),
+        tool_calls_json=_json_value(row.get("tool_calls_json"), None),
         tool_call_id=row.get("tool_call_id"),
         sub_agent_name=row.get("sub_agent_name"),
         token_count=row.get("token_count"),
-        metadata_json=row.get("metadata_json") or {},
+        metadata_json=_json_value(row.get("metadata_json"), {}),
         created_at=row["created_at"],
     )
 
@@ -930,7 +934,7 @@ def _mem_row(row: dict) -> AgentMemoryResponse:
         access_count=row.get("access_count", 0),
         last_accessed_at=row.get("last_accessed_at"),
         expires_at=row.get("expires_at"),
-        metadata_json=row.get("metadata_json") or {},
+        metadata_json=_json_value(row.get("metadata_json"), {}),
         created_at=row["created_at"], updated_at=row["updated_at"],
     )
 
@@ -940,8 +944,8 @@ def _run_step_row(row: dict) -> CustomAgentRunStepResponse:
         id=row["id"], workspace_id=row["workspace_id"], run_id=row["run_id"],
         agent_name=row.get("agent_name"),
         step_type=row["step_type"], step_order=row["step_order"],
-        input_json=row.get("input_json") or {},
-        output_json=row.get("output_json") or {},
+        input_json=_json_value(row.get("input_json"), {}),
+        output_json=_json_value(row.get("output_json"), {}),
         status=row.get("status", "pending"),
         error_message=row.get("error_message"),
         latency_ms=row.get("latency_ms"),
@@ -953,7 +957,7 @@ def _run_step_row(row: dict) -> CustomAgentRunStepResponse:
 def _template_row(row: dict) -> AgentTemplateResponse:
     return AgentTemplateResponse(
         id=row["id"], name=row["name"], description=row["description"],
-        category=row["category"], config_json=row.get("config_json") or {},
+        category=row["category"], config_json=_json_value(row.get("config_json"), {}),
         is_public=bool(row.get("is_public", True)),
         usage_count=row.get("usage_count", 0),
         created_at=row["created_at"],
@@ -961,7 +965,22 @@ def _template_row(row: dict) -> AgentTemplateResponse:
 
 
 def _jsonb(value):
-    """Return value as-is; SQLAlchemy text() handles dict/list serialization to PostgreSQL JSONB."""
+    """Return value as JSON string for SQLite TEXT storage."""
     if value is None:
         return None
+    if isinstance(value, (dict, list)):
+        return json.dumps(value)
+    return value
+
+
+def _json_value(value, default):
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            return default
     return value

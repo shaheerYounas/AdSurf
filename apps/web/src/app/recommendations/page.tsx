@@ -7,7 +7,7 @@ export default function RecommendationsPage() {
       <PageHeader
         eyebrow="Approval queue"
         title="AI recommendations"
-        description="Review DeepSeek AI and deterministic fallback recommendations with evidence, confidence, and approval-only safety boundaries."
+        description="Review AI-assisted and rules-engine recommendations with seller-friendly evidence, export eligibility, and approval-only safety boundaries."
       />
       <RecommendationsWorkspace />
     </section>

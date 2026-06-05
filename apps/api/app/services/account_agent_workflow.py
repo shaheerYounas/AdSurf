@@ -64,7 +64,10 @@ def build_account_agent_workflow_runs(
         runs.append(run)
         dependency_ids.append(str(run.id))
 
-    return runs, [item.model_copy(update={"agent_run_id": runs[4].id, "ai_run_id": runs[4].id}) for item in recommendations]
+    recommendation_run = next((run for run in runs if run.agent_name == "ai_recommendation_brain_agent"), runs[0] if runs else None)
+    if recommendation_run is None:
+        return runs, recommendations
+    return runs, [item.model_copy(update={"agent_run_id": recommendation_run.id, "ai_run_id": recommendation_run.id}) for item in recommendations]
 
 
 def build_account_workflow_events(*, workspace_id: UUID, account_import_id: UUID, runs: list[AiRun]) -> list[dict]:

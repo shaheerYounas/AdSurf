@@ -10,7 +10,7 @@ This tracker preserves the full safeguard scope from the Sponsored Products Sear
 | Search term interpretation mistakes | in_progress | Safeguards classify ASIN-like search terms, auto/product-targeting contexts, missing match type, product-specific and match-type duplicate behavior. |
 | Campaign creation mistakes | in_progress | Existing campaign rules require approved keyword sets and human approval. Remaining safety enhancements include margin/data thresholds and duplicate campaign checks. |
 | Negative keyword mistakes | in_progress | Existing monitoring rules require click/order thresholds and human approval. Safeguards flag converting terms and match-type risks. |
-| Monitoring and optimization mistakes | in_progress | Existing monitoring rules use thresholds and no-live-change boundaries. Safeguards add zero-sales spend, data reliability, attribution-window, and margin-risk warnings. |
+| Monitoring and optimization mistakes | in_progress | Existing monitoring rules use stricter evidence thresholds and no-live-change boundaries. Zero-sales spend is summarized as a performance metric, while data reliability, attribution-window, marketplace/currency, and margin-risk issues use info/warning/error/critical severity. |
 | Analyst confusion scenarios | documented | Captured as risk explanations and labels for user-facing review. |
 | Money-waste danger zones | documented | Captured as risk labels and implementation acceptance criteria. |
 | Required safeguards | in_progress | Validation, metric comparison, minimum-data rules, human checkpoints, and risk labels are being implemented incrementally. |

@@ -17,26 +17,68 @@ export type MonitoringImport = {
 
 export type Recommendation = {
   id: string;
+  workspace_id?: string;
   product_id: string | null;
   monitoring_import_id?: string | null;
+  snapshot_id?: string | null;
   account_import_id?: string | null;
   entity_key?: string | null;
   decision_source?: string | null;
+  agent_run_id?: string | null;
+  ai_run_id?: string | null;
+  approval_boundary?: {
+    requires_human_approval?: boolean;
+    executes_live_amazon_change?: boolean;
+    [key: string]: unknown;
+  };
   recommendation_type: string;
   entity_type: string;
   status: string;
   priority: string;
   confidence: string;
+  risk_level?: string | null;
+  source?: string | null;
+  evidence_score?: Record<string, unknown> | null;
+  expected_impact?: Record<string, unknown> | null;
+  rule_version_id?: string;
   rule_name: string;
   campaign_name: string | null;
   ad_group_name: string | null;
   targeting: string | null;
   customer_search_term: string | null;
+  match_type?: string | null;
+  current_bid?: string | number | null;
+  recommended_bid?: string | number | null;
+  change_percent?: string | number | null;
+  current_budget?: string | number | null;
+  recommended_budget?: string | number | null;
   input_metrics_json: Record<string, string | number | null>;
   current_metric_snapshot_json: Record<string, string | number | null>;
   evidence_json: Record<string, unknown>;
   proposed_action_json: Record<string, unknown>;
-  explanation_json: { summary?: string; approval_required?: boolean; decision_source?: string; ai_provider?: string; ai_model?: string; ai_final_decision?: boolean; execution_boundary?: string };
+  explanation_json: {
+    summary?: string;
+    why_flagged?: string;
+    evidence?: string;
+    recommended_action?: string;
+    risk?: string;
+    approval_note?: string;
+    advanced_details?: { rule?: unknown; thresholds?: unknown; source?: unknown; metric_snapshot?: unknown };
+    approval_required?: boolean;
+    decision_source?: string;
+    ai_provider?: string;
+    ai_model?: string;
+    ai_final_decision?: boolean;
+    execution_boundary?: string;
+  };
+  bulk_export_status?: string | null;
+  learning_feedback_id?: string | null;
+  previous_recommendation_id?: string | null;
+  decided_by?: string | null;
+  decision_note?: string | null;
+  decided_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
 };
 
 export type MonitoringSummary = {
@@ -56,6 +98,40 @@ export type MonitoringSummary = {
     total_sales?: string;
     total_orders?: number;
   } | null;
+  summary_metrics: {
+    rows_analyzed?: number;
+    report_rows?: number;
+    recommendations_generated?: number;
+    pending_human_review?: number;
+    actionable_recommendations?: number;
+    watch_insights?: number;
+    data_quality_checks?: number;
+    budget_review_notes?: number;
+    total_spend?: string;
+    total_sales?: string;
+    total_orders?: number;
+    total_clicks?: number;
+    total_impressions?: number;
+    overall_acos?: string | null;
+    zero_order_spend?: string;
+    detected_products?: number;
+    no_live_amazon_changes?: boolean;
+    manual_export_required?: boolean;
+  };
+  action_recommendation_counts: Record<string, number>;
+  non_action_insight_counts: Record<string, number>;
+  issue_counts: Record<string, number>;
+  detected_product_groups: Array<{
+    key: string;
+    asin?: string | null;
+    sku?: string | null;
+    rows: number;
+    spend: string;
+    sales: string;
+    orders: number;
+    campaign_count?: number;
+    source?: string | null;
+  }>;
 };
 
 // ── Request deduplication ──────────────────────────────────────────────
@@ -75,7 +151,7 @@ export async function createMonitoringImport(productId: string, uploadId: string
     headers: { ...localAuthHeaders(workspaceId), "Content-Type": "application/json" },
     body: JSON.stringify({ upload_id: uploadId }),
   });
-  return readApiData<{ import_record: MonitoringImport; job_id: string }>(response, "Monitoring import could not be queued.");
+  return readApiData<{ import_record: MonitoringImport; job_id?: string | null; already_imported?: boolean; message?: string | null }>(response, "Monitoring import could not be queued.");
 }
 
 export async function processMonitoringJobs(workspaceId = defaultWorkspaceId) {

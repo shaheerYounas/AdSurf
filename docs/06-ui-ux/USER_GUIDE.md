@@ -25,7 +25,7 @@ The app is designed around one operating rule: recommendations and exports requi
 | Mapping | Generate column profiles, map source columns, score keywords, review candidates, and create approved keyword sets. |
 | Campaign Plan | Generate and inspect campaign structures from approved keyword sets. |
 | Bulk Exports | Validate, approve, and download Amazon bulk sheet files. |
-| Recommendations | Review DeepSeek AI or deterministic fallback optimization suggestions with deterministic metric evidence. |
+| Recommendations | Review AI-assisted and rules-engine optimization suggestions with seller-friendly evidence, export eligibility, and approval-only safety boundaries. |
 | Approvals | Review pending and historical approval records. |
 | Settings | Manage workspace, team, and account configuration. |
 
@@ -58,7 +58,7 @@ Recommended upload files should include columns for search term or keyword, spen
 | Approve plan | A human confirms the plan before export. |
 | Generate bulk export | The app creates an Amazon bulk sheet for download. |
 | Import performance report | A processed Sponsored Products Search Term report becomes monitoring evidence. |
-| Generate recommendations | DeepSeek AI creates keep-running, bid, pause-review, negative-keyword, move-to-exact, watch-lock, budget-review, and data-quality recommendations when configured. Deterministic rules remain available as fallback. |
+| Generate recommendations | AI-assisted reasoning can create keep-running, bid, pause-review, negative-keyword, move-to-exact, watch-lock, budget-review, and data-quality recommendations when configured. Deterministic rules remain available as fallback. |
 | Decide recommendations | A human approves or rejects each recommendation with a note. |
 
 ## Dashboard Loading
@@ -74,12 +74,14 @@ The dashboard uses a single workspace summary request for product counts, upload
 
 The product should appear in the product list immediately. If it does not, check that the backend is running, the workspace is selected, and the current user has product access.
 
-## Upload A Research File
+## Upload A Product File
 1. Open a product.
 2. Go to `Uploads`.
 3. Choose a CSV or XLSX file.
-4. Confirm the upload.
-5. Wait for the status to change from queued or processing to processed.
+4. Choose the report type.
+   Use `Competitor keyword research` for keyword mapping and campaign planning. Use `Sponsored Products Search Term report` for monitoring imports and recommendation generation.
+5. Confirm the upload.
+6. Wait for the status to change from queued or processing to processed.
 
 Common statuses:
 
@@ -90,6 +92,8 @@ Common statuses:
 | processing | The parser is reading and normalizing rows. |
 | processed | Parsing succeeded and rows are available for mapping. |
 | failed | Parsing failed and needs review. |
+
+Processed competitor research files open the column mapping workflow. Processed Sponsored Products Search Term reports open the product monitoring workflow so the user can create a monitoring import from the parsed report.
 
 For the current local demo data, the two sponsored-products search term report files are imported under the product `Sponsored Products Search Term Reports Demo`.
 
@@ -186,6 +190,8 @@ The competitor workflow can be run as Full Flow or as a single phase.
 
 Phase 1 uploads, cleans, scores, and verifies competitor research. After scoring, run the Amazon browser verification agent. The agent opens Amazon result pages, captures visible top-result titles/ASINs, and AdSurf automatically checks whether at least three original competitors appear in the top 15 results. The agent does not log in, bypass browser challenges, use stealth scraping, call PAAPI, or execute Amazon Ads changes.
 
+Competitor rank columns can use direct rank labels such as `Organic Rank` or named competitor labels such as `Competitor A Rank`, `Competitor B Rank`, and `Competitor C Rank`. The cleaner stores these rank values before scoring so the deterministic scorer can approve rows with at least three competitors ranking under 15.
+
 Phase 2 prepares campaign rows only when the upload already has rows that are both `scoring_status=approved` and `verification_status=verified`.
 
 Phase 3 runs the deterministic 14-day monitoring simulation from a campaign name. Any bid or lock output remains a pending recommendation or watch status until reviewed.
@@ -234,14 +240,14 @@ Recommendations require approval before any customer-impacting action or export 
 ## Import A Sponsored Products Search Term Report
 1. Export a Sponsored Products Search Term report from Amazon Ads.
 2. Open the product that owns the running ads.
-3. Upload the file with source type `amazon_ads_sp_search_term_report`.
+3. Upload the file and choose `Sponsored Products Search Term report` as the report type. The upload is saved with source type `amazon_ads_sp_search_term_report`.
 4. Confirm the upload and wait until parsing is processed.
 5. Open `Performance report to recommendations`.
 6. Select or enter the processed upload ID.
 7. Create the monitoring import.
 8. Run the local monitoring worker in development or wait for the monitoring worker in deployed environments.
 
-The app validates required columns such as Campaign Name, Ad Group Name, Targeting, Customer Search Term, Impressions, Clicks, Spend, Sales, and Orders. Missing required columns stop recommendation generation. Optional metrics such as ACOS, ROAS, Units, CTR, CPC, CVR, Start Date, and End Date are normalized when present, and missing derived metrics are calculated from base metrics when possible.
+The app validates required base columns such as Campaign Name, Ad Group Name, Targeting, Customer Search Term, Impressions, Clicks, Spend, Sales or 7 Day Total Sales, and Orders or 7 Day Total Orders. Missing required base columns stop recommendation generation. Optional metrics such as ACOS, ROAS, Units, CTR, CPC, CVR, Start Date, and End Date are normalized when present, and missing derived metrics are calculated from base metrics when possible.
 
 ## Agent Control Center
 Open `Agents` to upload an Amazon Ads report, inspect the agent team, run analysis, review trace events, and send recommendations through human approval checkpoints. You can also open a monitoring import and choose `Open Agent Control Center` for import-specific workflow details.
@@ -266,22 +272,13 @@ Owner/admin users can change agent configuration. Analysts can run, rerun, pause
 Every recommendation card and approval checkpoint repeats the safety boundary: `Recommendation only`, `Requires human approval`, and `No live Amazon Ads change executed`.
 
 ## Review AI Recommendations
-Open `Recommendations` to review the queue. Each row shows:
+Open `Recommendations` to review the queue. Summary cards show total recommendations, actionable items, review-only insights, exportable actions, pending approvals, approved, rejected, and critical/high-priority counts.
 
-- Priority.
-- Decision source, such as DeepSeek AI or deterministic fallback.
-- DeepSeek model when an AI recommendation was saved.
-- Recommendation type.
-- Campaign and ad group.
-- Targeting or customer search term.
-- Metric evidence such as spend, clicks, sales, orders, ACOS, ROAS, CTR, and CVR.
-- Proposed action.
-- Confidence and reasoning summary.
-- Requires human approval.
-- No live Amazon Ads change executed.
-- Current status.
+Each row shows priority, a seller-friendly recommendation, search term, campaign/ad group, compact metric evidence, recommended action, confidence, exportability, status, and actions. Raw technical rule names and model names are not shown in the main table.
 
-Use filters to focus by source, status, priority, or recommendation type. Approve or reject only after checking the evidence. Evidence includes normalized row metrics plus search-term, target, ad-group, campaign, and report rollups in `evidence_json`. AI recommendations also show `ai_provider`, `ai_model`, `ai_run_id`, and AI evidence. A note is required, and the decision updates the app audit trail only. It does not execute a bid change, pause an ad, add a negative keyword, generate an export, or call the Amazon Ads API.
+Use filters to focus by status, priority, recommendation type, action class, exportability, confidence, campaign text, search-term text, minimum spend, minimum clicks, and minimum orders. Quick filters cover pending approval, actionable, exportable, critical/high, data checks, negative keywords, bid changes, and move-to-exact recommendations.
+
+Choose `View details` for full campaign/ad group names, metric snapshot, user-friendly reason, raw technical reason, rule name, model/source, recommendation ID, import ID, export eligibility, and approval/rejection history when available. A note is required for approval or rejection. The decision updates the app audit trail only. It does not execute a bid change, pause an ad, add a negative keyword, generate an export, or call the Amazon Ads API.
 
 ## Agent Council Boundary
 The agent council is the recommendation and explanation layer for monitoring:

@@ -40,6 +40,7 @@ type ParseRun = {
 
 export function UploadInitializationForm({ productId }: UploadInitializationFormProps) {
   const [workspaceId, setWorkspaceId] = useState(defaultWorkspaceId);
+  const [sourceType, setSourceType] = useState("amazon_ads_sp_search_term_report");
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [initResult, setInitResult] = useState<InitResponse | null>(null);
@@ -88,7 +89,7 @@ export function UploadInitializationForm({ productId }: UploadInitializationForm
           original_filename: file?.name,
           mime_type: file?.type || mimeTypeForFilename(file?.name ?? ""),
           file_size_bytes: file?.size,
-          source_type: "competitor_keyword_research",
+          source_type: sourceType,
         }),
       });
       const body = await response.json();
@@ -156,12 +157,14 @@ export function UploadInitializationForm({ productId }: UploadInitializationForm
 
   return (
     <form className="space-y-5 rounded-lg border border-slate-200 bg-white p-5 dark:border-white/10 dark:bg-slate-950/70" onSubmit={initializeUpload}>
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,280px)]">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(220px,280px)_minmax(220px,280px)]">
         <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-          Raw keyword file
+          Report file
           <input
             accept={ACCEPTED_UPLOAD_EXTENSIONS.join(",")}
             className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 file:mr-3 file:rounded-full file:border-0 file:bg-slate-950 file:px-3 file:py-1 file:text-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:file:bg-white dark:file:text-slate-950"
+            id="product-report-file"
+            name="product_report_file"
             onChange={(event) => {
               const selectedFile = event.target.files?.[0] ?? null;
               setFile(selectedFile);
@@ -174,9 +177,31 @@ export function UploadInitializationForm({ productId }: UploadInitializationForm
           <span className="block text-xs font-normal text-slate-500 dark:text-slate-400">CSV/XLS/XLSX, 25 MB max</span>
         </label>
         <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+          Report type
+          <select
+            className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white"
+            id="product-report-type"
+            name="product_report_type"
+            onChange={(event) => {
+              setSourceType(event.target.value);
+              setInitResult(null);
+              setConfirmResult(null);
+            }}
+            value={sourceType}
+          >
+            <option value="amazon_ads_sp_search_term_report">Sponsored Products Search Term report</option>
+            <option value="competitor_keyword_research">Competitor keyword research</option>
+          </select>
+          <span className="block text-xs font-normal text-slate-500 dark:text-slate-400">
+            Search Term reports feed monitoring; competitor research feeds keyword mapping.
+          </span>
+        </label>
+        <label className="space-y-2 text-sm font-medium text-slate-700 dark:text-slate-200">
           Workspace ID
           <input
             className="block w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-white"
+            id="upload-workspace-id"
+            name="upload_workspace_id"
             onChange={(event) => setWorkspaceId(event.target.value)}
             placeholder="Workspace UUID"
             value={workspaceId}
@@ -223,8 +248,9 @@ export function UploadInitializationForm({ productId }: UploadInitializationForm
 
       <div className="rounded-md border border-slate-200 bg-white p-3 text-sm text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
         <p className="font-medium text-slate-900 dark:text-white">
-          Parsing prepares your uploaded file for manual column mapping. After parsing succeeds, open column mapping to map search term,
-          search volume, and competitor rank columns.
+          {sourceType === "amazon_ads_sp_search_term_report"
+            ? "Parsing prepares your Sponsored Products Search Term report for monitoring import creation and deterministic recommendation review."
+            : "Parsing prepares your uploaded file for manual column mapping. After parsing succeeds, open column mapping to map search term, search volume, and competitor rank columns."}
         </p>
         {parseRuns[0] ? (
           <>
@@ -249,9 +275,9 @@ export function UploadInitializationForm({ productId }: UploadInitializationForm
             {parseRuns[0].status === "succeeded" && initResult ? (
               <a
                 className="mt-3 inline-flex rounded-md bg-slate-950 px-4 py-2 text-sm font-medium text-white dark:bg-indigo-300 dark:text-indigo-950"
-                href={`/products/${productId}/uploads/${initResult.upload_id}/mapping`}
+                href={sourceType === "amazon_ads_sp_search_term_report" ? `/products/${productId}/monitoring` : `/products/${productId}/uploads/${initResult.upload_id}/mapping`}
               >
-                Open column mapping
+                {sourceType === "amazon_ads_sp_search_term_report" ? "Open monitoring import" : "Open column mapping"}
               </a>
             ) : null}
           </>

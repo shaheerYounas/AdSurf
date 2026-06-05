@@ -51,6 +51,12 @@ Batch 8 adds deterministic campaign plan generation from locked approved keyword
 
 Batch 10 adds Sponsored Products Search Term monitoring imports, normalized targeting/search-term snapshots, deterministic recommendation records, human decision records, and deterministic summary metadata. Phase 1 adds evidence JSON and the full monitoring recommendation taxonomy. Monitoring remains recommendation-only and does not execute bid changes, pauses, negatives, exports, or Amazon Ads API actions.
 
+Local SQLite stores JSON fields such as monitoring import warnings, snapshot raw metrics, recommendation evidence/action/explanation payloads, AI run output, agent event metadata, competitor upload warnings/detected columns, and competitor cleaned row rank/raw metric payloads as JSON text. Repository row mappers must deserialize these values before constructing Pydantic schemas.
+
+Local SQLite development stores JSON columns as text, so repository reads must deserialize JSON payloads before returning API models. Upload parsing, competitor uploads and cleaned rows, account imports, monitoring recommendations, workflows, jobs, audit logs, and approval gate writes also provide explicit timestamps where the local database does not supply Postgres defaults.
+
+Custom agent builder records are workspace-owned across agents, tools, knowledge bases, links, sub-agents, threads, messages, memories, and runs. API routes validate parent ownership before listing, creating, updating, deleting, linking, or reading child records, even when the child repository method accepts only an object id.
+
 ## Core Columns
 | Table | Required columns |
 | --- | --- |
@@ -114,7 +120,7 @@ Batch 10 adds Sponsored Products Search Term monitoring imports, normalized targ
 | Requirement | Decision |
 | --- | --- |
 | Foreign keys | All relationship columns must have foreign keys with restrictive deletes unless retention policy explicitly allows cascade. |
-| Uniqueness | Enforce unique normalized search term per workspace, product, upload; unique campaign plan version per product; unique export per campaign plan version unless superseded. |
+| Uniqueness | Enforce unique normalized search term per workspace, product, upload; one monitoring import per workspace, product, upload, and report type; unique campaign plan version per product; unique export per campaign plan version unless superseded. |
 | Indexes | Index workspace_id on every workspace-scoped table; index foreign keys, status fields, created_at, job status/locked_at, and recommendation status. |
 | Timestamps | Every mutable table has created_at and updated_at; append-only tables have created_at. |
 | Actors | User-driven mutable tables include created_by and updated_by where relevant. Approval and audit tables always include actor_user_id. |
@@ -219,15 +225,23 @@ The `uploads` table has RLS enabled. Workspace members can read upload metadata.
 | Requirement | Decision |
 | --- | --- |
 | Report type | `amazon_ads_sp_search_term_report` only for the first monitoring implementation. |
+| Required input columns | Base report fields only: Campaign Name, Ad Group Name, Targeting, Customer Search Term, Impressions, Clicks, Spend, Sales or 7 Day Total Sales, and Orders or 7 Day Total Orders. |
+| Derived metrics | CTR, CPC, CVR, ACOS, ROAS, Units, Start Date, and End Date are optional source fields. The worker recalculates derived metrics from base values when possible and keeps divide-by-zero behavior explicit. |
 | Import source | Monitoring imports reference a processed `amazon_ads_sp_search_term_report` upload and succeeded parse run in the same workspace/product. |
 | Snapshot grain | One snapshot row per campaign/ad group/targeting/search-term/date-range row from the report. |
+| Source row identity | DB-backed parser rows keep their persisted `source_row_id`. In-memory parser flows used by tests and local smoke checks generate a UUID fallback so normalization still produces auditable snapshots. |
 | Metrics | Impressions, clicks, CTR, CPC, spend, sales, ACOS, ROAS, orders, units, and CVR are stored as normalized numeric values. |
+| Amazon aliases | Known Amazon header variants such as `7 Day Total Orders (#)` are normalized to canonical metric keys before snapshot creation. Alias handling does not suppress risk warnings. |
+| Import idempotency | Monitoring imports are unique by `workspace_id`, `product_id`, `upload_id`, and `report_type`. Duplicate import requests return the existing import and do not create duplicate rows. |
+| Import message severity | Import health messages use `info`, `warning`, `error`, and `critical`. Amazon alias mapping is `info`; blank ACOS/ROAS with zero sales is normal and not a warning. |
+| Product detection | Detected product groups come only from advertised ASIN/SKU or campaign-owned product columns. Customer Search Term ASINs are never used for product profile creation or linking. |
 | Recommendation ownership | Deterministic rules create `recommendations`; Phase 1 does not use AI for final decisions. |
 | Evidence storage | `recommendations.evidence_json` stores rule version, thresholds, normalized metrics, search-term performance, target performance, ad-group performance, campaign performance, report performance, and approval boundary flags. |
 | Agent runs | `ai_runs` stores explanation-layer output only, scoped to workspace and product where available. |
 | Human decision | Approve/reject creates `recommendation_decisions` and updates recommendation status. |
 | Execution boundary | Approval means approved for manual action or later export; no live Amazon Ads mutation occurs. |
 | Auditability | Import queueing, processing, recommendation evidence, decisions, and deterministic summaries must be traceable by workspace, actor, rule version, and input hash where applicable. |
+| Local adapter behavior | SQLite repository adapters deserialize stored JSON text into structured API fields and write explicit `created_at`/`updated_at` values for append-only and workflow tables that depend on Postgres defaults in Supabase. |
 
 ## Batch 10 Monitoring RLS Status
 `monitoring_imports`, `monitoring_snapshots`, `recommendations`, `recommendation_decisions`, and `ai_runs` have RLS enabled. Workspace members can read monitoring evidence and agent outputs. Backend/service-role operations create imports, snapshots, recommendations, and AI run rows. Recommendation decisions are limited to `owner`, `admin`, `analyst`, and `approver` in the API, with `viewer` read-only.

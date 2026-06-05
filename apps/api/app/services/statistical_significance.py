@@ -344,7 +344,7 @@ def evidence_strength_label(
         if wilson_lower >= 0.005:
             return "moderate"
         return "weak"
-    if orders >= 5 and wilson_lower >= 0.01:
+    if clicks >= 100 and orders >= 5 and wilson_lower >= 0.01:
         return "very_strong"
     if orders >= 1:
         return "strong"

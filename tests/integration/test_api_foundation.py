@@ -88,6 +88,17 @@ def test_dashboard_summary_endpoint_returns_single_workspace_payload() -> None:
     assert data["products"][0]["product_name"] == "Dashboard Product"
 
 
+def test_recommendations_endpoint_returns_empty_local_payload() -> None:
+    workspace_id = str(uuid4())
+
+    response = client.get(f"/v1/workspaces/{workspace_id}/recommendations", headers=auth_headers(workspace_id, role="viewer"))
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["data"] == []
+    assert body["meta"]["returned"] == 0
+
+
 def test_product_profile_validation_error_uses_standard_error_envelope() -> None:
     workspace_id = str(uuid4())
     response = client.post(

@@ -61,9 +61,11 @@ class Settings(BaseModel):
 @lru_cache
 def get_settings() -> Settings:
     database_url = os.getenv("DATABASE_URL") or None
+    app_env = os.getenv("APP_ENV") or None
+    if app_env == "local" and database_url in {None, "sqlite:///./adsurf.db"}:
+        database_url = "sqlite:///./apps/api/adsurf.db"
     if database_url and database_url.startswith("postgresql://"):
         database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
-    app_env = os.getenv("APP_ENV") or None
     default_storage_adapter = "local" if app_env in {"local", "test"} else "local"
 
     return Settings(

@@ -7,12 +7,15 @@ from apps.api.app.core.config import get_settings
 from apps.api.app.core.errors import register_error_handlers
 from apps.api.app.core.logging_setup import setup_logging
 from apps.api.app.core.performance import add_performance_headers_middleware
+from apps.api.app.core.sqlite_init import initialize_sqlite_schema
 from apps.api.app.schemas.envelope import success_response
 
 
 def create_app() -> FastAPI:
     setup_logging()
     settings = get_settings()
+    if settings.database_url and settings.database_url.startswith("sqlite"):
+        initialize_sqlite_schema()
     app = FastAPI(
         title=settings.app_name,
         version=settings.app_version,

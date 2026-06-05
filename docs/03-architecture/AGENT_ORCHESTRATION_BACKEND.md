@@ -7,6 +7,7 @@ AdSurf now has a durable workflow foundation for account-level Amazon Ads report
 - FastAPI remains the public backend API.
 - LangGraph is the target graph runner for agent orchestration.
 - A local fallback runner executes the same node sequence when LangGraph is not installed in a local or test environment.
+- Account-import workflows run optimization agents sequentially in the MVP. Each node persists one checkpoint before the next node starts, which avoids concurrent writes to shared workflow state and keeps the audit trail ordered.
 - Postgres/Supabase stores workflow records, checkpoints, trace events, future tool calls, future LLM calls, and human approval gates.
 - Existing account import, report detection, product resolution, and deterministic recommendation services remain the source of truth for MVP behavior.
 
@@ -73,6 +74,8 @@ Creating an account import now creates a workflow record and returns `workflow_i
 ## Local Execution
 
 For MVP local development, account import workflow execution runs immediately through the graph runner. If LangGraph is unavailable, AdSurf uses the local fallback sequence with the same node functions and trace persistence.
+
+When `APP_ENV=local` and `DATABASE_URL` is absent or still set to the legacy `sqlite:///./adsurf.db` default, the API resolves the local database to `sqlite:///./apps/api/adsurf.db`. This keeps the browser-facing API, uploads, agent dashboard, and local debugging tools pointed at the same SQLite file.
 
 Future queue execution should use:
 

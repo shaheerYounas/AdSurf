@@ -103,7 +103,7 @@ class PostgresCampaignRepository(CampaignRepository):
                     )
                     values (
                         :id, :workspace_id, :product_id, :approved_keyword_set_id, :version, :status,
-                        :rule_version_id, cast(:plan_json as jsonb), :created_by, :approved_by, :approval_note,
+                        :rule_version_id, :plan_json, :created_by, :approved_by, :approval_note,
                         :approved_at, :created_at, :updated_at
                     )
                     returning *
@@ -130,8 +130,8 @@ class PostgresCampaignRepository(CampaignRepository):
                     set status = 'approved',
                         approved_by = :approved_by,
                         approval_note = :approval_note,
-                        approved_at = now(),
-                        updated_at = now()
+                        approved_at = datetime('now'),
+                        updated_at = datetime('now')
                     where workspace_id = :workspace_id and id = :plan_id and status = 'generated'
                     returning *
                     """
@@ -152,7 +152,7 @@ class PostgresCampaignRepository(CampaignRepository):
                     )
                     values (
                         :id, :workspace_id, :product_id, :campaign_plan_id, :status, :storage_path,
-                        :original_filename, cast(:rows_json as jsonb), :approved_by, :approval_note, :approved_at,
+                        :original_filename, :rows_json, :approved_by, :approval_note, :approved_at,
                         :created_at, :updated_at
                     )
                     returning *

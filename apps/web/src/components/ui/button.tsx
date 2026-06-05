@@ -15,7 +15,7 @@ const base =
 const variants: Record<Variant, string> = {
   // Default brand action — high-contrast indigo in both themes.
   primary:
-    "bg-indigo-600 text-white hover:bg-indigo-500 focus-visible:ring-indigo-400 dark:bg-indigo-500 dark:text-white dark:hover:bg-indigo-400",
+    "bg-indigo-700 text-white hover:bg-indigo-600 focus-visible:ring-indigo-400 dark:bg-indigo-600 dark:text-white dark:hover:bg-indigo-500",
   // Quiet surface action — low emphasis, still visible against both backgrounds.
   secondary:
     "border border-slate-200 bg-white text-slate-900 shadow-none hover:bg-slate-100 focus-visible:ring-slate-400 dark:border-white/10 dark:bg-white/10 dark:text-white dark:hover:bg-white/20",

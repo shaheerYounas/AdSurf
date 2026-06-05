@@ -1,0 +1,145 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - generic [ref=e5]:
+          - button "Main menu" [ref=e6] [cursor=pointer]:
+            - img [ref=e7]
+            - text: Main menu
+          - button "Toggle theme" [ref=e9] [cursor=pointer]:
+            - img [ref=e10]
+        - generic [ref=e12]:
+          - img [ref=e14]
+          - generic [ref=e16]:
+            - paragraph [ref=e17]: AdSurf
+            - paragraph [ref=e18]: Agent Ops
+        - generic [ref=e19]:
+          - paragraph [ref=e20]: Workspace
+          - paragraph [ref=e21]: 00000000-0000-0000-0000-000000000001
+      - navigation "Agent Ops navigation" [ref=e22]:
+        - link "Workspace" [ref=e23] [cursor=pointer]:
+          - /url: /dashboard
+          - img [ref=e24]
+          - text: Workspace
+        - link "Reports" [ref=e29] [cursor=pointer]:
+          - /url: /agents#reports
+          - img [ref=e30]
+          - text: Reports
+        - link "Agents" [ref=e33] [cursor=pointer]:
+          - /url: /agents
+          - img [ref=e34]
+          - text: Agents
+        - link "Workflows" [ref=e37] [cursor=pointer]:
+          - /url: /agents#workflow-canvas
+          - img [ref=e38]
+          - text: Workflows
+        - link "Recommendations" [ref=e42] [cursor=pointer]:
+          - /url: /recommendations
+          - img [ref=e43]
+          - text: Recommendations
+        - link "Approvals" [ref=e45] [cursor=pointer]:
+          - /url: /agents#approval-checkpoints
+          - img [ref=e46]
+          - text: Approvals
+        - link "Settings" [ref=e50] [cursor=pointer]:
+          - /url: /agents#agent-settings
+          - img [ref=e51]
+          - text: Settings
+    - main [ref=e54]:
+      - generic [ref=e55]:
+        - navigation "Page history" [ref=e56]:
+          - link "Back to Dashboard" [ref=e57] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e59]
+            - generic [ref=e61]: Previous page
+            - generic [ref=e62]: "Fallback: Dashboard"
+        - generic [ref=e63]:
+          - heading "Agent Control Center" [level=1] [ref=e64]
+          - main [ref=e65]:
+            - generic [ref=e67]:
+              - generic [ref=e68]:
+                - heading "Agent Control Center" [level=1] [ref=e69]
+                - paragraph [ref=e70]: Upload Amazon Ads reports and review AI recommendations before any action is taken.
+              - generic [ref=e71]:
+                - button "Hybrid" [ref=e73] [cursor=pointer]:
+                  - generic [ref=e74]: Hybrid
+                  - img [ref=e75]
+                - button "Run analysis" [ref=e77] [cursor=pointer]:
+                  - img [ref=e78]
+                  - text: Run analysis
+                - button "Bulk" [ref=e81] [cursor=pointer]:
+                  - img [ref=e82]
+                  - generic [ref=e85]: Bulk
+                  - img [ref=e86]
+                - button "Approvals" [ref=e88] [cursor=pointer]:
+                  - img [ref=e89]
+                  - text: Approvals
+            - generic [ref=e93]:
+              - generic [ref=e95]:
+                - generic [ref=e96]:
+                  - generic [ref=e97]:
+                    - img [ref=e98]
+                    - text: Start analysis
+                  - heading "Upload Amazon Ads Report" [level=2] [ref=e101]
+                  - paragraph [ref=e102]: Upload an account-level report or bulk sheet. AdSurf detects report types, groups entities, and prepares AI recommendations — all behind human approval.
+                  - generic [ref=e103]:
+                    - generic [ref=e104]:
+                      - paragraph [ref=e105]: Completed
+                      - paragraph [ref=e106]: "0"
+                    - generic [ref=e107]:
+                      - paragraph [ref=e108]: Running
+                      - paragraph [ref=e109]: "0"
+                    - generic [ref=e110]:
+                      - paragraph [ref=e111]: Failed
+                      - paragraph [ref=e112]: "0"
+                    - generic [ref=e113]:
+                      - paragraph [ref=e114]: Needs approval
+                      - paragraph [ref=e115]: "0"
+                - generic [ref=e116]:
+                  - generic [ref=e117]:
+                    - text: Report file
+                    - button "Report file" [ref=e118]
+                  - button "Upload report" [disabled]:
+                    - img
+                    - text: Upload report
+                  - generic [ref=e119]:
+                    - paragraph [ref=e120]: Agent view
+                    - tablist "Agent view mode" [ref=e121]:
+                      - tab "Simple Mode" [selected] [ref=e122] [cursor=pointer]:
+                        - img [ref=e123]
+                        - text: Simple Pipeline
+                      - tab "Advanced Mode" [ref=e126] [cursor=pointer]:
+                        - img [ref=e127]
+                        - text: Visual Canvas
+                    - paragraph [ref=e131]: A clean step-by-step view of the agent pipeline. Click any agent card to open its full details.
+              - generic [ref=e140]:
+                - generic [ref=e141]:
+                  - generic [ref=e142]:
+                    - paragraph [ref=e143]: Human Approval Checkpoints
+                    - heading "0 recommendations waiting approval" [level=2] [ref=e144]
+                  - generic [ref=e145]:
+                    - generic [ref=e146]: 0 high priority
+                    - generic [ref=e147]: 0 risky actions
+                    - generic [ref=e148]: Requires human approval
+                    - generic [ref=e149]: AI confidence visible
+                - generic [ref=e151]: No pending approvals yet. Recommendations created by agents will appear here as business-friendly cards with metric evidence and risk notes.
+              - generic [ref=e153]:
+                - generic [ref=e155]:
+                  - heading "Trace Timeline" [level=2] [ref=e156]
+                  - paragraph [ref=e157]: Execution feed across model calls, validation, fallback, and approval checkpoints.
+                - generic [ref=e159]: No trace events yet. Run analysis to populate agent started, model called, validation, fallback, and approval-needed events.
+        - generic [ref=e161]:
+          - generic [ref=e162]:
+            - img [ref=e163]
+            - text: Recommendation only
+          - generic [ref=e166]:
+            - img [ref=e167]
+            - text: Requires human approval
+          - generic [ref=e169]:
+            - img [ref=e170]
+            - text: No live Amazon Ads change executed
+  - button "Replay tour" [ref=e173] [cursor=pointer]:
+    - img [ref=e174]
+    - text: Replay tour
+  - button "Open Next.js Dev Tools" [ref=e181] [cursor=pointer]:
+    - img [ref=e182]

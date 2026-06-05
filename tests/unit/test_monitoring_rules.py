@@ -38,7 +38,8 @@ def test_sp_search_term_normalization_and_acos_zero_sales_handling() -> None:
 
     snapshots, warnings = normalize_sp_search_term_rows(import_record=import_record, rows=rows)
 
-    assert {warning["code"] for warning in warnings} >= {"SPEND_WITH_NO_SALES", "HIGH_CLICK_ZERO_ORDER"}
+    assert "SPEND_WITH_NO_SALES" not in {warning["code"] for warning in warnings}
+    assert all(warning.get("severity") != "critical" for warning in warnings)
     assert snapshots[0].acos is None
     assert snapshots[0].spend == Decimal("12")
     assert snapshots[0].orders == 0
@@ -51,17 +52,66 @@ def test_sp_search_term_missing_required_columns_fails_closed() -> None:
     assert error.value.code == "MONITORING_REPORT_COLUMNS_MISSING"
 
 
+def test_sp_search_term_base_columns_calculate_missing_derived_metrics() -> None:
+    snapshots, warnings = normalize_sp_search_term_rows(
+        import_record=_import_record(),
+        rows=[
+            _row(
+                {
+                    "Campaign Name": "Campaign A",
+                    "Ad Group Name": "Group A",
+                    "Targeting": "running shoes",
+                    "Match Type": "exact",
+                    "Customer Search Term": "blue running shoes",
+                    "Impressions": 100,
+                    "Clicks": 5,
+                    "Spend": "5.00",
+                    "Sales": "20.00",
+                    "Orders": 1,
+                }
+            )
+        ],
+    )
+
+    assert warnings == []
+    assert snapshots[0].sales == Decimal("20.00")
+    assert snapshots[0].orders == 1
+    assert snapshots[0].ctr == Decimal("0.0500")
+    assert snapshots[0].cpc == Decimal("1.0000")
+    assert snapshots[0].cvr == Decimal("0.2000")
+    assert snapshots[0].acos == Decimal("0.2500")
+    assert snapshots[0].roas == Decimal("4.0000")
+
+
+def test_product_detection_uses_advertised_product_columns_not_customer_search_term_asins() -> None:
+    snapshots, warnings = normalize_sp_search_term_rows(
+        import_record=_import_record(),
+        rows=[
+            _row({**_report_row("B099999999", clicks=5, spend=5, sales=10, orders=1), "Advertised ASIN": "B08SW1Y38V", "Advertised SKU": "SKU-1"}),
+            _row({**_report_row("B088888888", clicks=5, spend=6, sales=12, orders=1), "Advertised ASIN": "B08KT7WD1L", "Advertised SKU": "SKU-2"}),
+        ],
+    )
+
+    product_message = next(warning for warning in warnings if warning["code"] == "MULTI_PRODUCT_REPORT_DETECTED")
+
+    assert len(snapshots) == 2
+    assert product_message["severity"] == "warning"
+    assert {group["asin"] for group in product_message["details"]["detected_product_groups"]} == {"B08SW1Y38V", "B08KT7WD1L"}
+    assert "Customer Search Term ASINs" in product_message["details"]["profile_creation_rule"]
+
+
 def test_recommendation_rule_thresholds_create_expected_phase_1_actions_and_evidence() -> None:
     import_record = _import_record()
     rows = [
         _row(_report_row("pause term", clicks=25, spend=25, sales=0, orders=0, impressions=100, match_type="exact")),
         _row(_report_row("negative phrase term", clicks=16, spend=10, sales=0, orders=0, impressions=80, match_type="broad")),
-        _row(_report_row("negative exact term", clicks=12, spend=8, sales=0, orders=0, impressions=80, match_type="exact")),
+        _row(_report_row("weak negative exact term", clicks=12, spend=8, sales=0, orders=0, impressions=80, match_type="exact")),
+        _row(_report_row("negative exact term", clicks=16, spend=12, sales=0, orders=0, impressions=80, match_type="exact")),
         _row(_report_row("decrease term", clicks=12, spend=8, sales=10, orders=1, acos=0.8, impressions=100, match_type="exact")),
         _row(_report_row("move exact term", clicks=8, spend=5, sales=20, orders=2, acos=0.25, impressions=100, match_type="broad")),
         _row(_report_row("watch term", clicks=8, spend=5, sales=20, orders=2, acos=0.25, impressions=100, match_type="exact")),
         _row(_report_row("increase term", clicks=1, spend=1, sales=0, orders=0, impressions=20, match_type="broad")),
-        _row(_report_row("scaling term", clicks=5, spend=2, sales=10, orders=1, acos=0.2, impressions=50, match_type="exact")),
+        _row(_report_row("scaling term", clicks=8, spend=4, sales=20, orders=2, acos=0.2, impressions=80, match_type="exact")),
         _row(_report_row("keep term", clicks=5, spend=3, sales=5, orders=1, acos=0.6, impressions=100, match_type="exact")),
         _row(_report_row("quality term", clicks=10, spend=2, sales=0, orders=0, impressions=5, match_type="exact")),
     ]
@@ -73,12 +123,16 @@ def test_recommendation_rule_thresholds_create_expected_phase_1_actions_and_evid
     assert by_term["pause term"].recommendation_type == "pause_review"
     assert by_term["pause term"].priority == "critical"
     assert by_term["negative phrase term"].recommendation_type == "add_negative_phrase"
+    assert by_term["weak negative exact term"].recommendation_type == "watch_lock"
     assert by_term["negative exact term"].recommendation_type == "add_negative_exact"
     assert by_term["decrease term"].recommendation_type == "decrease_bid"
+    assert by_term["decrease term"].proposed_action_json["suggested_bid_multiplier"] == "0.6250"
+    assert by_term["decrease term"].proposed_action_json["recommended_bid"] == "0.6250"
     assert by_term["move exact term"].recommendation_type == "move_to_exact"
     assert by_term["watch term"].recommendation_type == "watch_lock"
     assert by_term["increase term"].recommendation_type == "watch_lock"
     assert by_term["scaling term"].recommendation_type == "increase_bid"
+    assert by_term["scaling term"].proposed_action_json["suggested_bid_multiplier"] == "1.3000"
     assert by_term["keep term"].recommendation_type == "keep_running"
     assert by_term["quality term"].recommendation_type == "data_quality_review"
     assert all(recommendation.status == "pending_approval" for recommendation in recommendations)
@@ -97,7 +151,8 @@ def test_agent_summary_does_not_decide_recommendations() -> None:
 
     ai_run = build_stakeholder_ai_run(workspace_id=import_record.workspace_id, recommendations=recommendations, snapshots=snapshots)
 
-    assert ai_run.output_json["headline"].endswith("rule-backed recommendations need human review before any ad change.")
+    assert ai_run.output_json["headline"].endswith("recommendations generated for human review.")
+    assert ai_run.output_json["zero_order_spend"] == "8.0000"
     assert "No AI final decision" in ai_run.output_json["stakeholder_note"]
     assert recommendations[0].status == "pending_approval"
 

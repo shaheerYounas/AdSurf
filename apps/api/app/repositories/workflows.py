@@ -187,7 +187,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
                     )
                     values (
                         :id, :workspace_id, :account_import_id, :upload_id, :product_id, :monitoring_import_id,
-                        :workflow_type, :status, :current_node, cast(:state_json as jsonb), cast(:error_json as jsonb), :created_by,
+                        :workflow_type, :status, :current_node, :state_json, :error_json, :created_by,
                         :created_at, :updated_at, :completed_at
                     )
                     returning *
@@ -228,10 +228,10 @@ class PostgresWorkflowRepository(WorkflowRepository):
                     update agent_workflows
                     set status = :status,
                         current_node = coalesce(:current_node, current_node),
-                        state_json = coalesce(cast(:state_json as jsonb), state_json),
-                        error_json = coalesce(cast(:error_json as jsonb), error_json),
-                        completed_at = case when :completed then now() else completed_at end,
-                        updated_at = now()
+                        state_json = coalesce(:state_json, state_json),
+                        error_json = coalesce(:error_json, error_json),
+                        completed_at = case when :completed then datetime('now') else completed_at end,
+                        updated_at = datetime('now')
                     where workspace_id = :workspace_id and id = :workflow_id
                     returning *
                     """
@@ -254,7 +254,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
                 text(
                     """
                     insert into agent_workflow_checkpoints (id, workflow_id, node_name, state_json, status, created_at)
-                    values (:id, :workflow_id, :node_name, cast(:state_json as jsonb), :status, :created_at)
+                    values (:id, :workflow_id, :node_name, :state_json, :status, :created_at)
                     returning *
                     """
                 ),
@@ -273,7 +273,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
                     )
                     values (
                         :id, :workflow_id, :workspace_id, :agent_id, :node_name, :event_type, :message,
-                        cast(:metadata_json as jsonb), :latency_ms, :provider, :model, :created_at
+                        :metadata_json, :latency_ms, :provider, :model, :created_at
                     )
                     returning *
                     """
@@ -304,11 +304,11 @@ class PostgresWorkflowRepository(WorkflowRepository):
                     """
                     insert into agent_llm_calls (
                         id, workflow_id, agent_id, provider, model, prompt_hash, input_summary_json,
-                        output_json, error_json, tokens_input, tokens_output, cost_usd, latency_ms, status
+                        output_json, error_json, tokens_input, tokens_output, cost_usd, latency_ms, status, created_at
                     )
                     values (
-                        :id, :workflow_id, :agent_id, :provider, :model, :prompt_hash, cast(:input_summary_json as jsonb),
-                        cast(:output_json as jsonb), cast(:error_json as jsonb), :tokens_input, :tokens_output, :cost_usd, :latency_ms, :status
+                        :id, :workflow_id, :agent_id, :provider, :model, :prompt_hash, :input_summary_json,
+                        :output_json, :error_json, :tokens_input, :tokens_output, :cost_usd, :latency_ms, :status, :created_at
                     )
                     """
                 ),
@@ -327,6 +327,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
                     "cost_usd": cost_usd,
                     "latency_ms": latency_ms,
                     "status": status,
+                    "created_at": datetime.now(UTC).isoformat(),
                 },
             )
         return call_id
@@ -338,10 +339,10 @@ class PostgresWorkflowRepository(WorkflowRepository):
                 text(
                     """
                     insert into human_approval_gates (
-                        id, workflow_id, workspace_id, gate_type, status, requested_action_json, evidence_json
+                        id, workflow_id, workspace_id, gate_type, status, requested_action_json, evidence_json, created_at
                     )
                     values (
-                        :id, :workflow_id, :workspace_id, :gate_type, 'waiting', cast(:requested_action_json as jsonb), cast(:evidence_json as jsonb)
+                        :id, :workflow_id, :workspace_id, :gate_type, 'waiting', :requested_action_json, :evidence_json, :created_at
                     )
                     """
                 ),
@@ -352,6 +353,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
                     "gate_type": gate_type,
                     "requested_action_json": _json_dumps(requested_action_json),
                     "evidence_json": _json_dumps(evidence_json),
+                    "created_at": datetime.now(UTC).isoformat(),
                 },
             )
         return gate_id
@@ -377,7 +379,7 @@ class PostgresWorkflowRepository(WorkflowRepository):
                     set status = :status,
                         approver_user_id = :approver_user_id,
                         decision_note = :decision_note,
-                        decided_at = now()
+                        decided_at = datetime('now')
                     where workspace_id = :workspace_id and id = :gate_id and status = 'waiting'
                     returning *
                     """
@@ -457,15 +459,21 @@ def _workflow_from_row(row: RowMapping) -> AgentWorkflow:
     data = dict(row)
     if data.get("created_by") is not None:
         data["created_by"] = str(data["created_by"])
+    data["state_json"] = _json_loads(data.get("state_json"), default={})
+    data["error_json"] = _json_loads(data.get("error_json"), default={})
     return AgentWorkflow(**data)
 
 
 def _checkpoint_from_row(row: RowMapping) -> AgentWorkflowCheckpoint:
-    return AgentWorkflowCheckpoint(**dict(row))
+    data = dict(row)
+    data["state_json"] = _json_loads(data.get("state_json"), default={})
+    return AgentWorkflowCheckpoint(**data)
 
 
 def _event_from_row(row: RowMapping) -> AgentWorkflowEvent:
-    return AgentWorkflowEvent(**dict(row))
+    data = dict(row)
+    data["metadata_json"] = _json_loads(data.get("metadata_json"), default={})
+    return AgentWorkflowEvent(**data)
 
 
 def _workflow_params(item: AgentWorkflow) -> dict:
@@ -506,3 +514,11 @@ def _uuid_or_none(value: str | None) -> UUID | None:
 
 def _json_dumps(value) -> str:
     return json.dumps(value or {}, default=str)
+
+
+def _json_loads(value, *, default):
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    return json.loads(value)

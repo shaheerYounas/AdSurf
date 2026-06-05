@@ -114,25 +114,6 @@ def build_ads_workflow_graph(context: WorkflowNodeContext):
     graph.add_node("finalize_workflow", lambda state: finalize_workflow_node(state, context))
     graph.add_node("failure", lambda state: failure_node(state, context))
 
-    # ── Parallel optimization merge node ────────────────────────────────
-    def merge_optimization(state: AdsWorkflowState) -> AdsWorkflowState:
-        """Collect results from parallel optimization agents into a unified state."""
-        # All four optimization agents write to their own state keys;
-        # this node simply signals completion and aggregates warnings.
-        warnings = []
-        for agent_key in ["bid_optimization", "negative_keyword", "budget_allocation", "pause_review"]:
-            agent_warnings = state.get(f"{agent_key}_warnings", [])
-            if agent_warnings:
-                if isinstance(agent_warnings, list):
-                    warnings.extend(agent_warnings)
-                elif isinstance(agent_warnings, str):
-                    warnings.append(agent_warnings)
-        state["optimization_warnings"] = warnings
-        state["optimization_completed"] = True
-        return state
-
-    graph.add_node("merge_optimization", merge_optimization)
-
     # ── Entry ───────────────────────────────────────────────────────────
     graph.set_entry_point("start_workflow")
     graph.add_edge("start_workflow", "report_detection")
@@ -150,22 +131,15 @@ def build_ads_workflow_graph(context: WorkflowNodeContext):
     graph.add_edge("product_resolution", "metrics_analysis")
     graph.add_edge("metrics_analysis", "ai_recommendation_brain")
 
-    # ── Parallel fan-out to four optimization agents ────────────────────
-    # The ai_recommendation_brain produces recommendations that feed into
-    # four independent optimization agents. They have NO mutual dependencies.
+    # ── MVP deterministic agent sequence ────────────────────────────────
+    # These agent nodes all persist the shared workflow state. Keep the
+    # account-import path sequential so each database checkpoint has one
+    # unambiguous predecessor and no concurrent writes to LastValue keys.
     graph.add_edge("ai_recommendation_brain", "bid_optimization")
-    graph.add_edge("ai_recommendation_brain", "negative_keyword")
-    graph.add_edge("ai_recommendation_brain", "budget_allocation")
-    graph.add_edge("ai_recommendation_brain", "pause_review")
-
-    # All four converge at merge_optimization
-    graph.add_edge("bid_optimization", "merge_optimization")
-    graph.add_edge("negative_keyword", "merge_optimization")
-    graph.add_edge("budget_allocation", "merge_optimization")
-    graph.add_edge("pause_review", "merge_optimization")
-
-    # After merge, continue to downstream safety/output chain
-    graph.add_edge("merge_optimization", "stakeholder_reporting")
+    graph.add_edge("bid_optimization", "negative_keyword")
+    graph.add_edge("negative_keyword", "budget_allocation")
+    graph.add_edge("budget_allocation", "pause_review")
+    graph.add_edge("pause_review", "stakeholder_reporting")
     graph.add_edge("stakeholder_reporting", "human_approval_gate")
 
     # ── Terminal ────────────────────────────────────────────────────────

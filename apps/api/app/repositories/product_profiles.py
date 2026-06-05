@@ -12,6 +12,10 @@ from apps.api.app.core.errors import ApiError
 from apps.api.app.schemas.product_profiles import ProductProfile, ProductProfileCreate, ProductProfileUpdate
 
 
+def _now_iso() -> str:
+    return datetime.now(UTC).isoformat()
+
+
 class ProductProfileRepository(ABC):
     @abstractmethod
     def create(self, workspace_id: UUID, payload: ProductProfileCreate, actor_user_id: str) -> ProductProfile:
@@ -90,17 +94,20 @@ class PostgresProductProfileRepository(ProductProfileRepository):
 
     def create(self, workspace_id: UUID, payload: ProductProfileCreate, actor_user_id: str) -> ProductProfile:
         product_id = uuid4()
+        now = _now_iso()
         with self._engine.begin() as connection:
             row = connection.execute(
                 text(
                     """
                     insert into product_profiles (
                         id, workspace_id, product_name, asin, sku, marketplace, currency,
-                        target_acos, default_budget, default_bid, status, created_by, updated_by
+                        target_acos, default_budget, default_bid, status, created_by, updated_by,
+                        created_at, updated_at
                     )
                     values (
                         :id, :workspace_id, :product_name, :asin, :sku, :marketplace, :currency,
-                        :target_acos, :default_budget, :default_bid, :status, :created_by, :updated_by
+                        :target_acos, :default_budget, :default_bid, :status, :created_by, :updated_by,
+                        :created_at, :updated_at
                     )
                     returning id, workspace_id, product_name, asin, sku, marketplace, currency,
                         target_acos, default_budget, default_bid, status, created_at, updated_at
@@ -120,6 +127,8 @@ class PostgresProductProfileRepository(ProductProfileRepository):
                     "status": payload.status.value,
                     "created_by": _uuid_or_none(actor_user_id),
                     "updated_by": _uuid_or_none(actor_user_id),
+                    "created_at": now,
+                    "updated_at": now,
                 },
             ).mappings().one()
         return _product_from_row(row)
@@ -166,11 +175,13 @@ class PostgresProductProfileRepository(ProductProfileRepository):
         if not changes:
             return self.get(workspace_id=workspace_id, product_id=product_id)
 
+        now = _now_iso()
         set_clauses = [f"{field} = :{field}" for field in changes]
-        set_clauses.extend(["updated_by = :updated_by", "updated_at = now()"])
+        set_clauses.extend(["updated_by = :updated_by", "updated_at = :now"])
         params = {
             **{key: _serialize_value(value) for key, value in changes.items()},
             "updated_by": _uuid_or_none(actor_user_id),
+            "now": now,
             "workspace_id": workspace_id,
             "product_id": product_id,
         }

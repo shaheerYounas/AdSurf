@@ -153,16 +153,17 @@ class PostgresCompetitorCleanedRepository(CompetitorCleanedRepository):
         self._engine = engine
 
     def create_upload(self, *, upload_id: UUID, workspace_id: UUID, product_id: UUID | None, original_filename: str, storage_path: str, mime_type: str, file_size_bytes: int, uploaded_by: str) -> CompetitorUpload:
+        now = datetime.now(UTC)
         with self._engine.begin() as connection:
             row = connection.execute(
                 text(
                     """
                     insert into competitor_uploads (
                         id, workspace_id, product_id, original_filename, storage_path,
-                        mime_type, file_size_bytes, status, uploaded_by
+                        mime_type, file_size_bytes, status, uploaded_by, created_at, updated_at
                     ) values (
                         :id, :workspace_id, :product_id, :original_filename, :storage_path,
-                        :mime_type, :file_size_bytes, 'queued', :uploaded_by
+                        :mime_type, :file_size_bytes, 'queued', :uploaded_by, :created_at, :updated_at
                     )
                     returning *
                     """
@@ -172,6 +173,8 @@ class PostgresCompetitorCleanedRepository(CompetitorCleanedRepository):
                     "product_id": product_id, "original_filename": original_filename,
                     "storage_path": storage_path, "mime_type": mime_type,
                     "file_size_bytes": file_size_bytes, "uploaded_by": uploaded_by,
+                    "created_at": now,
+                    "updated_at": now,
                 },
             ).mappings().one()
         return _upload_from_row(row)
@@ -201,7 +204,7 @@ class PostgresCompetitorCleanedRepository(CompetitorCleanedRepository):
 
     def update_upload_status(self, *, workspace_id: UUID, upload_id: UUID, status: CompetitorUploadStatus, row_count: int | None = None, cleaned_column_count: int | None = None, detected_columns_json: list[dict] | None = None, warnings_json: list[dict] | None = None, error_message: str | None = None) -> CompetitorUpload:
         import json
-        sets = ["status = :status", "updated_at = now()"]
+        sets = ["status = :status", "updated_at = datetime('now')"]
         params: dict[str, object] = {"workspace_id": workspace_id, "upload_id": upload_id, "status": status.value}
         if row_count is not None:
             sets.append("row_count = :row_count")
@@ -210,10 +213,10 @@ class PostgresCompetitorCleanedRepository(CompetitorCleanedRepository):
             sets.append("cleaned_column_count = :cleaned_column_count")
             params["cleaned_column_count"] = cleaned_column_count
         if detected_columns_json is not None:
-            sets.append("detected_columns_json = cast(:detected_columns_json as jsonb)")
+            sets.append("detected_columns_json = :detected_columns_json")
             params["detected_columns_json"] = json.dumps(detected_columns_json)
         if warnings_json is not None:
-            sets.append("warnings_json = cast(:warnings_json as jsonb)")
+            sets.append("warnings_json = :warnings_json")
             params["warnings_json"] = json.dumps(warnings_json)
         if error_message is not None:
             sets.append("error_message = :error_message")
@@ -229,6 +232,7 @@ class PostgresCompetitorCleanedRepository(CompetitorCleanedRepository):
         if not rows:
             return 0
         import json
+        now = datetime.now(UTC)
         with self._engine.begin() as connection:
             for row in rows:
                 connection.execute(
@@ -237,11 +241,11 @@ class PostgresCompetitorCleanedRepository(CompetitorCleanedRepository):
                         insert into competitor_cleaned_rows (
                             id, workspace_id, competitor_upload_id, row_number,
                             search_term, search_volume, competitor_rank_values_json,
-                            raw_metrics_json
+                            raw_metrics_json, created_at
                         ) values (
                             :id, :workspace_id, :competitor_upload_id, :row_number,
-                            :search_term, :search_volume, cast(:competitor_rank_values_json as jsonb),
-                            cast(:raw_metrics_json as jsonb)
+                            :search_term, :search_volume, :competitor_rank_values_json,
+                            :raw_metrics_json, :created_at
                         )
                         """
                     ),
@@ -254,6 +258,7 @@ class PostgresCompetitorCleanedRepository(CompetitorCleanedRepository):
                         "search_volume": str(row.search_volume) if row.search_volume is not None else None,
                         "competitor_rank_values_json": json.dumps(row.competitor_rank_values_json),
                         "raw_metrics_json": json.dumps(row.raw_metrics_json) if row.raw_metrics_json else None,
+                        "created_at": row.created_at or now,
                     },
                 )
         return len(rows)
@@ -286,7 +291,7 @@ class PostgresCompetitorCleanedRepository(CompetitorCleanedRepository):
                         set relevance_score = :relevance_score,
                             scoring_status = :scoring_status,
                             rejection_reason = :rejection_reason,
-                            scored_at = now()
+                            scored_at = datetime('now')
                         where id = :id
                         """
                     ),
@@ -310,8 +315,8 @@ class PostgresCompetitorCleanedRepository(CompetitorCleanedRepository):
                         """
                         update competitor_cleaned_rows
                         set verification_status = :verification_status,
-                            verification_result_json = cast(:verification_result_json as jsonb),
-                            verified_at = now()
+                            verification_result_json = :verification_result_json,
+                            verified_at = datetime('now')
                         where id = :id
                         """
                     ),
@@ -347,8 +352,8 @@ def _upload_from_row(row: RowMapping) -> CompetitorUpload:
         mime_type=row["mime_type"], file_size_bytes=row["file_size_bytes"],
         status=row["status"], row_count=row["row_count"],
         cleaned_column_count=row["cleaned_column_count"],
-        detected_columns_json=row["detected_columns_json"] or [],
-        warnings_json=row["warnings_json"] or [],
+        detected_columns_json=_json_loads(row["detected_columns_json"], default=[]),
+        warnings_json=_json_loads(row["warnings_json"], default=[]),
         error_message=row["error_message"], uploaded_by=row["uploaded_by"],
         created_at=row["created_at"], updated_at=row["updated_at"],
     )
@@ -361,14 +366,24 @@ def _cleaned_row_from_row(row: RowMapping) -> CompetitorCleanedRow:
         competitor_upload_id=row["competitor_upload_id"],
         row_number=row["row_number"], search_term=row["search_term"],
         search_volume=float(search_volume) if search_volume is not None else None,
-        competitor_rank_values_json=row["competitor_rank_values_json"] or [],
-        raw_metrics_json=row["raw_metrics_json"],
+        competitor_rank_values_json=_json_loads(row["competitor_rank_values_json"], default=[]),
+        raw_metrics_json=_json_loads(row["raw_metrics_json"], default=None),
         relevance_score=row["relevance_score"] if "relevance_score" in row else None,
         scoring_status=row["scoring_status"] if "scoring_status" in row else None,
         rejection_reason=row["rejection_reason"] if "rejection_reason" in row else None,
         scored_at=row["scored_at"] if "scored_at" in row else None,
         verification_status=row["verification_status"] if "verification_status" in row else None,
-        verification_result_json=row["verification_result_json"] if "verification_result_json" in row else None,
+        verification_result_json=_json_loads(row["verification_result_json"], default=None) if "verification_result_json" in row else None,
         verified_at=row["verified_at"] if "verified_at" in row else None,
         created_at=row["created_at"],
     )
+
+
+def _json_loads(value, *, default):
+    if value is None:
+        return default
+    if isinstance(value, (dict, list)):
+        return value
+    import json
+
+    return json.loads(value)

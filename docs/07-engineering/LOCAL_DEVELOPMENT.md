@@ -20,6 +20,8 @@ Batch 1 may use placeholder auth and in-memory product profile storage while Sup
 
 Placeholder auth is allowed only when `APP_ENV` is `local` or `test`. Missing, unknown, preview, staging, and production values fail closed until real Supabase Auth and workspace membership checks are configured.
 
+In preview, staging, and production, deployed auth also fails closed with `AUTH_NOT_CONFIGURED` when `SUPABASE_JWT_SECRET` is missing. The JWT verification skeleton must not accept bearer tokens until Supabase Auth verification and workspace membership lookup are configured.
+
 ## Batch 2 Local API Auth Headers
 Local/test API requests to workspace-scoped routes must include:
 
@@ -38,6 +40,16 @@ The role applies only to the workspace listed in the same entry.
 
 ## Batch 2 Database Behavior
 When `DATABASE_URL` is configured, product profile routes use the database repository. When `DATABASE_URL` is absent in local/test, a local repository adapter is used for tests and scaffolding only. Outside local/test, missing `DATABASE_URL` fails closed.
+
+For offline SQLite development, the API initializes its local schema on startup from `scripts/sqlite_schema.sql`. The bootstrap includes product, upload, campaign, monitoring, workflow, and custom agent builder runtime tables, plus seed rows for public custom agent templates. Custom agent builder routes must validate the parent agent, knowledge base, thread, memory, and run against the requested `workspace_id` before returning or mutating child records.
+
+When starting the API from the repository root with `npm run dev:api`, `python-dotenv` loads the root `.env` first. Keep the root `DATABASE_URL` aligned with the SQLite file you intend to inspect, for example:
+
+```bash
+DATABASE_URL=sqlite:///./apps/api/adsurf.db
+```
+
+The API-local `.env` files are useful reference copies, but they are not the first env files loaded by the root dev command.
 
 ## Batch 3 Upload Development
 Local/test upload initialization uses the fake storage adapter by default and returns a `local-fake://signed-upload/...` URL. Preview, staging, and production do not silently use fake storage. To use fake storage in preview, set both:

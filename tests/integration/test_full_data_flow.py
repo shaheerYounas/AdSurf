@@ -103,20 +103,21 @@ from apps.api.app.services.search_term_mining import mine_search_terms
 
 def _product(**overrides) -> ProductProfile:
     now = datetime.now(UTC)
-    return ProductProfile(
-        id=uuid4(),
-        workspace_id=uuid4(),
-        product_name="E2E Test Widget",
-        marketplace="US",
-        currency="USD",
-        target_acos=Decimal("0.2500"),
-        default_budget=Decimal("100.0000"),
-        default_bid=Decimal("0.5000"),
-        status=ProductProfileStatus.ACTIVE,
-        created_at=now,
-        updated_at=now,
-        **overrides,
-    )
+    values = {
+        "id": uuid4(),
+        "workspace_id": uuid4(),
+        "product_name": "E2E Test Widget",
+        "marketplace": "US",
+        "currency": "USD",
+        "target_acos": Decimal("0.2500"),
+        "default_budget": Decimal("100.0000"),
+        "default_bid": Decimal("0.5000"),
+        "status": ProductProfileStatus.ACTIVE,
+        "created_at": now,
+        "updated_at": now,
+    }
+    values.update(overrides)
+    return ProductProfile(**values)
 
 
 def _import_record(product: ProductProfile) -> MonitoringImport:

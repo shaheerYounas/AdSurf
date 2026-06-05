@@ -149,10 +149,8 @@ async function fetchAndCache<T>(sectionKey: string, fetcherName: string, fn: Pre
     const data = await fn();
     setCachedData(cacheKey, data, ttlMs);
   } catch {
-    // Silently fail prefetches — components will fall back to their own fetch logic.
-    if (process.env.NODE_ENV !== "production") {
-      console.warn(`[prefetch] Failed to prefetch ${cacheKey}`);
-    }
+    // Silently fail prefetches; visible components run their own fetch and
+    // error handling instead of relying on this background cache.
   }
 }
 

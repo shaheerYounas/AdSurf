@@ -264,7 +264,9 @@ class AiRun(BaseModel):
 
 class MonitoringImportResponse(BaseModel):
     import_record: MonitoringImport
-    job_id: UUID
+    job_id: UUID | None = None
+    already_imported: bool = False
+    message: str | None = None
 
 
 class MonitoringSummary(BaseModel):
@@ -272,3 +274,8 @@ class MonitoringSummary(BaseModel):
     recommendation_counts: dict[str, int]
     top_recommendations: list[Recommendation]
     agent_summary: dict | None = None
+    summary_metrics: dict = Field(default_factory=dict)
+    action_recommendation_counts: dict[str, int] = Field(default_factory=dict)
+    non_action_insight_counts: dict[str, int] = Field(default_factory=dict)
+    issue_counts: dict[str, int] = Field(default_factory=dict)
+    detected_product_groups: list[dict] = Field(default_factory=list)

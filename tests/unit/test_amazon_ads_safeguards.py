@@ -45,8 +45,9 @@ def test_safeguards_flag_zero_sales_spend_asins_metric_mismatch_and_duplicates()
     result = analyze_search_term_report_rows(rows=rows, detection=detection)
     codes = {warning["code"] for warning in result.warnings}
 
-    assert "SPEND_WITH_NO_SALES" in codes
+    assert "SPEND_WITH_NO_SALES" not in codes
     assert "ACOS_PRESENT_WITH_ZERO_SALES" in codes
+    assert next(warning for warning in result.warnings if warning["code"] == "ACOS_PRESENT_WITH_ZERO_SALES")["severity"] == "warning"
     assert "ASIN_SEARCH_TERM" in codes
     assert "AUTO_OR_PRODUCT_TARGETING_CONTEXT" in codes
     assert "MATCH_TYPE_UNSPECIFIED" in codes
@@ -114,6 +115,7 @@ def test_safeguards_flag_header_aliases_numeric_percent_dates_and_duplicate_rows
 
     assert "HEADER_HIDDEN_SPACES_NORMALIZED" in codes
     assert "COLUMN_NAME_ALIASES_NORMALIZED" in codes
+    assert next(warning for warning in result.warnings if warning["code"] == "COLUMN_NAME_ALIASES_NORMALIZED")["severity"] == "info"
     assert "NUMERIC_COLUMN_NOT_NUMERIC" in codes
     assert "PERCENT_COLUMN_NOT_NUMERIC" in codes
     assert "PERCENT_FORMAT_AMBIGUOUS" in codes
@@ -157,8 +159,9 @@ def test_safeguards_flag_mixed_asin_keyword_terms_and_overall_low_data() -> None
 
     assert "ASIN_SEARCH_TERM" in codes
     assert "MIXED_ASIN_AND_KEYWORD_SEARCH_TERMS" in codes
-    assert "BLANK_ACOS_WITH_ZERO_SALES_HANDLED" in codes
+    assert "BLANK_ACOS_WITH_ZERO_SALES_HANDLED" not in codes
     assert "OPTIMIZATION_DATA_INSUFFICIENT" in codes
+    assert next(warning for warning in result.warnings if warning["code"] == "NOT_ENOUGH_DATA")["severity"] == "info"
 
 
 def _search_term_detection() -> ReportDetectionResult:

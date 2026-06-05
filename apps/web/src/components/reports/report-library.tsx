@@ -186,6 +186,8 @@ export function ReportLibrary() {
           <span className="sr-only">Search reports</span>
           <input
             className="min-h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-950 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:ring-indigo-300/20"
+            id="report-library-search"
+            name="report_library_search"
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search filename, product, report type"
             value={query}
@@ -193,13 +195,13 @@ export function ReportLibrary() {
         </label>
         <div className="flex flex-wrap gap-2">
           <Filter aria-hidden="true" className="mt-2 text-slate-400" size={16} />
-          <select className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100" onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} value={statusFilter}>
+          <select id="report-status-filter" name="report_status_filter" className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100" onChange={(event) => setStatusFilter(event.target.value as StatusFilter)} value={statusFilter}>
             <option value="all">All statuses</option>
             <option value="processed">Processed</option>
             <option value="queued_for_processing">Queued</option>
             <option value="failed">Failed</option>
           </select>
-          <select className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100" onChange={(event) => setSourceFilter(event.target.value)} value={sourceFilter}>
+          <select id="report-source-filter" name="report_source_filter" className="min-h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 dark:border-white/10 dark:bg-slate-900 dark:text-slate-100" onChange={(event) => setSourceFilter(event.target.value)} value={sourceFilter}>
             <option value="all">All report types</option>
             {sourceOptions.map((source) => (
               <option key={source} value={source}>{humanize(source)}</option>
@@ -254,7 +256,13 @@ async function cachedOrFetch<T>(cacheKey: string, fetcher: () => Promise<T>, ttl
 function ReportRowItem({ row }: { row: ReportRow }) {
   const upload = row.upload;
   const latestMonitoring = row.monitoringImports[0];
-  const workflowHref = upload.product_id ? `/products/${upload.product_id}/uploads/${upload.id}/mapping` : "/agents#reports";
+  const isSpSearchTermReport = upload.source_type === "amazon_ads_sp_search_term_report";
+  const workflowHref = upload.product_id
+    ? isSpSearchTermReport
+      ? `/products/${upload.product_id}/monitoring`
+      : `/products/${upload.product_id}/uploads/${upload.id}/mapping`
+    : "/agents#reports";
+  const workflowLabel = isSpSearchTermReport ? "Open monitoring" : "Open workflow";
   const monitoringHref = upload.product_id ? `/products/${upload.product_id}/monitoring` : "/agents";
 
   return (
@@ -281,7 +289,7 @@ function ReportRowItem({ row }: { row: ReportRow }) {
           <p className="text-sm text-slate-500 dark:text-slate-400">No parse run recorded.</p>
         )}
         <Link className="inline-flex text-xs font-semibold text-indigo-600 hover:text-indigo-500 dark:text-indigo-200" href={workflowHref}>
-          Open workflow
+          {workflowLabel}
         </Link>
       </div>
       <div className="space-y-2 text-sm">
