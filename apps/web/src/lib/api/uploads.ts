@@ -3,6 +3,9 @@ import { apiBaseUrl, defaultWorkspaceId, localAuthHeaders, readApiData } from "@
 export type BatchSpReportUploadResult = {
   matched_count: number;
   unmatched_count: number;
+  /** True when the report was attached to all workspace products because
+   *  parent-group campaigns (APR…) were detected or no ASINs were found. */
+  matched_all_products: boolean;
   unmatched_asins: string[];
   uploads: Array<{
     upload_id?: string;
@@ -86,6 +89,35 @@ export async function reprocessUpload(uploadId: string, workspaceId = defaultWor
     headers: localAuthHeaders(workspaceId),
   });
   return readApiData<{ upload: UploadRecord; job_id: string }>(response, "Upload could not be reprocessed.");
+}
+
+export type ImportHealth = {
+  upload_id: string;
+  parse_run_id: string | null;
+  report_type: string;
+  total_rows: number;
+  valid_rows: number;
+  warning_rows: number;
+  error_rows: number;
+  quarantined_rows: number;
+  missing_columns: string[];
+  unknown_columns: string[];
+  date_range_start: string | null;
+  date_range_end: string | null;
+  currency: string | null;
+  marketplace: string | null;
+  schema_valid: boolean;
+  can_generate_recommendations: boolean;
+  top_issues: Array<{ code: string; count: number; severity: string; detail?: string }>;
+  aggregated_rows: Array<Record<string, unknown>>;
+};
+
+export async function getImportHealth(uploadId: string, workspaceId = defaultWorkspaceId): Promise<ImportHealth> {
+  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/${uploadId}/import-health`, {
+    headers: localAuthHeaders(workspaceId),
+    cache: "no-store",
+  });
+  return readApiData<ImportHealth>(response, "Import health could not be loaded.");
 }
 
 export async function batchUploadSpReport(

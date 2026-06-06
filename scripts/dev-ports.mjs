@@ -2,6 +2,7 @@ import net from "node:net";
 import path from "node:path";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { readFileSync, writeFileSync } from "node:fs";
 
 export const DEFAULT_WEB_DEV_PORT = 4310;
 export const DEFAULT_API_DEV_PORT = 8720;
@@ -171,6 +172,25 @@ function serviceEnv({ env = process.env, host, apiPort, webPort, apiBaseUrl, web
   };
 }
 
+function writeEnvLocal(filePath, updates) {
+  let lines = [];
+  try {
+    lines = readFileSync(filePath, "utf8").split("\n");
+  } catch {
+    // file doesn't exist yet — start fresh
+  }
+  for (const [key, value] of Object.entries(updates)) {
+    const idx = lines.findIndex((l) => l.startsWith(`${key}=`) || l.startsWith(`# ${key}=`));
+    const line = `${key}=${value}`;
+    if (idx >= 0) {
+      lines[idx] = line;
+    } else {
+      lines.push(line);
+    }
+  }
+  writeFileSync(filePath, lines.join("\n"), "utf8");
+}
+
 function spawnService(name, command, args, options) {
   const child = spawn(command, args, {
     cwd: options.cwd,
@@ -213,6 +233,10 @@ export async function run(mode, env = process.env) {
   let shuttingDown = false;
 
   printBanner({ mode, apiBaseUrl, webAppUrl });
+
+  // Persist resolved ports to .env.local so individual service restarts use the same URLs.
+  const webEnvPath = path.join(repoRoot, "apps", "web", ".env.local");
+  writeEnvLocal(webEnvPath, { NEXT_PUBLIC_API_BASE_URL: apiBaseUrl });
 
   const handleExit = (name, code, signal) => {
     if (shuttingDown) return;

@@ -1,3 +1,5 @@
+import csv
+import io
 import re
 from uuid import UUID, uuid4
 
@@ -49,6 +51,8 @@ from apps.api.app.services.storage import StorageService, get_storage_service
 from apps.api.app.services.upload_processing_worker import UploadProcessingWorker
 from apps.api.app.services.duplicate_detection import calculate_file_hash
 from apps.api.app.services.workflow_queue import enqueue_account_import_workflow
+from apps.api.app.services.sp_search_term_pipeline import SPSearchTermPipeline
+from apps.api.app.schemas.sp_search_term import SPImportHealthResponse
 
 router = APIRouter()
 
@@ -653,6 +657,62 @@ def list_upload_parse_runs(
     return success_response(data=[run.model_dump(mode="json") for run in runs], meta={"total": len(runs)})
 
 
+@router.get("/workspaces/{workspace_id}/uploads/{upload_id}/import-health")
+def get_upload_import_health(
+    workspace_id: UUID,
+    upload_id: UUID,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    upload_repository: UploadRepository = Depends(get_upload_repository),
+    parsing_repository: UploadParsingRepository = Depends(get_upload_parsing_repository),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_READ_ROLES)
+    _require_upload(workspace_id=workspace_id, upload_id=upload_id, upload_repository=upload_repository)
+    runs = parsing_repository.list_runs(workspace_id=workspace_id, upload_id=upload_id)
+    if not runs:
+        raise ApiError(
+            code="IMPORT_HEALTH_NOT_AVAILABLE",
+            message="No parse runs found. Upload may not have been processed yet.",
+            status_code=404,
+        )
+    latest_run = runs[0]
+    all_rows = _fetch_all_parse_rows(
+        workspace_id=workspace_id,
+        parse_run_id=latest_run.id,
+        parsing_repository=parsing_repository,
+    )
+    if not all_rows:
+        return success_response(
+            data=SPImportHealthResponse(
+                upload_id=upload_id,
+                parse_run_id=latest_run.id,
+                report_type="sponsored_products_search_term_report",
+                total_rows=0,
+                valid_rows=0,
+                warning_rows=0,
+                error_rows=0,
+                quarantined_rows=0,
+                missing_columns=[],
+                unknown_columns=[],
+                schema_valid=False,
+                can_generate_recommendations=False,
+                top_issues=[],
+            ).model_dump(mode="json")
+        )
+    original_headers = list(all_rows[0].row_data_json.keys())
+    raw_dicts = [row.row_data_json for row in all_rows]
+    pipeline = SPSearchTermPipeline()
+    _, aggregated, report = pipeline.run(raw_rows=raw_dicts, original_headers=original_headers)
+    return success_response(
+        data=SPImportHealthResponse(
+            upload_id=upload_id,
+            parse_run_id=latest_run.id,
+            aggregated_rows=[agg.as_dict() for agg in aggregated],
+            **report.as_dict(),
+        ).model_dump(mode="json")
+    )
+
+
 @router.get("/workspaces/{workspace_id}/uploads/{upload_id}/parse-runs/{parse_run_id}")
 def get_upload_parse_run(
     workspace_id: UUID,
@@ -1228,9 +1288,19 @@ async def batch_upload_sp_report(
     storage_service: StorageService = Depends(get_storage_service),
 ) -> dict:
     """
-    Upload one SP Search Term Report and attach it to every matching workspace
-    product profile (matched by Advertised ASIN).  Returns a summary of which
-    products were matched and which ASINs had no corresponding profile.
+    Upload one SP Search Term Report and attach it to the relevant workspace
+    product profiles.
+
+    Matching strategy (in order):
+      1. If the file has a dedicated "Advertised ASIN" column, match by that.
+      2. If campaign names embed child ASINs (B0… format) AND no parent-group
+         campaigns (APR… IDs) are present, match only those products.
+      3. If parent-group campaigns are detected, or no ASINs are found at all,
+         attach the file to every product profile in the workspace (account-level
+         report that cannot be resolved to individual products without an external
+         parent→ASIN mapping).
+
+    Returns a summary of matched products and any ASINs with no profile.
     """
     principal.ensure_workspace(workspace_id)
     principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
@@ -1257,31 +1327,41 @@ async def batch_upload_sp_report(
 
     # Extract Advertised ASIN values from the report
     asins = _extract_advertised_asins(content=content, filename=filename)
-    if not asins:
+    if asins is None:
         raise ApiError(
-            code="NO_ADVERTISED_ASINS",
+            code="UNRECOGNISED_REPORT_FORMAT",
             message=(
-                "No 'Advertised ASIN' column found in this file. "
-                "Upload an SP Search Term Report exported from Amazon Ads."
+                "This file does not appear to be an SP report. "
+                "Upload an SP Search Term Report exported from Amazon Ads — "
+                "the file must contain recognised columns such as 'Campaign Name' or 'Ad Group Name'."
             ),
             status_code=422,
         )
 
-    # Match ASINs to workspace product profiles
+    # Match ASINs to workspace product profiles.
+    # asins == []  → parent-group campaigns detected, or no ASINs at all
+    #             → attach to every product (can't resolve to individual products)
+    # asins != []  → child-ASIN-only file → match specifically
     products = product_repository.list(workspace_id=workspace_id)
-    asin_to_product = {p.asin.upper(): p for p in products if p.asin}
-    matched_products = []
-    unmatched_asins = []
-    for asin in asins:
-        if asin in asin_to_product:
-            matched_products.append(asin_to_product[asin])
-        else:
-            unmatched_asins.append(asin)
+    matched_all = not asins  # True when we fall back to workspace-wide attachment
+    if asins:
+        asin_to_product = {p.asin.upper(): p for p in products if p.asin}
+        matched_products = []
+        unmatched_asins = []
+        for asin in asins:
+            if asin in asin_to_product:
+                matched_products.append(asin_to_product[asin])
+            else:
+                unmatched_asins.append(asin)
+    else:
+        matched_products = list(products)
+        unmatched_asins = []
 
     if not matched_products:
         return success_response(data={
             "matched_count": 0,
             "unmatched_count": len(unmatched_asins),
+            "matched_all_products": matched_all,
             "uploads": [],
             "unmatched_asins": unmatched_asins[:50],
         })
@@ -1353,13 +1433,13 @@ async def batch_upload_sp_report(
     return success_response(data={
         "matched_count": len(matched_products),
         "unmatched_count": len(unmatched_asins),
+        "matched_all_products": matched_all,
         "uploads": upload_results,
         "unmatched_asins": unmatched_asins[:50],
     })
 
 
 _ADVERTISED_ASIN_COL_ALIASES = frozenset({
-    "advertised asin",
     "advertised asin",
     "advertised product asin",
     "advertised sku",
@@ -1374,7 +1454,14 @@ _ASIN_BEARING_COL_ALIASES = frozenset({
     "ad group",
 })
 
-_ASIN_RE = re.compile(r'\b([A-Z0-9]{10})\b')
+# Lookbehind/lookahead instead of \b so underscore-delimited ASINs are matched
+# correctly (e.g. "CAMP_B08SW1Y38V_BROAD").  Only matches B-starting 10-char tokens.
+_ASIN_RE = re.compile(r"(?i)(?<![A-Z0-9])(B[A-Z0-9]{9})(?![A-Z0-9])")
+
+# Parent/Product-Group IDs used in BAK_APR… campaign naming conventions.
+# When these are found, individual ASINs cannot be resolved without an external
+# mapping table, so the whole workspace is treated as the target audience.
+_PARENT_RE = re.compile(r"(?i)(?<![A-Z0-9])(APR[A-Z0-9]{9})(?![A-Z0-9])")
 
 
 def _norm_header(h: str) -> str:
@@ -1387,9 +1474,6 @@ def _norm_header(h: str) -> str:
 
 def _parse_report_rows(content: bytes, filename: str) -> list[list[str]]:
     """Return raw rows from a CSV/TSV/XLSX report file."""
-    import csv
-    import io
-
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
     if ext in ("xlsx", "xls"):
         try:
@@ -1399,8 +1483,12 @@ def _parse_report_rows(content: bytes, filename: str) -> list[list[str]]:
             rows = [[str(c) if c is not None else "" for c in row] for row in ws.iter_rows(values_only=True)]
             wb.close()
             return rows
-        except Exception:  # noqa: BLE001
-            return []
+        except Exception as _exc:  # noqa: BLE001
+            raise ApiError(
+                code="XLSX_PARSE_ERROR",
+                message=f"Failed to parse XLSX: {type(_exc).__name__}: {_exc}",
+                status_code=422,
+            ) from _exc
 
     text = content.decode("utf-8-sig", errors="replace")
     first_line = text.split("\n", 1)[0]
@@ -1408,9 +1496,15 @@ def _parse_report_rows(content: bytes, filename: str) -> list[list[str]]:
     return list(csv.reader(io.StringIO(text), delimiter=delimiter))
 
 
-def _extract_advertised_asins(*, content: bytes, filename: str) -> list[str]:
+def _extract_advertised_asins(*, content: bytes, filename: str) -> list[str] | None:
     """
     Extract unique advertised product ASINs from an Amazon SP report.
+
+    Returns:
+      None  – file is not recognisable as an SP report (no known header row found).
+      []    – valid SP report but no ASIN tokens found (e.g. SP Search Term Report
+              whose campaign names don't embed ASINs); caller should attach to all products.
+      [...]  – one or more extracted ASINs.
 
     Strategy A – dedicated "Advertised ASIN" column (SP Advertised Product Report).
     Strategy B – extract 10-char alphanumeric ASIN tokens from Campaign Name /
@@ -1418,7 +1512,7 @@ def _extract_advertised_asins(*, content: bytes, filename: str) -> list[str]:
     """
     rows = _parse_report_rows(content, filename)
     if not rows:
-        return []
+        return None
 
     # Find header row
     header_idx: int | None = None
@@ -1431,7 +1525,7 @@ def _extract_advertised_asins(*, content: bytes, filename: str) -> list[str]:
             break
 
     if header_idx is None:
-        return []
+        return None
 
     data_rows = rows[header_idx + 1:]
     seen: set[str] = set()
@@ -1446,14 +1540,26 @@ def _extract_advertised_asins(*, content: bytes, filename: str) -> list[str]:
                     if val and val not in ("", "NONE", "N/A") and len(val) == 10:
                         seen.add(val)
 
-    # Strategy B: extract from campaign / ad group name cells
+    # Strategy B: extract B-starting ASINs from campaign / ad group name cells.
+    # Also detect parent-group IDs (APR…): those cannot be resolved to a single
+    # product without an external mapping table, so flag the file for workspace-wide
+    # attachment rather than trying to partially match.
+    has_parent_campaigns = False
     name_cols = [j for j, h in enumerate(headers) if h in _ASIN_BEARING_COL_ALIASES]
     if name_cols:
         for row in data_rows:
             for col in name_cols:
                 if len(row) > col:
-                    for match in _ASIN_RE.findall(row[col].upper()):
+                    cell = row[col].upper()
+                    for match in _ASIN_RE.findall(cell):
                         seen.add(match)
+                    if not has_parent_campaigns and _PARENT_RE.search(cell):
+                        has_parent_campaigns = True
+
+    # If any parent-group rows exist we cannot tell which products they belong to,
+    # so return [] to signal "attach to all workspace products".
+    if has_parent_campaigns:
+        return []
 
     return list(seen)
 
@@ -1504,6 +1610,30 @@ def _process_upload_locally_until_complete(
         status_code=409,
         details={"upload_id": str(upload_id), "job_id": str(job_id), "job_status": job.status.value if job else None},
     )
+
+
+def _fetch_all_parse_rows(
+    *,
+    workspace_id: UUID,
+    parse_run_id: UUID,
+    parsing_repository: UploadParsingRepository,
+) -> list:
+    """Collect every row from a parse run, consuming all pages internally."""
+    page_size = 500
+    page = 1
+    accumulated = []
+    while True:
+        rows, total = parsing_repository.list_rows(
+            workspace_id=workspace_id,
+            parse_run_id=parse_run_id,
+            page=page,
+            page_size=page_size,
+        )
+        accumulated.extend(rows)
+        if len(accumulated) >= total:
+            break
+        page += 1
+    return accumulated
 
 
 def _require_idempotency_key(value: str | None) -> str:

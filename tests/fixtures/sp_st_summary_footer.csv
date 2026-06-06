@@ -1,0 +1,5 @@
+Campaign Name,Ad Group Name,Targeting,Match Type,Customer Search Term,Start Date,End Date,Impressions,Clicks,Click-Thru Rate (CTR),Cost Per Click (CPC),Spend,7 Day Total Sales ,7 Day Total Orders (#),7 Day Total Units (#),7 Day Conversion Rate,Total Advertising Cost of Sales (ACOS) ,Total Return on Advertising Spend (ROAS)
+"Camp G","Group G",keyword,broad,hiking boots waterproof,2026-01-01,2026-01-07,3000,60,2.00%,$0.85,$51.00,$204.00,8,9,13.33%,25.00%,4.00
+"Camp G","Group G",keyword,broad,hiking boots men,2026-01-01,2026-01-07,1500,25,1.67%,$0.90,$22.50,$0.00,0,0,0.00%,,0.00
+"Camp G","Group G",keyword,exact,hiking boots,2026-01-01,2026-01-07,5000,100,2.00%,$0.80,$80.00,$320.00,12,13,12.00%,25.00%,4.00
+Total,,,,Total,2026-01-01,2026-01-07,9500,185,1.95%,$0.83,$153.50,$524.00,20,22,10.81%,29.28%,3.41

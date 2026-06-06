@@ -1,0 +1,4 @@
+Campaign Name,Ad Group Name,Targeting,Match Type,Customer Search Term,Start Date,End Date,Impressions,Clicks,Click-Thru Rate (CTR),Cost Per Click (CPC),Spend,7 Day Total Sales ,7 Day Total Orders (#),7 Day Total Units (#),7 Day Conversion Rate,Total Advertising Cost of Sales (ACOS) ,Total Return on Advertising Spend (ROAS)
+"Camp D","Group D",keyword,broad,good term,2026-01-01,2026-01-07,1000,20,2.00%,$0.90,$18.00,$72.00,3,3,15.00%,25.00%,4.00
+"Camp D","Group D",keyword,broad,refund adjustment,2026-01-01,2026-01-07,0,0,0.00%,$0.00,-15.00,$0.00,0,0,0.00%,,0.00
+"Camp D","Group D",keyword,broad,negative impressions,2026-01-01,2026-01-07,-100,5,0.00%,$1.00,$5.00,$0.00,0,0,0.00%,,0.00

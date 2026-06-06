@@ -1,0 +1,4 @@
+Campaign Name,Ad Group Name,Targeting,Match Type,Customer Search Term,Start Date,End Date,Impressions,Clicks,Click-Thru Rate (CTR),Cost Per Click (CPC),Spend,7 Day Total Sales ,7 Day Total Orders (#),7 Day Total Units (#),7 Day Conversion Rate,Total Advertising Cost of Sales (ACOS) ,Total Return on Advertising Spend (ROAS)
+"Camp C","Group C",keyword,broad,good row valid dates,2026-01-01,2026-01-07,1000,20,2.00%,$0.90,$18.00,$72.00,3,3,15.00%,25.00%,4.00
+"Camp C","Group C",keyword,broad,bad row end before start,2026-01-14,2026-01-07,500,10,2.00%,$0.90,$9.00,$0.00,0,0,0.00%,,0.00
+"Camp C","Group C",keyword,phrase,normal row,2026-01-01,2026-01-07,2000,40,2.00%,$0.85,$34.00,$136.00,5,5,12.50%,25.00%,4.00

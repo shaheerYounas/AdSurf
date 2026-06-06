@@ -1,0 +1,4 @@
+Campaign Name,Ad Group Name,Targeting,Match Type,Customer Search Term,Start Date,End Date,Impressions,Clicks,Click-Thru Rate (CTR),Cost Per Click (CPC),Spend,7 Day Total Sales ,7 Day Total Orders (#),7 Day Total Units (#),7 Day Conversion Rate,Total Advertising Cost of Sales (ACOS) ,Total Return on Advertising Spend (ROAS)
+"Camp B","Group B",keyword,broad,yoga mat thick,2026-01-01,2026-01-07,800,0,0.00%,$0.00,$0.00,$0.00,0,0,0.00%,,0.00
+"Camp B","Group B",keyword,broad,yoga mat non slip,2026-01-01,2026-01-07,1200,0,0.00%,,,$0.00,0,0,0.00%,,0.00
+"Camp B","Group B",keyword,exact,yoga mat,2026-01-01,2026-01-07,5000,100,2.00%,$0.75,$75.00,$300.00,10,12,10.00%,25.00%,4.00
