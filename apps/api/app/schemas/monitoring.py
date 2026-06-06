@@ -102,6 +102,10 @@ class RecommendationDecisionRequest(BaseModel):
     note: str = Field(min_length=1, max_length=1000)
 
 
+class RecommendationBulkDeleteRequest(BaseModel):
+    recommendation_ids: list[UUID] = Field(min_length=1, max_length=1000)
+
+
 class MonitoringImport(BaseModel):
     id: UUID
     workspace_id: UUID

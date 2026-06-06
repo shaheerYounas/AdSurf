@@ -107,6 +107,33 @@ KNOWN_FIELDS = {
     "notes",
 }
 
+SP_SEARCH_TERM_REPORT_HEADERS = {
+    "start date",
+    "end date",
+    "portfolio name",
+    "campaign name",
+    "ad group name",
+    "retailer",
+    "targeting",
+    "match type",
+    "customer search term",
+    "impressions",
+    "clicks",
+    "click thru rate ctr",
+    "cost per click cpc",
+    "spend",
+    "7 day total sales",
+    "total advertising cost of sales acos",
+    "total return on advertising spend roas",
+    "7 day total orders",
+    "7 day total units",
+    "7 day conversion rate",
+    "7 day advertised sku units",
+    "7 day other sku units",
+    "7 day advertised sku sales",
+    "7 day other sku sales",
+}
+
 
 def _normalise_header_for_matching(header: str) -> str:
     normalized = header.replace("\ufeff", "").replace("%", " percent ")
@@ -234,7 +261,12 @@ def canonical_field_for_header(header: str) -> str:
     """Return the canonical product field for a raw/unique header."""
 
     base_header = re.sub(r"\s+\(\d+\)$", "", header.strip())
-    return COLUMN_ALIASES.get(_normalise_header_for_matching(base_header), "")
+    normalized = _normalise_header_for_matching(base_header)
+    if normalized in COLUMN_ALIASES:
+        return COLUMN_ALIASES[normalized]
+    if normalized in SP_SEARCH_TERM_REPORT_HEADERS:
+        return "source_evidence"
+    return ""
 
 
 def parse_file_to_rows(content: bytes, filename: str) -> tuple[list[RawProductImportRow], dict[str, str]]:
@@ -256,6 +288,15 @@ def parse_file_to_rows(content: bytes, filename: str) -> tuple[list[RawProductIm
         raise BulkProductImportParseError("NO_HEADERS", "The file must contain a header row.")
     if not raw_rows:
         raise BulkProductImportParseError("NO_DATA_ROWS", "The file must contain at least one product row.")
+
+    normalized_headers = {_normalise_header_for_matching(h) for h in headers}
+    if {"campaign name", "ad group name", "customer search term"}.issubset(normalized_headers):
+        raise BulkProductImportParseError(
+            "SP_REPORT_DETECTED",
+            "This file is a Sponsored Products Search Term Report, not a product catalog. "
+            "Upload it via Monitoring Import to get keyword harvest and negative keyword recommendations.",
+            status_code=422,
+        )
 
     detected_mapping = {header: canonical_field_for_header(header) for header in headers}
     return raw_rows, detected_mapping
@@ -279,6 +320,8 @@ def validate_row(
     errors: list[BulkProductRowValidationError] = []
 
     product_name_raw = mapped.get("product_name", "").strip()
+    if not product_name_raw:
+        product_name_raw = _derive_report_product_name(raw)
     product_name = sanitize_preview_value(product_name_raw) if product_name_raw else ""
     if not product_name_raw:
         errors.append(_error("product_name", "Product name is required"))
@@ -286,6 +329,8 @@ def validate_row(
         errors.append(_error("product_name", "Product name must be 200 characters or fewer", product_name_raw))
 
     asin_raw = mapped.get("asin", "").strip()
+    if not asin_raw:
+        asin_raw = _derive_asin_from_targeting(raw)
     asin = asin_raw.upper() if asin_raw else None
     if asin:
         if not ASIN_PATTERN.match(asin):
@@ -293,6 +338,8 @@ def validate_row(
             asin = None
 
     sku_raw = mapped.get("sku", "").strip()
+    if not sku_raw and _looks_like_sp_search_term_report(raw):
+        sku_raw = _derive_report_sku(raw, row_number)
     sku = sanitize_preview_value(sku_raw) if sku_raw else None
     if sku and len(sku) > 100:
         errors.append(_error("sku", "SKU must be 100 characters or fewer", sku_raw))
@@ -330,7 +377,10 @@ def validate_row(
 
     brand = _optional_text(mapped.get("brand"), max_length=200, field="brand", errors=errors)
     category = _optional_text(mapped.get("category"), max_length=100, field="category", errors=errors)
-    notes = _optional_text(mapped.get("notes"), max_length=1000, field="notes", errors=errors)
+    notes_raw = mapped.get("notes")
+    if not notes_raw and _looks_like_sp_search_term_report(raw):
+        notes_raw = _derive_report_notes(raw)
+    notes = _optional_text(notes_raw, max_length=1000, field="notes", errors=errors)
 
     status = BulkImportRowStatus.VALID if not errors else BulkImportRowStatus.INVALID
 
@@ -755,6 +805,67 @@ def _optional_text(
 def _normalise_marketplace(value: str) -> str | None:
     key = re.sub(r"[^A-Za-z0-9]+", " ", value).strip().upper()
     return MARKETPLACE_ALIASES.get(key)
+
+
+def _looks_like_sp_search_term_report(raw: dict[str, str]) -> bool:
+    normalized_headers = {_normalise_header_for_matching(header) for header in raw}
+    return {"campaign name", "ad group name", "customer search term"}.issubset(normalized_headers)
+
+
+def _raw_value(raw: dict[str, str], normalized_header: str) -> str:
+    for header, value in raw.items():
+        if _normalise_header_for_matching(header) == normalized_header:
+            return _cell_to_text(value).strip()
+    return ""
+
+
+def _derive_report_product_name(raw: dict[str, str]) -> str:
+    campaign = _raw_value(raw, "campaign name")
+    ad_group = _raw_value(raw, "ad group name")
+    targeting = _clean_targeting_label(_raw_value(raw, "targeting"))
+    search_term = _raw_value(raw, "customer search term")
+    parts = [part for part in [campaign, ad_group, targeting or search_term] if part]
+    if not parts:
+        return ""
+    return " / ".join(parts)[:200]
+
+
+def _derive_asin_from_targeting(raw: dict[str, str]) -> str:
+    targeting = _raw_value(raw, "targeting")
+    match = re.search(r"(?i)(?:asin\s*=\s*)?[\"']?([A-Z0-9]{10})[\"']?", targeting)
+    return match.group(1).upper() if match else ""
+
+
+def _derive_report_sku(raw: dict[str, str], row_number: int) -> str:
+    identity_parts = [
+        _raw_value(raw, "campaign name"),
+        _raw_value(raw, "ad group name"),
+        _raw_value(raw, "targeting"),
+        _raw_value(raw, "customer search term"),
+        str(row_number),
+    ]
+    digest = hashlib.sha1("|".join(identity_parts).encode("utf-8")).hexdigest()[:12].upper()
+    return f"REPORT-{digest}"
+
+
+def _derive_report_notes(raw: dict[str, str]) -> str:
+    fields = [
+        ("Search term", _raw_value(raw, "customer search term")),
+        ("Match type", _raw_value(raw, "match type")),
+        ("Impressions", _raw_value(raw, "impressions")),
+        ("Clicks", _raw_value(raw, "clicks")),
+        ("Spend", _raw_value(raw, "spend")),
+        ("Sales", _raw_value(raw, "7 day total sales")),
+        ("Orders", _raw_value(raw, "7 day total orders")),
+    ]
+    values = [f"{label}: {value}" for label, value in fields if value]
+    return "Sponsored Products report evidence. " + "; ".join(values)
+
+
+def _clean_targeting_label(value: str) -> str:
+    cleaned = value.strip()
+    cleaned = re.sub(r"(?i)^(keyword|asin)\s*=\s*", "", cleaned)
+    return cleaned.strip("\"'")
 
 
 def _clean_header(header: str) -> str:

@@ -139,6 +139,46 @@ def test_recommendation_approval_and_rejection_require_notes_and_scope(monkeypat
     assert approval_events[-1]["metadata_json"]["approval_updates_app_state_only"] is True
 
 
+def test_recommendations_can_be_deleted_singly_and_in_bulk_with_audit(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("AI_RECOMMENDATION_MODE", "deterministic_fallback")
+    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+    get_settings.cache_clear()
+    workspace_id, product_id, upload_id = _processed_sp_report_upload(monkeypatch, tmp_path)
+    client.post(
+        f"/v1/workspaces/{workspace_id}/products/{product_id}/monitoring-imports",
+        headers=auth_headers(workspace_id, role="analyst"),
+        json={"upload_id": upload_id},
+    )
+    MonitoringWorker().process_one()
+    recommendations = client.get(f"/v1/workspaces/{workspace_id}/recommendations", headers=auth_headers(workspace_id)).json()["data"]
+
+    viewer_delete = client.delete(
+        f"/v1/workspaces/{workspace_id}/recommendations/{recommendations[0]['id']}",
+        headers=auth_headers(workspace_id, role="viewer"),
+    )
+    deleted_one = client.delete(
+        f"/v1/workspaces/{workspace_id}/recommendations/{recommendations[0]['id']}",
+        headers=auth_headers(workspace_id, role="approver"),
+    )
+    deleted_bulk = client.post(
+        f"/v1/workspaces/{workspace_id}/recommendations/bulk-delete",
+        headers=auth_headers(workspace_id, role="analyst"),
+        json={"recommendation_ids": [recommendations[1]["id"], recommendations[2]["id"]]},
+    )
+    remaining = client.get(f"/v1/workspaces/{workspace_id}/recommendations", headers=auth_headers(workspace_id)).json()["data"]
+
+    assert viewer_delete.status_code == 403
+    assert deleted_one.status_code == 200
+    assert deleted_one.json()["data"]["deleted"] is True
+    assert deleted_bulk.status_code == 200
+    assert deleted_bulk.json()["data"]["deleted_count"] == 2
+    assert len(remaining) == len(recommendations) - 3
+    assert {item["id"] for item in recommendations[:3]}.isdisjoint({item["id"] for item in remaining})
+    audit_repository = get_audit_log_repository()
+    assert audit_repository.count(workspace_id=UUID(workspace_id), event_type="recommendation.deleted", object_id=UUID(recommendations[0]["id"])) == 1
+    assert audit_repository.count(workspace_id=UUID(workspace_id), event_type="recommendation.bulk_deleted", object_id=UUID(recommendations[1]["id"])) == 1
+
+
 def test_deepseek_mode_missing_key_fails_safely_without_recommendations(monkeypatch, tmp_path) -> None:
     workspace_id, product_id, upload_id = _processed_sp_report_upload(monkeypatch, tmp_path)
     monkeypatch.setenv("AI_RECOMMENDATION_MODE", "deepseek")

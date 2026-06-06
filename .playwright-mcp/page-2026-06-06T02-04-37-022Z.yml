@@ -1,0 +1,133 @@
+- generic [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e7]:
+          - generic [ref=e8]:
+            - img [ref=e10]
+            - generic [ref=e12]:
+              - paragraph [ref=e13]: Control Center
+              - heading "AdSurf AI" [level=1] [ref=e14]
+          - button "Switch to dark mode" [ref=e225] [cursor=pointer]:
+            - img [ref=e226]
+        - navigation "Main navigation" [ref=e18]:
+          - generic [ref=e19]:
+            - paragraph [ref=e20]: Workspace
+            - generic [ref=e21]:
+              - link "Dashboard Workspace overview" [ref=e22] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e24]
+                - generic [ref=e29]:
+                  - generic [ref=e30]: Dashboard
+                  - generic [ref=e31]: Workspace overview
+              - link "Agents Control AI workflow" [ref=e32] [cursor=pointer]:
+                - /url: /agents
+                - img [ref=e34]
+                - generic [ref=e37]:
+                  - generic [ref=e38]: Agents
+                  - generic [ref=e39]: Control AI workflow
+              - link "Recommendations Approval queue" [ref=e40] [cursor=pointer]:
+                - /url: /recommendations
+                - img [ref=e42]
+                - generic [ref=e45]:
+                  - generic [ref=e46]: Recommendations
+                  - generic [ref=e47]: Approval queue
+          - generic [ref=e48]:
+            - paragraph [ref=e49]: Products
+            - generic [ref=e50]:
+              - link "Products ASIN profiles" [ref=e51] [cursor=pointer]:
+                - /url: /products
+                - img [ref=e53]
+                - generic [ref=e59]:
+                  - generic [ref=e60]: Products
+                  - generic [ref=e61]: ASIN profiles
+              - link "New product Start setup" [ref=e62] [cursor=pointer]:
+                - /url: /products/new
+                - img [ref=e64]
+                - generic [ref=e66]:
+                  - generic [ref=e67]: New product
+                  - generic [ref=e68]: Start setup
+              - link "Bulk import CSV / XLSX upload" [active] [ref=e69] [cursor=pointer]:
+                - /url: /products/bulk
+                - img [ref=e71]
+                - generic [ref=e74]:
+                  - generic [ref=e75]: Bulk import
+                  - generic [ref=e76]: CSV / XLSX upload
+          - generic [ref=e77]:
+            - paragraph [ref=e78]: Data
+            - link "Report Library Uploaded report files" [ref=e80] [cursor=pointer]:
+              - /url: /reports
+              - img [ref=e82]
+              - generic [ref=e85]:
+                - generic [ref=e86]: Report Library
+                - generic [ref=e87]: Uploaded report files
+    - main "Main content" [ref=e88]:
+      - generic [ref=e89]:
+        - navigation "Page navigation" [ref=e285]:
+          - link "Back to Dashboard" [ref=e286] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e287]
+            - generic [ref=e289]: Dashboard
+        - generic [ref=e290]:
+          - generic [ref=e291]:
+            - heading "Bulk product import" [level=1] [ref=e292]
+            - paragraph [ref=e293]: Upload a CSV or XLSX file to create product profiles in one reviewed action. Products are only created after you review and confirm.
+          - generic [ref=e294]:
+            - generic [ref=e295]:
+              - generic [ref=e296]: "1"
+              - generic [ref=e297]: Upload file
+            - generic [ref=e298]: →
+            - generic [ref=e299]:
+              - generic [ref=e300]: "2"
+              - generic [ref=e301]: Columns detected
+            - generic [ref=e302]: →
+            - generic [ref=e303]:
+              - generic [ref=e304]: "3"
+              - generic [ref=e305]: Validation summary
+            - generic [ref=e306]: →
+            - generic [ref=e307]:
+              - generic [ref=e308]: "4"
+              - generic [ref=e309]: Review exceptions
+            - generic [ref=e310]: →
+            - generic [ref=e311]:
+              - generic [ref=e312]: "5"
+              - generic [ref=e313]: Done
+          - generic [ref=e314]:
+            - generic [ref=e315] [cursor=pointer]:
+              - button "Choose File" [ref=e316]
+              - generic [ref=e317]: 📄
+              - paragraph [ref=e318]: Drop a CSV or XLSX file here
+              - paragraph [ref=e319]: or click to browse · max 5 MB
+            - group [ref=e320]:
+              - generic "Supported column names" [ref=e321] [cursor=pointer]
+            - generic [ref=e322]:
+              - generic [ref=e323]:
+                - generic [ref=e324]: If product already exists
+                - combobox [ref=e325]:
+                  - option "Skip (keep existing)" [selected]
+                  - option "Update existing"
+                  - option "Create only new ones"
+              - generic [ref=e326]:
+                - generic [ref=e327]: Default target ACOS (if not in file)
+                - generic [ref=e328]:
+                  - spinbutton [ref=e329]
+                  - generic [ref=e330]: "%"
+            - button "Upload and validate" [disabled] [ref=e331]
+        - generic [ref=e210]:
+          - generic [ref=e211]:
+            - img [ref=e212]
+            - text: Recommendation only
+          - generic [ref=e215]:
+            - img [ref=e216]
+            - text: Requires human approval
+          - generic [ref=e218]:
+            - img [ref=e219]
+            - text: No live Amazon Ads change executed
+  - button "Open Next.js Dev Tools" [ref=e233] [cursor=pointer]:
+    - img [ref=e234]
+  - alert [ref=e237]: Bulk import products | AdSurf
+  - button "Replay tour" [ref=e282] [cursor=pointer]:
+    - img [ref=e283]
+    - text: Replay tour

@@ -18,19 +18,44 @@ import Link from "next/link";
 import { useState, useCallback, useRef } from "react";
 import {
   uploadBulkProductFile,
+  getBulkProductImport,
   commitBulkProductImport,
   type BulkProductImportSummary,
+  type BulkProductImportWithRows,
   type BulkProductRow,
   type BulkImportConflictStrategy,
   type BulkImportCommitResult,
 } from "@/lib/api/products";
-import { formatApiError } from "@/lib/api/client";
+import { ApiError, formatApiError } from "@/lib/api/client";
+import { detectAmazonFileType } from "@/lib/amazon-file-detector";
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
+
+function _importToSummary(imp: BulkProductImportWithRows): BulkProductImportSummary {
+  const rowsWithProduct = imp.rows.filter(r => r.status === "valid" && r.product_id);
+  const exceptionRows = imp.rows.filter(r => r.status !== "valid");
+  return {
+    import_id: imp.id,
+    status: imp.status,
+    total_rows: imp.total_rows,
+    valid_rows: imp.valid_rows,
+    invalid_rows: imp.invalid_rows,
+    duplicate_in_file_rows: imp.duplicate_in_file_rows,
+    already_exists_rows: imp.already_exists_rows,
+    rows_needing_review: imp.invalid_rows + imp.duplicate_in_file_rows + imp.already_exists_rows,
+    exportable_valid_rows: imp.valid_rows,
+    rows_to_create: imp.valid_rows - rowsWithProduct.length,
+    rows_to_update: rowsWithProduct.length,
+    rows_to_skip: imp.invalid_rows + imp.duplicate_in_file_rows + imp.already_exists_rows,
+    warning_rows: 0,
+    detected_columns: imp.detected_columns_json,
+    exception_rows: exceptionRows.slice(0, 50),
+  };
+}
 
 function StatusBadge({ status }: { status: string }) {
   const classes: Record<string, string> = {
@@ -92,6 +117,24 @@ function SummaryCard({ label, value, sub, variant = "neutral" }: { label: string
   );
 }
 
+function ColumnMappingBadge({ mapped }: { mapped: string }) {
+  if (mapped === "source_evidence") {
+    return (
+      <span className="inline-flex items-center gap-1 rounded bg-sky-50 px-2 py-0.5 text-xs font-medium text-sky-700 dark:bg-sky-900/20 dark:text-sky-300">
+        Preserved as source evidence
+      </span>
+    );
+  }
+  if (mapped) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
+        ✓ {mapped}
+      </span>
+    );
+  }
+  return <span className="text-xs text-slate-400">Not used for product setup</span>;
+}
+
 // ─── Component ─────────────────────────────────────────────────────────────────
 
 export function BulkImportWorkspace() {
@@ -100,6 +143,9 @@ export function BulkImportWorkspace() {
   const [dragOver, setDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [duplicateImportId, setDuplicateImportId] = useState<string | null>(null);
+  const [spReportDetected, setSpReportDetected] = useState(false);
+  const [bulkSheetDetected, setBulkSheetDetected] = useState(false);
 
   const [conflictStrategy, setConflictStrategy] = useState<BulkImportConflictStrategy>("skip_existing");
   const [defaultAcos, setDefaultAcos] = useState("");
@@ -124,6 +170,27 @@ export function BulkImportWorkspace() {
     if (!file) return;
     setLoading(true);
     setError(null);
+    setDuplicateImportId(null);
+    setSpReportDetected(false);
+    setBulkSheetDetected(false);
+
+    // Client-side routing — intercept misrouted files before any network call
+    const detection = detectAmazonFileType(file.name);
+    if (detection.type === "BULK_OPERATIONS") {
+      setBulkSheetDetected(true);
+      setLoading(false);
+      return;
+    }
+    if (detection.type === "SP_SEARCH_TERM_REPORT" ||
+        detection.type === "SP_TARGETING_REPORT" ||
+        detection.type === "SP_CAMPAIGN_REPORT" ||
+        detection.type === "SP_ADVERTISED_PRODUCT" ||
+        detection.type === "SB_REPORT" ||
+        detection.type === "SD_REPORT") {
+      setSpReportDetected(true);
+      setLoading(false);
+      return;
+    }
     try {
       const result = await uploadBulkProductFile(file, {
         conflictStrategy,
@@ -132,7 +199,49 @@ export function BulkImportWorkspace() {
       setSummary(result);
       setStep(2);
     } catch (err) {
+      if (err instanceof ApiError && err.code === "DUPLICATE_FILE") {
+        const id = err.details?.existing_import_id;
+        if (typeof id === "string") {
+          setDuplicateImportId(id);
+          return;
+        }
+      }
+      if (err instanceof ApiError && err.code === "SP_REPORT_DETECTED") {
+        setSpReportDetected(true);
+        return;
+      }
       setError(formatApiError(err, "Upload failed."));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleContinueExistingImport() {
+    if (!duplicateImportId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const imp = await getBulkProductImport(duplicateImportId);
+      setDuplicateImportId(null);
+      if (imp.status === "completed") {
+        setSummary(_importToSummary(imp));
+        setCommitResult({
+          import_id: imp.id,
+          status: imp.status,
+          created_count: imp.created_rows,
+          updated_count: imp.updated_rows,
+          skipped_count: imp.skipped_rows,
+          failed_count: imp.failed_rows,
+          created_product_ids: [],
+          updated_product_ids: [],
+        });
+        setStep(5);
+      } else {
+        setSummary(_importToSummary(imp));
+        setStep(2);
+      }
+    } catch (err) {
+      setError(formatApiError(err, "Could not load existing import."));
     } finally {
       setLoading(false);
     }
@@ -161,6 +270,9 @@ export function BulkImportWorkspace() {
     setSummary(null);
     setCommitResult(null);
     setError(null);
+    setDuplicateImportId(null);
+    setSpReportDetected(false);
+    setBulkSheetDetected(false);
   }
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -192,6 +304,104 @@ export function BulkImportWorkspace() {
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-300">
           {error}
+        </div>
+      )}
+
+      {spReportDetected && (
+        <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-5 dark:border-indigo-700/50 dark:bg-indigo-950/20">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0 text-2xl">📊</div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-indigo-900 dark:text-indigo-200">
+                This is a Sponsored Products Search Term Report
+              </p>
+              <p className="mt-1 text-sm text-indigo-700 dark:text-indigo-400">
+                Search Term Reports contain ad performance data — impressions, clicks, spend, sales, and ACOS per keyword.
+                They&apos;re not product catalogs. The right workflow analyses each search term against your target ACOS and tells you exactly:
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-indigo-700 dark:text-indigo-400 list-none">
+                <li>✦ Which converting search terms to harvest as exact match keywords</li>
+                <li>✦ Which high-spend, zero-order terms to add as negatives</li>
+                <li>✦ Which bids to raise or lower based on actual ACOS vs your target</li>
+              </ul>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link
+                  href="/products"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+                >
+                  Go to Monitoring Import →
+                </Link>
+                <button
+                  onClick={reset}
+                  className="rounded-lg border border-indigo-300 px-4 py-2 text-sm font-medium text-indigo-800 hover:bg-indigo-100 dark:border-indigo-600 dark:text-indigo-300 dark:hover:bg-indigo-900/20"
+                >
+                  Upload a different file
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {bulkSheetDetected && (
+        <div className="rounded-lg border border-violet-200 bg-violet-50 p-5 dark:border-violet-700/50 dark:bg-violet-950/20">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0 text-2xl">📂</div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-violet-900 dark:text-violet-200">
+                This is an Amazon Bulk Operations file
+              </p>
+              <p className="mt-1 text-sm text-violet-700 dark:text-violet-400">
+                Bulk Operations files contain your full account structure — campaigns, ad groups, keywords, and current bids.
+                They&apos;re not product catalogs. Use the Bulk Sheet Viewer to inspect your account and analyse keyword bids.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Link
+                  href="/bulk-sheet"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-4 py-2 text-sm font-semibold text-white hover:bg-violet-700"
+                >
+                  Open Bulk Sheet Viewer →
+                </Link>
+                <button
+                  onClick={reset}
+                  className="rounded-lg border border-violet-300 px-4 py-2 text-sm font-medium text-violet-800 hover:bg-violet-100 dark:border-violet-600 dark:text-violet-300 dark:hover:bg-violet-900/20"
+                >
+                  Upload a different file
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {duplicateImportId && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-5 dark:border-amber-700/50 dark:bg-amber-950/20">
+          <div className="flex items-start gap-4">
+            <div className="shrink-0 text-2xl">📋</div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-amber-900 dark:text-amber-200">
+                This file has already been imported
+              </p>
+              <p className="mt-1 text-sm text-amber-700 dark:text-amber-400">
+                An import for this exact file already exists. You can pick up where it left off, or start fresh with a different file.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  onClick={handleContinueExistingImport}
+                  disabled={loading}
+                  className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                >
+                  {loading ? "Loading…" : "Continue with existing import"}
+                </button>
+                <button
+                  onClick={reset}
+                  className="rounded-lg border border-amber-300 px-4 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-600 dark:text-amber-300 dark:hover:bg-amber-900/20"
+                >
+                  Upload a different file
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -311,13 +521,7 @@ export function BulkImportWorkspace() {
                   <tr key={original} className="border-b border-slate-100 dark:border-slate-700/50">
                     <td className="px-4 py-2 font-mono text-slate-700 dark:text-slate-300">{original}</td>
                     <td className="px-4 py-2">
-                      {mapped ? (
-                        <span className="inline-flex items-center gap-1 rounded bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-400">
-                          ✓ {mapped}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400">Ignored</span>
-                      )}
+                      <ColumnMappingBadge mapped={mapped} />
                     </td>
                   </tr>
                 ))}

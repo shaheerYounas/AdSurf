@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { uploadAccountReport } from "./account-imports";
 import { controlAgentRun, getAccountImportAgentWorkflow, getAgents, updateAgentConfig } from "./agents";
-import { decideRecommendation, runAccountImportAnalysis } from "./monitoring";
+import { bulkDeleteRecommendations, decideRecommendation, deleteRecommendation, runAccountImportAnalysis } from "./monitoring";
 import { createProductProfile, getDashboardSummary } from "./products";
 
 const workspaceId = "00000000-0000-0000-0000-000000000001";
@@ -101,5 +101,18 @@ describe("frontend API clients", () => {
     await decideRecommendation("rec-2", "reject", "not enough evidence", workspaceId);
     expect(fetchMock).toHaveBeenNthCalledWith(1, expect.stringContaining("/recommendations/rec-1/approve"), expect.objectContaining({ method: "POST", body: JSON.stringify({ note: "looks good" }) }));
     expect(fetchMock).toHaveBeenNthCalledWith(2, expect.stringContaining("/recommendations/rec-2/reject"), expect.objectContaining({ method: "POST", body: JSON.stringify({ note: "not enough evidence" }) }));
+  });
+
+  it("deletes one or many recommendations", async () => {
+    const fetchMock = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(ok({ deleted: true, recommendation_id: "rec-1" }))
+      .mockResolvedValueOnce(ok({ deleted_count: 2 }));
+
+    await deleteRecommendation("rec-1", workspaceId);
+    await bulkDeleteRecommendations(["rec-2", "rec-3"], workspaceId);
+
+    expect(fetchMock).toHaveBeenNthCalledWith(1, expect.stringContaining(`/recommendations/rec-1`), expect.objectContaining({ method: "DELETE" }));
+    expect(fetchMock).toHaveBeenNthCalledWith(2, expect.stringContaining("/recommendations/bulk-delete"), expect.objectContaining({ method: "POST", body: JSON.stringify({ recommendation_ids: ["rec-2", "rec-3"] }) }));
   });
 });

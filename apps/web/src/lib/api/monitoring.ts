@@ -208,6 +208,23 @@ export async function decideRecommendation(recommendationId: string, decision: "
   return readApiData<Recommendation>(response, "Recommendation decision could not be saved.");
 }
 
+export async function deleteRecommendation(recommendationId: string, workspaceId = defaultWorkspaceId): Promise<void> {
+  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/recommendations/${recommendationId}`, {
+    method: "DELETE",
+    headers: localAuthHeaders(workspaceId),
+  });
+  await readApiData<{ deleted: boolean; recommendation_id: string }>(response, "Recommendation could not be deleted.");
+}
+
+export async function bulkDeleteRecommendations(recommendationIds: string[], workspaceId = defaultWorkspaceId): Promise<{ deleted_count: number }> {
+  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/recommendations/bulk-delete`, {
+    method: "POST",
+    headers: { ...localAuthHeaders(workspaceId), "Content-Type": "application/json" },
+    body: JSON.stringify({ recommendation_ids: recommendationIds }),
+  });
+  return readApiData<{ deleted_count: number }>(response, "Recommendations could not be deleted.");
+}
+
 export async function runMonitoringAnalysis(importId: string, workspaceId = defaultWorkspaceId) {
   const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/monitoring/imports/${importId}/run-analysis`, {
     method: "POST",

@@ -82,14 +82,19 @@ const STEPS: Step[] = [
  * and can be re-opened via a window event `adsurf:restart-tour`.
  */
 export function OnboardingTour() {
-  const [open, setOpen] = useState(() => {
-    try {
-      return typeof window !== "undefined" && !window.localStorage.getItem(STORAGE_KEY);
-    } catch {
-      return false;
-    }
-  });
+  const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
+
+  // Determine initial open state on the client only to avoid SSR hydration mismatch.
+  useEffect(() => {
+    try {
+      if (!window.localStorage.getItem(STORAGE_KEY)) {
+        setOpen(true);
+      }
+    } catch {
+      // localStorage unavailable — stay closed
+    }
+  }, []);
 
   useEffect(() => {
     const restart = () => {

@@ -4,7 +4,7 @@ import path from 'path';
 test.describe('File Upload and Compliance Testing', () => {
   test('upload Sponsored_Products_Search_term_report and verify 20/20 compliance', async ({ page }) => {
     // Navigate to the app
-    await page.goto('http://localhost:3000');
+    await page.goto('/');
     await page.waitForLoadState('networkidle');
 
     // Take initial screenshot

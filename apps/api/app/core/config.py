@@ -17,9 +17,9 @@ class Settings(BaseModel):
     app_name: str = "Amazon Ads AI Automation Control Center"
     app_version: str = "0.1.0"
     app_env: str | None = None
-    api_base_url: str = "http://localhost:8000"
-    web_app_url: str = "http://localhost:3000"
-    cors_allowed_origins: tuple[str, ...] = ("http://localhost:3000",)
+    api_base_url: str = "http://localhost:8720"
+    web_app_url: str = "http://localhost:4310"
+    cors_allowed_origins: tuple[str, ...] = ("http://localhost:4310",)
     database_url: str | None = None
     storage_adapter: str = "local"
     allow_fake_storage_in_preview: bool = False
@@ -71,11 +71,11 @@ def get_settings() -> Settings:
     return Settings(
         app_name=os.getenv("PUBLIC_APP_NAME", "Amazon Ads AI Automation Control Center"),
         app_env=app_env,
-        api_base_url=os.getenv("API_BASE_URL", "http://localhost:8000"),
-        web_app_url=os.getenv("WEB_APP_URL", "http://localhost:3000"),
+        api_base_url=os.getenv("API_BASE_URL", "http://localhost:8720"),
+        web_app_url=os.getenv("WEB_APP_URL", "http://localhost:4310"),
         cors_allowed_origins=tuple(
             origin.strip()
-            for origin in os.getenv("CORS_ALLOWED_ORIGINS", os.getenv("WEB_APP_URL", "http://localhost:3000")).split(",")
+            for origin in os.getenv("CORS_ALLOWED_ORIGINS", os.getenv("WEB_APP_URL", "http://localhost:4310")).split(",")
             if origin.strip()
         ),
         database_url=database_url,

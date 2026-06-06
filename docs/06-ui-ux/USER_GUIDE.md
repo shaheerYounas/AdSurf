@@ -274,7 +274,7 @@ Every recommendation card and approval checkpoint repeats the safety boundary: `
 ## Review AI Recommendations
 Open `Recommendations` to review the queue. Summary cards show total recommendations, actionable items, review-only insights, exportable actions, pending approvals, approved, rejected, and critical/high-priority counts.
 
-Each row shows priority, a seller-friendly recommendation, search term, campaign/ad group, compact metric evidence, recommended action, confidence, exportability, status, and actions. Raw technical rule names and model names are not shown in the main table.
+Each row shows priority, a seller-friendly recommendation, search term, campaign/ad group, compact metric evidence, recommended action, confidence, exportability, status, and actions. Raw technical rule names and model names are not shown in the main table. Use the row checkboxes and selected-item toolbar to delete one or more queue items after confirmation. Deleting recommendations only cleans up AdSurf review records and related decision history; it does not call Amazon Ads or change campaigns.
 
 Use filters to focus by status, priority, recommendation type, action class, exportability, confidence, campaign text, search-term text, minimum spend, minimum clicks, and minimum orders. Quick filters cover pending approval, actionable, exportable, critical/high, data checks, negative keywords, bid changes, and move-to-exact recommendations.
 
@@ -318,8 +318,10 @@ The system records customer-impacting decisions and workflow milestones. Operato
 ## Local Demo Guide
 For local development, the app can be opened at:
 
-- Web app: `http://127.0.0.1:3000/products`
-- API health: `http://127.0.0.1:8000/health`
+- Web app: `http://127.0.0.1:4310/products` when the default dev port is available
+- API health: `http://127.0.0.1:8720/health` when the default dev port is available
+
+Run `npm run dev` from the repo root and use the URLs printed by the launcher if either default port is already busy.
 
 The local demo workspace uses a fixed workspace and user ID configured in development files. Local upload bytes may use fake storage while Supabase PostgreSQL stores metadata, parsed rows, mappings, approvals, and campaign/export records.
 
@@ -377,5 +379,10 @@ The main workflow begins in the Agent Control Center with **Upload Amazon Ads Re
 8. Review grouped recommendations and approve or reject with notes.
 
 Single-product uploads still exist on product pages for focused keyword and monitoring workflows. Account bulk upload is the preferred path for sellers and agencies managing many products.
+
+## Bulk Product Import Column Detection
+When a product spreadsheet is uploaded, columns that map directly to product profile fields are shown with their mapped field names, such as `product_name`, `asin`, `sku`, `marketplace`, or `currency`.
+
+When a Sponsored Products Search Term Report is uploaded on the bulk product import page, performance and report columns are shown as `Preserved as source evidence` instead of ignored. The app stores those original values with the import row and can derive a reviewable product profile identity from campaign, ad group, targeting, and search term evidence when explicit product-name, ASIN, or SKU columns are missing. Products are still created only after review and confirmation.
 
 Approving a recommendation does not mutate live Amazon Ads.

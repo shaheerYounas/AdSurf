@@ -125,6 +125,38 @@ def test_alternative_headers_map_correctly() -> None:
     assert summary["valid_rows"] == 2
 
 
+def test_sp_search_term_report_columns_are_preserved_and_rows_can_build_profiles() -> None:
+    upload = _upload_bytes(
+        "sp-search-term.csv",
+        (
+            b"Start Date,End Date,Portfolio name,Currency,Campaign Name,Ad Group Name,Retailer,Country,Targeting,Match Type,Customer Search Term,Impressions,Clicks,Click-Thru Rate (CTR),Cost Per Click (CPC),Spend,7 Day Total Sales,Total Advertising Cost of Sales (ACOS),Total Return on Advertising Spend (ROAS),7 Day Total Orders (#),7 Day Total Units (#),7 Day Conversion Rate,7 Day Advertised SKU Units (#),7 Day Other SKU Units (#),7 Day Advertised SKU Sales,7 Day Other SKU Sales\n"
+            b"2026-05-01,2026-05-07,,USD,Camp A,Group A,Amazon,US,asin=\"B0TEST1234\",exact,garlic press,100,16,0.16,0.75,12,0,,0,0,0,0,0,0,0,0\n"
+        ),
+        workspace_default_acos="30",
+    )
+
+    assert upload.status_code == 201
+    summary = upload.json()["data"]
+    assert summary["detected_columns"]["Campaign Name"] == "source_evidence"
+    assert summary["detected_columns"]["Customer Search Term"] == "source_evidence"
+    assert summary["detected_columns"]["Impressions"] == "source_evidence"
+    assert summary["detected_columns"]["Spend"] == "source_evidence"
+    assert summary["detected_columns"]["Country"] == "marketplace"
+    assert summary["detected_columns"]["Currency"] == "currency"
+    assert summary["valid_rows"] == 1
+    assert summary["exception_rows"] == []
+
+    detail = client.get(
+        f"/v1/workspaces/{WORKSPACE_ID}/products/bulk-import/{summary['import_id']}",
+        headers=auth_headers(),
+    ).json()["data"]
+    row = detail["rows"][0]
+    assert row["product_name"] == "Camp A / Group A / B0TEST1234"
+    assert row["asin"] == "B0TEST1234"
+    assert row["raw_row_json"]["Clicks"] == "16"
+    assert "Search term: garlic press" in row["notes"]
+
+
 def test_missing_target_acos_uses_user_default() -> None:
     upload = _upload_fixture("bulk-products-missing-acos.csv", workspace_default_acos="25")
 

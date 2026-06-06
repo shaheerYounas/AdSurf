@@ -75,7 +75,7 @@ type CalibrationStatus = {
   parameters: CalibrationParam[];
 };
 
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8720";
 
 function localAuthHeaders(workspaceId: string): Record<string, string> {
   return {

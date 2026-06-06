@@ -109,10 +109,17 @@ async def create_bulk_product_import(
             workspace_defaults=ws_defaults,
         )
     except BulkProductImportParseError as exc:
+        details: dict = {}
+        if exc.code == "SP_REPORT_DETECTED":
+            details = {
+                "redirect_to": "monitoring_import",
+                "hint": "Use Monitoring Import to analyse this file and get keyword recommendations.",
+            }
         raise ApiError(
             code=exc.code,
             message=exc.message,
             status_code=exc.status_code,
+            details=details or None,
         ) from exc
     except Exception as exc:
         raise ApiError(
@@ -128,7 +135,7 @@ async def create_bulk_product_import(
             code="DUPLICATE_FILE",
             message=f"This file was already imported (import_id: {existing_import_id}). Use the existing import or choose a different file.",
             status_code=409,
-            detail={"existing_import_id": str(existing_import_id)},
+            details={"existing_import_id": str(existing_import_id)},
         )
 
     # Check for existing products in workspace
@@ -403,6 +410,10 @@ def _row_product_payload(row: BulkProductRow, *, include_missing_identity: bool)
         payload["asin"] = row.asin
     if include_missing_identity or row.sku is not None:
         payload["sku"] = row.sku
+    if row.brand is not None:
+        payload["brand_name"] = row.brand
+    if row.category is not None:
+        payload["category"] = row.category
     return payload
 
 

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import text
+from sqlalchemy import bindparam, text
 from sqlalchemy.engine import Engine, RowMapping
 
 from apps.api.app.core.config import get_settings
@@ -100,6 +100,14 @@ class MonitoringRepository(ABC):
         actor_user_id: str,
         note: str,
     ) -> tuple[Recommendation | None, RecommendationDecision | None]:
+        raise NotImplementedError
+
+    @abstractmethod
+    def delete_recommendation(self, *, workspace_id: UUID, recommendation_id: UUID) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def bulk_delete_recommendations(self, *, workspace_id: UUID, recommendation_ids: list[UUID]) -> int:
         raise NotImplementedError
 
     @abstractmethod
@@ -221,6 +229,23 @@ class LocalMonitoringRepository(MonitoringRepository):
         self._recommendations[updated.id] = updated
         self._decisions[decision_record.id] = decision_record
         return updated, decision_record
+
+    def delete_recommendation(self, *, workspace_id: UUID, recommendation_id: UUID) -> bool:
+        current = self.get_recommendation(workspace_id=workspace_id, recommendation_id=recommendation_id)
+        if current is None:
+            return False
+        self._recommendations.pop(recommendation_id, None)
+        for decision_id, decision in list(self._decisions.items()):
+            if decision.workspace_id == workspace_id and decision.recommendation_id == recommendation_id:
+                self._decisions.pop(decision_id, None)
+        return True
+
+    def bulk_delete_recommendations(self, *, workspace_id: UUID, recommendation_ids: list[UUID]) -> int:
+        deleted_count = 0
+        for recommendation_id in recommendation_ids:
+            if self.delete_recommendation(workspace_id=workspace_id, recommendation_id=recommendation_id):
+                deleted_count += 1
+        return deleted_count
 
     def insert_ai_run(self, *, ai_run: AiRun) -> AiRun:
         self._ai_runs[ai_run.id] = ai_run
@@ -491,6 +516,36 @@ class PostgresMonitoringRepository(MonitoringRepository):
                 },
             ).mappings().one()
         return _recommendation_from_row(row), _decision_from_row(decision_row)
+
+    def delete_recommendation(self, *, workspace_id: UUID, recommendation_id: UUID) -> bool:
+        with self._engine.begin() as connection:
+            connection.execute(
+                text("delete from recommendation_decisions where workspace_id = :workspace_id and recommendation_id = :recommendation_id"),
+                {"workspace_id": workspace_id, "recommendation_id": recommendation_id},
+            )
+            deleted = connection.execute(
+                text("delete from recommendations where workspace_id = :workspace_id and id = :recommendation_id"),
+                {"workspace_id": workspace_id, "recommendation_id": recommendation_id},
+            )
+        return bool(deleted.rowcount)
+
+    def bulk_delete_recommendations(self, *, workspace_id: UUID, recommendation_ids: list[UUID]) -> int:
+        if not recommendation_ids:
+            return 0
+        with self._engine.begin() as connection:
+            connection.execute(
+                text("delete from recommendation_decisions where workspace_id = :workspace_id and recommendation_id in :recommendation_ids").bindparams(
+                    bindparam("recommendation_ids", expanding=True)
+                ),
+                {"workspace_id": workspace_id, "recommendation_ids": recommendation_ids},
+            )
+            deleted = connection.execute(
+                text("delete from recommendations where workspace_id = :workspace_id and id in :recommendation_ids").bindparams(
+                    bindparam("recommendation_ids", expanding=True)
+                ),
+                {"workspace_id": workspace_id, "recommendation_ids": recommendation_ids},
+            )
+        return int(deleted.rowcount or 0)
 
     def insert_ai_run(self, *, ai_run: AiRun) -> AiRun:
         with self._engine.begin() as connection:

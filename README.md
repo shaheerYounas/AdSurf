@@ -36,6 +36,15 @@ AI agents do not directly execute dangerous changes. Rules calculate. AI explain
 ## Documentation Map
 Start with [docs/00-index.md](docs/00-index.md). For operator instructions, use the [User Guide](docs/06-ui-ux/USER_GUIDE.md). Core rules live in `docs/02-domain`; architecture contracts live in `docs/03-architecture`; agent guardrails live in `docs/04-ai-agents`.
 
+## Local Development
+Run both local services with:
+
+```bash
+npm run dev
+```
+
+The dev launcher avoids the common ports used by many local tools. By default it starts from `127.0.0.1:4310` for the web app and `127.0.0.1:8720` for the API, then scans upward if either port is already busy. Use `WEB_DEV_PORT`, `API_DEV_PORT`, or `DEV_HOST` to choose a different starting point.
+
 ## Current State
 The repository now contains an implementation foundation for the documented MVP workflow:
 

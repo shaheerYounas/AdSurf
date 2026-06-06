@@ -6,7 +6,13 @@ from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 
 class ApiError(Exception):
-    def __init__(self, code: str, message: str, status_code: int = 400, details: dict | None = None):
+    def __init__(self, code: str, message: str, status_code: int = 400, details: dict | None = None, **kwargs):
+        if kwargs:
+            bad = ", ".join(f"'{k}'" for k in kwargs)
+            raise TypeError(
+                f"ApiError() got unexpected keyword argument(s): {bad}. "
+                f"Did you mean 'details' instead of 'detail'?"
+            )
         self.code = code
         self.message = message
         self.status_code = status_code

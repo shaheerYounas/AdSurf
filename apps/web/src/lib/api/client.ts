@@ -1,25 +1,25 @@
-export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+export const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8720";
 export const defaultWorkspaceId = process.env.NEXT_PUBLIC_LOCAL_WORKSPACE_ID ?? "00000000-0000-0000-0000-000000000001";
 export const localUserId = "00000000-0000-0000-0000-000000000001";
 
 type ApiEnvelope<T> = {
   success: boolean;
   data: T;
-  error?: { message?: string; code?: string; detail?: string };
+  error?: { message?: string; code?: string; details?: Record<string, unknown> };
   meta?: Record<string, unknown>;
 };
 
 export class ApiError extends Error {
   status?: number;
   code?: string;
-  detail?: string;
+  details?: Record<string, unknown>;
 
-  constructor(message: string, options: { status?: number; code?: string; detail?: string; cause?: unknown } = {}) {
+  constructor(message: string, options: { status?: number; code?: string; details?: Record<string, unknown>; cause?: unknown } = {}) {
     super(message);
     this.name = "ApiError";
     this.status = options.status;
     this.code = options.code;
-    this.detail = options.detail;
+    this.details = options.details;
     this.cause = options.cause;
   }
 }
@@ -39,7 +39,7 @@ export async function readApiData<T>(response: Response, fallbackMessage: string
     if (!response.ok) {
       throw new ApiError(`${fallbackMessage} The server returned HTTP ${response.status}, but the response body could not be read.`, {
         status: response.status,
-        detail: err instanceof Error ? err.message : undefined,
+        details: err instanceof Error ? { parseError: err.message } : undefined,
         cause: err,
       });
     }
@@ -50,7 +50,7 @@ export async function readApiData<T>(response: Response, fallbackMessage: string
     throw new ApiError(body.error?.message ?? fallbackMessage, {
       status: response.status,
       code: body.error?.code,
-      detail: body.error?.detail,
+      details: body.error?.details,
     });
   }
   return body.data;
@@ -67,8 +67,7 @@ export function formatApiError(caught: unknown, fallbackMessage = "The requested
 
   if (caught instanceof ApiError) {
     const status = caught.status ? ` HTTP ${caught.status}.` : "";
-    const detail = caught.detail ? ` Detail: ${caught.detail}` : "";
-    return `${caught.message}${status}${detail}`;
+    return `${caught.message}${status}`;
   }
 
   if (caught instanceof Error) {

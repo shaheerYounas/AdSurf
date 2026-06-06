@@ -5,9 +5,10 @@ Use this checklist after starting the API and web app locally.
 ## Start Services
 | Action | Expected result | If failed |
 | --- | --- | --- |
-| Run `npm run dev:api`. | API listens on `http://127.0.0.1:8000`. | Check Python deps, `APP_ENV`, `DATABASE_URL`, and import errors. |
-| Run `npm run dev:web`. | Web app listens on `http://127.0.0.1:3000`. | Check Node version and `npm install`. |
-| Open `http://127.0.0.1:8000/health`. | JSON response has `success: true` and `status: ok`. | Restart API and inspect terminal logs. |
+| Run `npm run dev`. | Launcher prints selected web and API URLs; defaults start from `http://127.0.0.1:4310` and `http://127.0.0.1:8720`, then scan upward if busy. | Check Node/Python versions, `APP_ENV`, `DATABASE_URL`, and import errors. |
+| Run `npm run dev:api` if testing API only. | API prints a selected URL and skips a busy preferred port. | Check Python deps, `APP_ENV`, `DATABASE_URL`, and import errors. |
+| Run `npm run dev:web` if testing web only. | Web app prints a selected URL and skips a busy preferred port. | Check Node version and `npm install`. |
+| Open the printed API `/health` URL. | JSON response has `success: true` and `status: ok`. | Restart API and inspect terminal logs. |
 | Apply migrations. | `upload_source_type` includes `account_bulk_report`; account import tables exist. | Run Supabase migrations in order; check `docs/09-testing/FUNCTIONALITY_AUDIT.md`. |
 
 ## Dashboard

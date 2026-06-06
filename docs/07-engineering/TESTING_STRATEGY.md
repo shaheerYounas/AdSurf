@@ -37,7 +37,7 @@
 ## Integration Tests
 Upload parsing, column mapping, scoring, keyword approval, campaign plan generation, bulk export validation, monitoring ingestion, recommendation creation, and approval queue decisions.
 
-Bulk product import integration tests must cover clean CSV and XLSX imports, alternative headers, missing target ACOS with user default, file target ACOS overriding user default, duplicate ASIN/SKU/name rows, existing-product skip and update policies, invalid-row blocking, double confirm returning `409`, imports over 500 rows, invalid file type rejection, malformed CSV rejection, blank XLSX rejection, and backend summary counts matching commit results.
+Bulk product import integration tests must cover clean CSV and XLSX imports, alternative headers, Sponsored Products Search Term Report columns preserved as source evidence with derived profile identity, missing target ACOS with user default, file target ACOS overriding user default, duplicate ASIN/SKU/name rows, existing-product skip and update policies, invalid-row blocking, double confirm returning `409`, imports over 500 rows, invalid file type rejection, malformed CSV rejection, blank XLSX rejection, and backend summary counts matching commit results.
 
 ## E2E Tests
 Customer journey from product profile through upload, keyword approval, campaign review, bulk export approval, monitoring, recommendation approval, and audit log verification.

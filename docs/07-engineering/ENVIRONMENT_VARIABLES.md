@@ -3,8 +3,15 @@
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | APP_ENV | Yes | local, test, preview, staging, production. Missing or unknown values fail closed for workspace auth. |
+| DEV_HOST | Local dev only | Host used by the dev launcher. Defaults to `127.0.0.1`. |
+| WEB_DEV_PORT | Local dev only | Preferred web dev port. Defaults to `4310`; launcher scans upward if busy. |
+| API_DEV_PORT | Local dev only | Preferred API dev port. Defaults to `8720`; launcher scans upward if busy. |
 | WEB_APP_URL | Yes | Frontend base URL. |
 | API_BASE_URL | Yes | API base URL. |
+| NEXT_PUBLIC_API_BASE_URL | Browser only | Frontend API base URL exposed to Next.js. `npm run dev` sets this to the selected API port. |
+| FASTAPI_HOST | Local/API | Uvicorn host when running the API directly. |
+| FASTAPI_PORT | Local/API | Preferred API port when running the API directly. `npm run dev:api` scans upward if busy. |
+| CORS_ALLOWED_ORIGINS | API | Comma-separated browser origins allowed to call the API. `npm run dev` sets this to the selected web port. |
 | SUPABASE_URL | Yes | Supabase project URL. |
 | SUPABASE_ANON_KEY | Yes | Browser-safe Supabase key. |
 | SUPABASE_PUBLISHABLE_KEY | Browser only | Supabase publishable key for frontend clients when used. |
@@ -32,3 +39,8 @@
 - The FastAPI SQLAlchemy engine uses non-persistent connections for `DATABASE_URL` so repeated Agent Control Center saves do not hold Supabase pooler session slots.
 - Server-side Supabase Storage requires a valid `SUPABASE_SERVICE_ROLE_KEY`; anon and publishable keys are not sufficient for backend upload/export object writes.
 - `SUPABASE_STORAGE_BUCKET_UPLOADS` must point to a private bucket that exists in the Supabase project, such as `workspace-uploads`.
+
+## Local Port Selection
+- Use `npm run dev` to start the web app and API together. The launcher chooses app-specific ports before either service starts, avoiding common defaults such as `3000`, `5173`, `8000`, and `8080`.
+- Default local URLs are `http://127.0.0.1:4310` for web and `http://127.0.0.1:8720` for API. If a port is busy, the launcher scans upward and prints the selected URLs.
+- When both services are started together, the launcher injects `NEXT_PUBLIC_API_BASE_URL`, `API_BASE_URL`, `WEB_APP_URL`, and `CORS_ALLOWED_ORIGINS` so the frontend and backend agree on the selected ports.

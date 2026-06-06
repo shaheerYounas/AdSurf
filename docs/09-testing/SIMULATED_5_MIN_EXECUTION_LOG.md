@@ -3,7 +3,7 @@
 This document is a highly detailed, chronological simulated trace of the AdSurf SaaS over a 5-minute session based on the current codebase logic. It includes the frontend (`Next.js`), backend REST API (`FastAPI`), database (`PostgreSQL`/`Supabase`), background workers (`Celery`/internal loops), and external API integrations (like AI Providers).
 
 ## [00:00:00.000] - Session Start
-* **[Frontend]** User lands on `http://localhost:3000/`. Next.js `layout.tsx` mounts.
+* **[Frontend]** User lands on the web URL printed by `npm run dev` (default `http://127.0.0.1:4310/`). Next.js `layout.tsx` mounts.
 * **[Frontend]** Client-side initialization. `useMemo` hooks fire in dashboard components.
 * **[Frontend]** Request sent: `GET /v1/workspaces/00000000-...-0001/summary`.
 * **[Backend]** `main.py` router receives request. `require_workspace_member` middleware validates auth headers.

@@ -1,11 +1,13 @@
 from pathlib import Path
 import json
+import os
 import urllib.error
 import urllib.request
 from uuid import uuid4
 
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8720")
+WEB_APP_URL = os.getenv("WEB_APP_URL", "http://127.0.0.1:4310")
 WORKSPACE_ID = "00000000-0000-0000-0000-000000000001"
 USER_ID = "00000000-0000-0000-0000-000000000001"
 REPORT_FILES = [
@@ -68,7 +70,7 @@ def main() -> None:
             f"columns={len(profile['columns'])}"
         )
 
-    print(f"open=http://127.0.0.1:3000/products/{product['id']}/uploads")
+    print(f"open={WEB_APP_URL}/products/{product['id']}/uploads")
 
 
 def request(method: str, path: str, *, body: dict | None = None, extra_headers: dict | None = None) -> dict:

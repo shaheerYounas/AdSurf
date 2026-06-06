@@ -35,6 +35,7 @@ local-exports/
 generated-bulk-sheets/
 local-reports/
 logs/
+output/workspace-artifacts/
 *.xls
 *.xlsx
 !tests/fixtures/

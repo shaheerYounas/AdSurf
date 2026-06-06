@@ -15,6 +15,8 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  Trash2,
+  X,
   XCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,7 +25,7 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { Modal } from "@/components/ui/modal";
 import { Select } from "@/components/ui/select";
 import { defaultWorkspaceId, formatApiError } from "@/lib/api/client";
-import { decideRecommendation, getRecommendations, type Recommendation } from "@/lib/api/monitoring";
+import { bulkDeleteRecommendations, decideRecommendation, deleteRecommendation, getRecommendations, type Recommendation } from "@/lib/api/monitoring";
 import { getCachedData, setCachedData } from "@/lib/prefetch";
 import { cn, humanize } from "@/lib/utils";
 import {
@@ -130,11 +132,14 @@ type DecisionTarget = {
   decision: "approve" | "reject";
 };
 
+type DeleteTarget = { mode: "single"; recommendation: Recommendation } | { mode: "bulk"; ids: string[] };
+
 export function RecommendationsWorkspace() {
   const workspaceId = defaultWorkspaceId;
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [filters, setFilters] = useState<RecommendationFilters>(emptyRecommendationFilters);
   const [decisionTarget, setDecisionTarget] = useState<DecisionTarget | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [detailsTarget, setDetailsTarget] = useState<Recommendation | null>(null);
   const [note, setNote] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -143,6 +148,8 @@ export function RecommendationsWorkspace() {
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSavingDecision, setIsSavingDecision] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [page, setPage] = useState(1);
 
   useEffect(() => {
@@ -214,19 +221,79 @@ export function RecommendationsWorkspace() {
     }
   }
 
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    const ids = deleteTarget.mode === "single" ? [deleteTarget.recommendation.id] : deleteTarget.ids;
+    setErrorMessage(null);
+    setStatusMessage(null);
+    setIsDeleting(true);
+    try {
+      if (deleteTarget.mode === "single") {
+        await deleteRecommendation(deleteTarget.recommendation.id, workspaceId);
+      } else {
+        await bulkDeleteRecommendations(deleteTarget.ids, workspaceId);
+      }
+      const next = recommendations.filter((item) => !ids.includes(item.id));
+      setRecommendations(next);
+      setCachedData("recommendations:list", next, 60_000);
+      setSelected(new Set());
+      setDeleteTarget(null);
+      setStatusMessage(`${ids.length.toLocaleString("en-US")} recommendation${ids.length === 1 ? "" : "s"} deleted from the review queue. No live Amazon Ads change was made.`);
+      if (page > Math.max(1, Math.ceil(next.length / pageSize))) {
+        setPage(Math.max(1, Math.ceil(next.length / pageSize)));
+      }
+    } catch (caught) {
+      setErrorTitle("Recommendations could not be deleted");
+      setErrorMessage(formatApiError(caught, "Recommendations could not be deleted."));
+    } finally {
+      setIsDeleting(false);
+    }
+  }
+
   function updateFilter<K extends keyof RecommendationFilters>(key: K, value: RecommendationFilters[K]) {
     setPage(1);
+    setSelected(new Set());
     setFilters((current) => ({ ...current, [key]: value }));
   }
 
   function applyQuickFilter(patch: Partial<RecommendationFilters>) {
     setPage(1);
+    setSelected(new Set());
     setFilters((current) => ({ ...current, ...patch }));
   }
 
   function clearFilters() {
     setPage(1);
+    setSelected(new Set());
     setFilters(emptyRecommendationFilters);
+  }
+
+  function toggleSelected(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function toggleVisibleSelected() {
+    const visibleIds = visibleRecommendations.map((recommendation) => recommendation.id);
+    const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selected.has(id));
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const id of visibleIds) {
+        if (allVisibleSelected) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+      }
+      return next;
+    });
   }
 
   return (
@@ -333,9 +400,15 @@ export function RecommendationsWorkspace() {
           filteredCount={filtered.length}
           isLoading={isLoading}
           onApprove={(recommendation) => setDecisionTarget({ recommendation, decision: "approve" })}
+          onBulkDelete={(ids) => setDeleteTarget({ mode: "bulk", ids })}
+          onClearSelection={() => setSelected(new Set())}
+          onDelete={(recommendation) => setDeleteTarget({ mode: "single", recommendation })}
           onReject={(recommendation) => setDecisionTarget({ recommendation, decision: "reject" })}
+          onToggleSelected={toggleSelected}
+          onToggleVisibleSelected={toggleVisibleSelected}
           onViewDetails={setDetailsTarget}
           recommendations={visibleRecommendations}
+          selected={selected}
           totalCount={recommendations.length}
         />
       )}
@@ -361,6 +434,15 @@ export function RecommendationsWorkspace() {
       />
 
       <DetailsModal recommendation={detailsTarget} onClose={() => setDetailsTarget(null)} />
+
+      <DeleteModal
+        deleteTarget={deleteTarget}
+        isDeleting={isDeleting}
+        onClose={() => {
+          if (!isDeleting) setDeleteTarget(null);
+        }}
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }
@@ -601,19 +683,36 @@ function RecommendationTable({
   filteredCount,
   isLoading,
   onApprove,
+  onBulkDelete,
+  onClearSelection,
+  onDelete,
   onReject,
+  onToggleSelected,
+  onToggleVisibleSelected,
   onViewDetails,
   recommendations,
+  selected,
   totalCount,
 }: {
   filteredCount: number;
   isLoading: boolean;
   onApprove: (recommendation: Recommendation) => void;
+  onBulkDelete: (recommendationIds: string[]) => void;
+  onClearSelection: () => void;
+  onDelete: (recommendation: Recommendation) => void;
   onReject: (recommendation: Recommendation) => void;
+  onToggleSelected: (recommendationId: string) => void;
+  onToggleVisibleSelected: () => void;
   onViewDetails: (recommendation: Recommendation) => void;
   recommendations: Recommendation[];
+  selected: Set<string>;
   totalCount: number;
 }) {
+  const visibleIds = recommendations.map((recommendation) => recommendation.id);
+  const visibleSelectedCount = visibleIds.filter((id) => selected.has(id)).length;
+  const allVisibleSelected = visibleIds.length > 0 && visibleSelectedCount === visibleIds.length;
+  const someVisibleSelected = visibleSelectedCount > 0 && !allVisibleSelected;
+
   return (
     <section className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-950/70" aria-label="Recommendation approval queue">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-4 py-3 dark:border-white/10">
@@ -626,10 +725,44 @@ function RecommendationTable({
         {isLoading ? <LoadingSpinner iconOnly size="sm" /> : null}
       </div>
 
+      {selected.size > 0 ? (
+        <div className="flex items-center justify-between gap-3 border-b border-indigo-100 bg-indigo-50/80 px-4 py-2.5 dark:border-indigo-400/20 dark:bg-indigo-400/10">
+          <span className="text-sm font-medium text-indigo-700 dark:text-indigo-300">
+            {selected.size.toLocaleString("en-US")} selected
+          </span>
+          <div className="flex items-center gap-2">
+            <Button onClick={() => onBulkDelete(Array.from(selected))} size="sm" type="button" variant="danger">
+              <Trash2 aria-hidden="true" size={14} />
+              Delete {selected.size.toLocaleString("en-US")}
+            </Button>
+            <button
+              aria-label="Clear selection"
+              className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-200 dark:text-slate-400 dark:hover:bg-white/10"
+              onClick={onClearSelection}
+              type="button"
+            >
+              <X aria-hidden="true" size={14} />
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       <div className="overflow-x-auto">
-        <table className="min-w-[1360px] table-fixed divide-y divide-slate-200 text-left text-sm dark:divide-white/10">
+        <table className="min-w-[1420px] table-fixed divide-y divide-slate-200 text-left text-sm dark:divide-white/10">
           <thead className="sticky top-0 z-10 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
             <tr>
+              <th className="w-12 px-4 py-3">
+                <input
+                  aria-label="Select visible recommendations"
+                  checked={allVisibleSelected}
+                  className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 transition focus:ring-indigo-500 dark:border-white/20 dark:bg-white/5"
+                  onChange={onToggleVisibleSelected}
+                  ref={(element) => {
+                    if (element) element.indeterminate = someVisibleSelected;
+                  }}
+                  type="checkbox"
+                />
+              </th>
               <th className="w-28 px-4 py-3">Priority</th>
               <th className="w-72 px-4 py-3">Recommendation</th>
               <th className="w-48 px-4 py-3">Search term</th>
@@ -647,9 +780,12 @@ function RecommendationTable({
               <RecommendationRow
                 key={recommendation.id}
                 onApprove={onApprove}
+                onDelete={onDelete}
                 onReject={onReject}
+                onToggleSelected={onToggleSelected}
                 onViewDetails={onViewDetails}
                 recommendation={recommendation}
+                selected={selected.has(recommendation.id)}
               />
             ))}
           </tbody>
@@ -661,20 +797,35 @@ function RecommendationTable({
 
 function RecommendationRow({
   onApprove,
+  onDelete,
   onReject,
+  onToggleSelected,
   onViewDetails,
   recommendation,
+  selected,
 }: {
   onApprove: (recommendation: Recommendation) => void;
+  onDelete: (recommendation: Recommendation) => void;
   onReject: (recommendation: Recommendation) => void;
+  onToggleSelected: (recommendationId: string) => void;
   onViewDetails: (recommendation: Recommendation) => void;
   recommendation: Recommendation;
+  selected: boolean;
 }) {
   const actionClass = recommendationActionClass(recommendation);
   const pending = isPending(recommendation.status);
 
   return (
-    <tr className="align-top transition hover:bg-slate-50/80 dark:hover:bg-white/[0.03]">
+    <tr className={cn("align-top transition hover:bg-slate-50/80 dark:hover:bg-white/[0.03]", selected && "bg-indigo-50/60 dark:bg-indigo-400/[0.06]")}>
+      <td className="px-4 py-4">
+        <input
+          aria-label={`Select ${recommendationTypeLabel(recommendation)}`}
+          checked={selected}
+          className="h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 transition focus:ring-indigo-500 dark:border-white/20 dark:bg-white/5"
+          onChange={() => onToggleSelected(recommendation.id)}
+          type="checkbox"
+        />
+      </td>
       <td className="px-4 py-4">
         <Badge className={priorityClass(recommendation.priority)}>{recommendationPriorityLabel(recommendation.priority)}</Badge>
       </td>
@@ -752,6 +903,10 @@ function RecommendationRow({
           <Button onClick={() => onViewDetails(recommendation)} size="sm" type="button" variant="secondary">
             <Eye aria-hidden="true" size={14} />
             View details
+          </Button>
+          <Button onClick={() => onDelete(recommendation)} size="sm" type="button" variant="danger">
+            <Trash2 aria-hidden="true" size={14} />
+            Delete
           </Button>
         </div>
       </td>
@@ -851,6 +1006,60 @@ function DecisionModal({
               {error}
             </p>
           ) : null}
+        </div>
+      ) : null}
+    </Modal>
+  );
+}
+
+function DeleteModal({
+  deleteTarget,
+  isDeleting,
+  onClose,
+  onConfirm,
+}: {
+  deleteTarget: DeleteTarget | null;
+  isDeleting: boolean;
+  onClose: () => void;
+  onConfirm: () => void;
+}) {
+  const count = deleteTarget?.mode === "bulk" ? deleteTarget.ids.length : deleteTarget ? 1 : 0;
+  const title = count === 1 ? "Delete recommendation?" : `Delete ${count.toLocaleString("en-US")} recommendations?`;
+  const name = deleteTarget?.mode === "single" ? recommendationTypeLabel(deleteTarget.recommendation) : null;
+
+  return (
+    <Modal
+      open={deleteTarget !== null}
+      onClose={onClose}
+      title={title}
+      description="This removes items from the AdSurf review queue only."
+      size="md"
+    >
+      {deleteTarget ? (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900 dark:border-red-300/25 dark:bg-red-300/10 dark:text-red-100">
+            <div className="flex gap-2">
+              <AlertTriangle aria-hidden="true" className="mt-0.5 shrink-0" size={16} />
+              <p>
+                {name ? <span className="font-semibold">{name}</span> : `${count.toLocaleString("en-US")} recommendations`} will be permanently deleted from the queue. This cannot be undone.
+              </p>
+            </div>
+          </div>
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900 dark:border-emerald-300/25 dark:bg-emerald-300/10 dark:text-emerald-100">
+            <div className="flex gap-2">
+              <ShieldCheck aria-hidden="true" className="mt-0.5 shrink-0" size={16} />
+              <p>No live Amazon Ads changes will be made. This is review queue cleanup only.</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button disabled={isDeleting} onClick={onClose} type="button" variant="secondary">
+              Cancel
+            </Button>
+            <Button disabled={isDeleting} onClick={onConfirm} type="button" variant="danger">
+              {isDeleting ? <Loader2 aria-hidden="true" className="animate-spin" size={16} /> : <Trash2 aria-hidden="true" size={16} />}
+              {isDeleting ? "Deleting..." : "Delete"}
+            </Button>
+          </div>
         </div>
       ) : null}
     </Modal>

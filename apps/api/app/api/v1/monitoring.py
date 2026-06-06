@@ -1,7 +1,7 @@
 from decimal import Decimal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, status
 
 from apps.api.app.core.auth import PRODUCT_PROFILE_READ_ROLES, PRODUCT_PROFILE_WRITE_ROLES, WorkspacePrincipal, WorkspaceRole, require_workspace_member
 from apps.api.app.core.errors import ApiError
@@ -16,6 +16,7 @@ from apps.api.app.schemas.monitoring import (
     MonitoringImportCreateRequest,
     MonitoringImportResponse,
     MonitoringSummary,
+    RecommendationBulkDeleteRequest,
     RecommendationDecisionRequest,
     RecommendationStatus,
 )
@@ -282,6 +283,63 @@ def get_recommendation(
     if recommendation is None:
         raise ApiError(code="RECOMMENDATION_NOT_FOUND", message="Recommendation was not found.", status_code=404)
     return success_response(data=recommendation.model_dump(mode="json"))
+
+
+@router.delete(
+    "/workspaces/{workspace_id}/recommendations/{recommendation_id}",
+    status_code=status.HTTP_200_OK,
+)
+def delete_recommendation(
+    workspace_id: UUID,
+    recommendation_id: UUID,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    monitoring_repository: MonitoringRepository = Depends(get_monitoring_repository),
+    audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(RECOMMENDATION_DECISION_ROLES)
+    deleted = monitoring_repository.delete_recommendation(workspace_id=workspace_id, recommendation_id=recommendation_id)
+    if not deleted:
+        raise ApiError(code="RECOMMENDATION_NOT_FOUND", message="Recommendation was not found.", status_code=404)
+    audit_repository.record(
+        workspace_id=workspace_id,
+        actor_user_id=principal.user_id,
+        action="recommendation.deleted",
+        entity_type="recommendation",
+        entity_id=recommendation_id,
+        details={"execution_boundary": "no_live_amazon_change", "queue_cleanup_only": True},
+    )
+    return success_response(data={"deleted": True, "recommendation_id": str(recommendation_id)})
+
+
+@router.post(
+    "/workspaces/{workspace_id}/recommendations/bulk-delete",
+    status_code=status.HTTP_200_OK,
+)
+def bulk_delete_recommendations(
+    workspace_id: UUID,
+    payload: RecommendationBulkDeleteRequest,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    monitoring_repository: MonitoringRepository = Depends(get_monitoring_repository),
+    audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
+) -> dict:
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(RECOMMENDATION_DECISION_ROLES)
+    deleted_count = monitoring_repository.bulk_delete_recommendations(workspace_id=workspace_id, recommendation_ids=payload.recommendation_ids)
+    audit_repository.record(
+        workspace_id=workspace_id,
+        actor_user_id=principal.user_id,
+        action="recommendation.bulk_deleted",
+        entity_type="recommendation",
+        entity_id=payload.recommendation_ids[0],
+        details={
+            "requested_count": len(payload.recommendation_ids),
+            "deleted_count": deleted_count,
+            "execution_boundary": "no_live_amazon_change",
+            "queue_cleanup_only": True,
+        },
+    )
+    return success_response(data={"deleted_count": deleted_count})
 
 
 @router.post("/workspaces/{workspace_id}/recommendations/{recommendation_id}/approve")

@@ -11,7 +11,9 @@ from apps.api.app.domain.monitoring import (
     AGENT_SCHEMA_VERSION,
     MONITORING_EVIDENCE_SCHEMA_VERSION,
     MONITORING_RULE_VERSION,
+    SP_SEARCH_TERM_ORDERS_ALIASES,
     SP_SEARCH_TERM_REQUIRED_COLUMNS,
+    SP_SEARCH_TERM_SALES_ALIASES,
 )
 from apps.api.app.schemas.monitoring import (
     AiRun,
@@ -34,9 +36,12 @@ from apps.api.app.services.report_type_detector import ReportTypeDetector
 MONEY_QUANT = Decimal("0.0001")
 RATE_QUANT = Decimal("0.0001")
 SP_SEARCH_TERM_COLUMN_ALIASES = {
-    "7 day total sales": ["sales", "total sales", "7 day sales"],
-    "7 day total orders": ["orders", "orders #", "7 day total orders #", "7 day total orders number"],
-    "7 day total units": ["units", "units #", "7 day total units #", "7 day total units number"],
+    # Both 7-day and 14-day attribution windows are treated identically.
+    # Amazon exports either depending on the account's attribution setting.
+    "7 day total sales": sorted(SP_SEARCH_TERM_SALES_ALIASES - {"7 day total sales"}),
+    "7 day total orders": sorted(SP_SEARCH_TERM_ORDERS_ALIASES - {"7 day total orders"}),
+    "7 day total units": ["units", "units #", "7 day total units #", "7 day total units number",
+                          "14 day total units", "14 day total units #", "14 day total units number"],
     "click thru rate ctr": ["clickthru rate ctr"],
 }
 DATA_QUALITY_CRITICAL_FLAGS = {"clicks_exceed_impressions", "orders_exceed_clicks", "negative_metric_value", "missing_campaign_name", "missing_search_term"}

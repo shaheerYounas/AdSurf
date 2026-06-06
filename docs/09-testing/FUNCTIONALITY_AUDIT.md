@@ -5,7 +5,8 @@
 ### Startup Commands
 | Surface | Command |
 | --- | --- |
-| API | `npm run dev:api` from repo root, or `python -m uvicorn apps.api.app.main:app --reload --host 0.0.0.0 --port 8000` |
+| Full local app | `npm run dev` from repo root. The launcher starts API and web together and prints the selected URLs. |
+| API | `npm run dev:api` from repo root, or `python -m uvicorn apps.api.app.main:app --reload --host 127.0.0.1 --port 8720` |
 | Web | `npm run dev:web` from repo root, or `npm --prefix apps/web run dev` |
 | Upload worker | Local dev can run `POST /v1/dev/process-upload-jobs`; worker class is `apps.api.app.services.upload_processing_worker.UploadProcessingWorker`. |
 | Monitoring worker | Local dev can run `POST /v1/dev/process-monitoring-jobs`; worker class is `apps.api.app.services.monitoring_worker.MonitoringWorker`. |
@@ -19,7 +20,7 @@
 | --- | --- | --- |
 | `APP_ENV=local` | Enables fake storage defaults and local dev worker endpoints. | If absent, storage defaults to Supabase and dev worker endpoints are disabled. |
 | `DATABASE_URL` | Database-backed product, upload, monitoring, account import, agent, and recommendation flows. | Running DB was reachable, but missing latest migrations. |
-| `NEXT_PUBLIC_API_BASE_URL` | Frontend API base URL. | Defaults to `http://localhost:8000`; debug UI now shows the value in Agent upload. |
+| `NEXT_PUBLIC_API_BASE_URL` | Frontend API base URL. | Defaults to `http://localhost:8720`; `npm run dev` injects the selected API port when fallback moves upward. |
 | `NEXT_PUBLIC_LOCAL_WORKSPACE_ID` | Local workspace ID. | Defaults to `00000000-0000-0000-0000-000000000001`. |
 | `STORAGE_ADAPTER=fake` | Local file writes without Supabase Storage. | Recommended for local upload testing. |
 | `LOCAL_UPLOAD_STORAGE_ROOT` | Fake storage root. | Defaults to `.local-storage/uploads`. |
@@ -27,7 +28,7 @@
 | `DEEPSEEK_API_KEY` | AI mode with DeepSeek. | Missing key should produce a clear AI configuration error; deterministic fallback remains available. |
 
 ### Health Check Results
-- API health endpoint: `GET http://127.0.0.1:8000/health` returns the API envelope with `success: true` and `data.status: "ok"`.
+- API health endpoint: `GET http://127.0.0.1:8720/health` returns the API envelope with `success: true` and `data.status: "ok"` when the default API port is available; otherwise use the URL printed by the launcher.
 - Frontend routes `/dashboard` and `/agents` return HTTP 200.
 - Database connection works, but the live DB was missing migrations for account-level upload modes and agent tables.
 - Storage mode works after DB migrations when using local fake storage or a configured Supabase storage backend.

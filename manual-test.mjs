@@ -5,6 +5,7 @@ import { dirname } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+const baseUrl = process.env.PLAYWRIGHT_BASE_URL ?? process.env.WEB_APP_URL ?? 'http://127.0.0.1:4310';
 
 async function runTest() {
   const browser = await chromium.launch({ headless: false });
@@ -12,8 +13,8 @@ async function runTest() {
   const page = await context.newPage();
 
   try {
-    console.log('Navigating to http://localhost:3000...');
-    await page.goto('http://localhost:3000');
+    console.log(`Navigating to ${baseUrl}...`);
+    await page.goto(baseUrl);
     await page.waitForLoadState('networkidle');
 
     await page.screenshot({ path: 'screenshots/01-homepage.png', fullPage: true });
