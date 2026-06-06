@@ -1,0 +1,165 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e7]:
+          - generic [ref=e8]:
+            - img [ref=e10]
+            - generic [ref=e12]:
+              - paragraph [ref=e13]: Control Center
+              - heading "AdSurf AI" [level=1] [ref=e14]
+          - button "Toggle theme" [ref=e15] [cursor=pointer]:
+            - img [ref=e16]
+        - navigation "Main navigation" [ref=e18]:
+          - generic [ref=e19]:
+            - paragraph [ref=e20]: Workspace
+            - generic [ref=e21]:
+              - link "Dashboard Workspace overview" [ref=e22] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e24]
+                - generic [ref=e29]:
+                  - generic [ref=e30]: Dashboard
+                  - generic [ref=e31]: Workspace overview
+              - link "Agents Control AI workflow" [ref=e32] [cursor=pointer]:
+                - /url: /agents
+                - img [ref=e34]
+                - generic [ref=e37]:
+                  - generic [ref=e38]: Agents
+                  - generic [ref=e39]: Control AI workflow
+              - link "Recommendations Approval queue" [ref=e40] [cursor=pointer]:
+                - /url: /recommendations
+                - img [ref=e42]
+                - generic [ref=e45]:
+                  - generic [ref=e46]: Recommendations
+                  - generic [ref=e47]: Approval queue
+          - generic [ref=e48]:
+            - paragraph [ref=e49]: Products
+            - generic [ref=e50]:
+              - link "Products ASIN profiles" [ref=e51] [cursor=pointer]:
+                - /url: /products
+                - img [ref=e53]
+                - generic [ref=e59]:
+                  - generic [ref=e60]: Products
+                  - generic [ref=e61]: ASIN profiles
+              - link "New product Start setup" [ref=e62] [cursor=pointer]:
+                - /url: /products/new
+                - img [ref=e64]
+                - generic [ref=e66]:
+                  - generic [ref=e67]: New product
+                  - generic [ref=e68]: Start setup
+              - link "Bulk import CSV / XLSX upload" [ref=e69] [cursor=pointer]:
+                - /url: /products/bulk
+                - img [ref=e71]
+                - generic [ref=e74]:
+                  - generic [ref=e75]: Bulk import
+                  - generic [ref=e76]: CSV / XLSX upload
+          - generic [ref=e77]:
+            - paragraph [ref=e78]: Data
+            - link "Report Library Uploaded report files" [ref=e80] [cursor=pointer]:
+              - /url: /reports
+              - img [ref=e82]
+              - generic [ref=e85]:
+                - generic [ref=e86]: Report Library
+                - generic [ref=e87]: Uploaded report files
+    - main "Main content" [ref=e88]:
+      - generic [ref=e89]:
+        - navigation "Page navigation" [ref=e90]:
+          - link "Back to Monitoring" [ref=e91] [cursor=pointer]:
+            - /url: /products/9b79fdcd-b7cf-463e-b392-e8a96f618325/monitoring
+            - img [ref=e92]
+            - generic [ref=e94]: Monitoring
+        - generic [ref=e95]:
+          - generic [ref=e97]:
+            - paragraph [ref=e98]: Import workflow
+            - heading "Agent Control Center" [level=2] [ref=e100]
+            - paragraph [ref=e101]: Review this monitoring import's agent graph, event timeline, inputs, outputs, controls, and recommendation links.
+          - main [ref=e102]:
+            - generic [ref=e104]:
+              - generic [ref=e105]:
+                - heading "Agent Control Center" [level=1] [ref=e106]
+                - paragraph [ref=e107]: Upload Amazon Ads reports and review AI recommendations before any action is taken.
+              - generic [ref=e108]:
+                - button "Hybrid" [ref=e110] [cursor=pointer]:
+                  - generic [ref=e111]: Hybrid
+                  - img [ref=e112]
+                - button "Run analysis" [ref=e114] [cursor=pointer]:
+                  - img [ref=e115]
+                  - text: Run analysis
+                - button "Bulk" [ref=e118] [cursor=pointer]:
+                  - img [ref=e119]
+                  - generic [ref=e122]: Bulk
+                  - img [ref=e123]
+                - button "Approvals" [ref=e125] [cursor=pointer]:
+                  - img [ref=e126]
+                  - text: Approvals
+            - generic [ref=e130]:
+              - generic [ref=e132]:
+                - generic [ref=e133]:
+                  - generic [ref=e134]:
+                    - img [ref=e135]
+                    - text: Start analysis
+                  - heading "Upload Amazon Ads Report" [level=2] [ref=e138]
+                  - paragraph [ref=e139]: Upload an account-level report or bulk sheet. AdSurf detects report types, groups entities, and prepares AI recommendations — all behind human approval.
+                  - generic [ref=e140]:
+                    - generic [ref=e141]:
+                      - paragraph [ref=e142]: Completed
+                      - paragraph [ref=e143]: "0"
+                    - generic [ref=e144]:
+                      - paragraph [ref=e145]: Running
+                      - paragraph [ref=e146]: "0"
+                    - generic [ref=e147]:
+                      - paragraph [ref=e148]: Failed
+                      - paragraph [ref=e149]: "0"
+                    - generic [ref=e150]:
+                      - paragraph [ref=e151]: Needs approval
+                      - paragraph [ref=e152]: "0"
+                - generic [ref=e153]:
+                  - generic [ref=e154]:
+                    - text: Report file
+                    - button "Report file" [ref=e155]
+                  - button "Upload report" [disabled]:
+                    - img
+                    - text: Upload report
+                  - generic [ref=e156]:
+                    - paragraph [ref=e157]: Agent view
+                    - tablist "Agent view mode" [ref=e158]:
+                      - tab "Simple Mode" [selected] [ref=e159] [cursor=pointer]:
+                        - img [ref=e160]
+                        - text: Simple Pipeline
+                      - tab "Advanced Mode" [ref=e163] [cursor=pointer]:
+                        - img [ref=e164]
+                        - text: Visual Canvas
+                    - paragraph [ref=e168]: A clean step-by-step view of the agent pipeline. Click any agent card to open its full details.
+              - generic [ref=e177]:
+                - generic [ref=e178]:
+                  - generic [ref=e179]:
+                    - paragraph [ref=e180]: Human Approval Checkpoints
+                    - heading "0 recommendations waiting approval" [level=2] [ref=e181]
+                  - generic [ref=e182]:
+                    - generic [ref=e183]: 0 high priority
+                    - generic [ref=e184]: 0 risky actions
+                    - generic [ref=e185]: Requires human approval
+                    - generic [ref=e186]: AI confidence visible
+                - generic [ref=e188]: No pending approvals yet. Recommendations created by agents will appear here as business-friendly cards with metric evidence and risk notes.
+              - generic [ref=e190]:
+                - generic [ref=e192]:
+                  - heading "Trace Timeline" [level=2] [ref=e193]
+                  - paragraph [ref=e194]: Execution feed across model calls, validation, fallback, and approval checkpoints.
+                - generic [ref=e196]: No trace events yet. Run analysis to populate agent started, model called, validation, fallback, and approval-needed events.
+        - generic [ref=e198]:
+          - generic [ref=e199]:
+            - img [ref=e200]
+            - text: Recommendation only
+          - generic [ref=e203]:
+            - img [ref=e204]
+            - text: Requires human approval
+          - generic [ref=e206]:
+            - img [ref=e207]
+            - text: No live Amazon Ads change executed
+  - button "Replay tour" [ref=e210] [cursor=pointer]:
+    - img [ref=e211]
+    - text: Replay tour
+  - button "Open Next.js Dev Tools" [ref=e218] [cursor=pointer]:
+    - img [ref=e219]

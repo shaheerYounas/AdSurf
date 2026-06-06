@@ -1,0 +1,170 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e7]:
+          - generic [ref=e8]:
+            - img [ref=e10]
+            - generic [ref=e12]:
+              - paragraph [ref=e13]: Control Center
+              - heading "AdSurf AI" [level=1] [ref=e14]
+          - button "Switch to dark mode" [ref=e135] [cursor=pointer]:
+            - img [ref=e136]
+        - navigation "Main navigation" [ref=e18]:
+          - generic [ref=e19]:
+            - paragraph [ref=e20]: Workspace
+            - generic [ref=e21]:
+              - link "Dashboard Workspace overview" [ref=e22] [cursor=pointer]:
+                - /url: /dashboard
+                - img [ref=e24]
+                - generic [ref=e29]:
+                  - generic [ref=e30]: Dashboard
+                  - generic [ref=e31]: Workspace overview
+              - link "Agents Control AI workflow" [ref=e32] [cursor=pointer]:
+                - /url: /agents
+                - img [ref=e34]
+                - generic [ref=e37]:
+                  - generic [ref=e38]: Agents
+                  - generic [ref=e39]: Control AI workflow
+              - link "Recommendations Approval queue" [ref=e40] [cursor=pointer]:
+                - /url: /recommendations
+                - img [ref=e42]
+                - generic [ref=e45]:
+                  - generic [ref=e46]: Recommendations
+                  - generic [ref=e47]: Approval queue
+          - generic [ref=e48]:
+            - paragraph [ref=e49]: Products
+            - generic [ref=e50]:
+              - link "Products ASIN profiles" [ref=e51] [cursor=pointer]:
+                - /url: /products
+                - img [ref=e53]
+                - generic [ref=e59]:
+                  - generic [ref=e60]: Products
+                  - generic [ref=e61]: ASIN profiles
+              - link "New product Start setup" [ref=e62] [cursor=pointer]:
+                - /url: /products/new
+                - img [ref=e64]
+                - generic [ref=e66]:
+                  - generic [ref=e67]: New product
+                  - generic [ref=e68]: Start setup
+              - link "Bulk import CSV / XLSX upload" [ref=e69] [cursor=pointer]:
+                - /url: /products/bulk
+                - img [ref=e71]
+                - generic [ref=e74]:
+                  - generic [ref=e75]: Bulk import
+                  - generic [ref=e76]: CSV / XLSX upload
+          - generic [ref=e77]:
+            - paragraph [ref=e78]: Data
+            - link "Report Library Uploaded report files" [ref=e80] [cursor=pointer]:
+              - /url: /reports
+              - img [ref=e82]
+              - generic [ref=e85]:
+                - generic [ref=e86]: Report Library
+                - generic [ref=e87]: Uploaded report files
+    - main "Main content" [ref=e88]:
+      - generic [ref=e89]:
+        - navigation "Page navigation" [ref=e90]:
+          - link "Back to Back" [ref=e91] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e92]
+            - generic [ref=e94]: Back
+        - generic [ref=e96]:
+          - generic [ref=e97]:
+            - generic [ref=e98]:
+              - heading "Bulk Sheet Viewer" [level=2] [ref=e99]
+              - paragraph [ref=e100]: Inspect your current Amazon account structure — campaigns, ad groups, and keyword bids.
+            - button "Upload another file" [ref=e139] [cursor=pointer]
+          - generic [ref=e140]:
+            - generic [ref=e141]:
+              - generic [ref=e142]: bulk-a19yjbemeq5qup-20260511-20260512-1778596309224.xlsx
+              - generic [ref=e143]:
+                - text: "Account:"
+                - code [ref=e144]: a19yjbemeq5qup
+              - generic [ref=e145]: 2026-05-11 → 2026-05-12
+            - generic [ref=e146]:
+              - generic [ref=e147]:
+                - paragraph [ref=e148]: "3"
+                - paragraph [ref=e149]: Campaigns
+                - paragraph [ref=e150]: 2 active
+              - generic [ref=e151]:
+                - paragraph [ref=e152]: "3"
+                - paragraph [ref=e153]: Ad Groups
+              - generic [ref=e154]:
+                - paragraph [ref=e155]: "8"
+                - paragraph [ref=e156]: Keywords
+              - generic [ref=e157]:
+                - paragraph [ref=e158]: "0"
+                - paragraph [ref=e159]: Targets
+              - generic [ref=e160]:
+                - paragraph [ref=e161]: "2"
+                - paragraph [ref=e162]: Product Ads
+              - generic [ref=e163]:
+                - paragraph [ref=e164]: "0"
+                - paragraph [ref=e165]: Neg. Keywords
+            - generic [ref=e166]:
+              - img [ref=e168]
+              - generic [ref=e170]:
+                - paragraph [ref=e171]: 1 unique product detected in this file
+                - paragraph [ref=e172]: ASINs, SKUs, and default bids auto-extracted from your Product Ads — create profiles with one click.
+              - button "Create product profiles →" [ref=e173] [cursor=pointer]
+            - generic [ref=e174]:
+              - button "Campaigns3" [ref=e175] [cursor=pointer]
+              - button "Ad Groups3" [ref=e176] [cursor=pointer]
+              - button "Keywords8" [ref=e177] [cursor=pointer]
+              - button "Targets0" [ref=e178] [cursor=pointer]
+              - button "Product Ads2" [ref=e179] [cursor=pointer]
+            - table [ref=e182]:
+              - rowgroup [ref=e183]:
+                - row "Status Campaign Name Daily Budget Targeting Bidding Strategy Start Date" [ref=e184]:
+                  - columnheader "Status" [ref=e185]
+                  - columnheader "Campaign Name" [ref=e186]
+                  - columnheader "Daily Budget" [ref=e187]
+                  - columnheader "Targeting" [ref=e188]
+                  - columnheader "Bidding Strategy" [ref=e189]
+                  - columnheader "Start Date" [ref=e190]
+              - rowgroup [ref=e191]:
+                - row "Enabled enabled Wireless Headphones - Manual $50.00 manual Dynamic bids - down only 2026-01-01" [ref=e192]:
+                  - cell "Enabled enabled" [ref=e193]:
+                    - generic "Enabled" [ref=e194]
+                    - text: enabled
+                  - cell "Wireless Headphones - Manual" [ref=e195]
+                  - cell "$50.00" [ref=e196]
+                  - cell "manual" [ref=e197]
+                  - cell "Dynamic bids - down only" [ref=e198]
+                  - cell "2026-01-01" [ref=e199]
+                - row "Enabled enabled Wireless Headphones - Auto $30.00 auto Dynamic bids - up and down 2026-01-01" [ref=e200]:
+                  - cell "Enabled enabled" [ref=e201]:
+                    - generic "Enabled" [ref=e202]
+                    - text: enabled
+                  - cell "Wireless Headphones - Auto" [ref=e203]
+                  - cell "$30.00" [ref=e204]
+                  - cell "auto" [ref=e205]
+                  - cell "Dynamic bids - up and down" [ref=e206]
+                  - cell "2026-01-01" [ref=e207]
+                - row "Paused paused Bluetooth Speaker - Manual $40.00 manual Fixed bids 2026-02-01" [ref=e208]:
+                  - cell "Paused paused" [ref=e209]:
+                    - generic "Paused" [ref=e210]
+                    - text: paused
+                  - cell "Bluetooth Speaker - Manual" [ref=e211]
+                  - cell "$40.00" [ref=e212]
+                  - cell "manual" [ref=e213]
+                  - cell "Fixed bids" [ref=e214]
+                  - cell "2026-02-01" [ref=e215]
+        - generic [ref=e111]:
+          - generic [ref=e112]:
+            - img [ref=e113]
+            - text: Recommendation only
+          - generic [ref=e116]:
+            - img [ref=e117]
+            - text: Requires human approval
+          - generic [ref=e119]:
+            - img [ref=e120]
+            - text: No live Amazon Ads change executed
+  - button "Replay tour" [ref=e123] [cursor=pointer]:
+    - img [ref=e124]
+    - text: Replay tour
+  - button "Open Next.js Dev Tools" [ref=e131] [cursor=pointer]:
+    - img [ref=e132]
+  - alert [ref=e138]

@@ -1,3 +1,4 @@
+import re
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Header, Query, Request, status
@@ -1212,6 +1213,249 @@ def get_job(
     if job is None:
         raise ApiError(code="JOB_NOT_FOUND", message="Job was not found.", status_code=404)
     return success_response(data=job.model_dump(mode="json"))
+
+
+@router.post("/workspaces/{workspace_id}/uploads/batch-sp-report", status_code=status.HTTP_201_CREATED)
+async def batch_upload_sp_report(
+    workspace_id: UUID,
+    request: Request,
+    principal: WorkspacePrincipal = Depends(require_workspace_member),
+    upload_repository: UploadRepository = Depends(get_upload_repository),
+    parsing_repository: UploadParsingRepository = Depends(get_upload_parsing_repository),
+    product_repository: ProductProfileRepository = Depends(get_product_profile_repository),
+    job_repository: JobRepository = Depends(get_job_repository),
+    audit_repository: AuditLogRepository = Depends(get_audit_log_repository),
+    storage_service: StorageService = Depends(get_storage_service),
+) -> dict:
+    """
+    Upload one SP Search Term Report and attach it to every matching workspace
+    product profile (matched by Advertised ASIN).  Returns a summary of which
+    products were matched and which ASINs had no corresponding profile.
+    """
+    principal.ensure_workspace(workspace_id)
+    principal.require_role(PRODUCT_PROFILE_WRITE_ROLES)
+
+    try:
+        form = await request.form()
+    except Exception as exc:
+        raise ApiError(
+            code="MULTIPART_UPLOAD_REQUIRED",
+            message="Batch SP report upload requires multipart/form-data with a file field.",
+            status_code=400,
+        ) from exc
+
+    file_part = form.get("file")
+    if file_part is None or not hasattr(file_part, "read"):
+        raise ApiError(code="REPORT_FILE_REQUIRED", message="A 'file' field is required.", status_code=400)
+
+    content = await file_part.read()
+    filename = getattr(file_part, "filename", "") or "report.csv"
+    mime_type = getattr(file_part, "content_type", None) or "text/csv"
+
+    if not content:
+        raise ApiError(code="REPORT_FILE_EMPTY", message="Uploaded file is empty.", status_code=400)
+
+    # Extract Advertised ASIN values from the report
+    asins = _extract_advertised_asins(content=content, filename=filename)
+    if not asins:
+        raise ApiError(
+            code="NO_ADVERTISED_ASINS",
+            message=(
+                "No 'Advertised ASIN' column found in this file. "
+                "Upload an SP Search Term Report exported from Amazon Ads."
+            ),
+            status_code=422,
+        )
+
+    # Match ASINs to workspace product profiles
+    products = product_repository.list(workspace_id=workspace_id)
+    asin_to_product = {p.asin.upper(): p for p in products if p.asin}
+    matched_products = []
+    unmatched_asins = []
+    for asin in asins:
+        if asin in asin_to_product:
+            matched_products.append(asin_to_product[asin])
+        else:
+            unmatched_asins.append(asin)
+
+    if not matched_products:
+        return success_response(data={
+            "matched_count": 0,
+            "unmatched_count": len(unmatched_asins),
+            "uploads": [],
+            "unmatched_asins": unmatched_asins[:50],
+        })
+
+    # For each matched product: create upload → store bytes → queue job → process
+    upload_results = []
+    for product in matched_products:
+        try:
+            upload_id = uuid4()
+            payload = UploadInitRequest(
+                original_filename=filename,
+                mime_type=mime_type,
+                file_size_bytes=len(content),
+                source_type="account_bulk_report",
+            )
+            sanitized_filename = validate_upload_request(
+                original_filename=payload.original_filename,
+                mime_type=payload.mime_type,
+                file_size_bytes=payload.file_size_bytes,
+                source_type=payload.source_type,
+            )
+            storage_path = build_upload_storage_path(
+                workspace_id=workspace_id,
+                product_id=product.id,
+                upload_id=upload_id,
+                sanitized_filename=sanitized_filename,
+            )
+            upload = upload_repository.create_initialized(
+                upload_id=upload_id,
+                workspace_id=workspace_id,
+                product_id=product.id,
+                payload=payload,
+                storage_path=storage_path,
+                actor_user_id=principal.user_id,
+                idempotency_key=str(uuid4()),
+            )
+            storage_service.write_upload_object(storage_path=upload.storage_path, content=content)
+            queued_upload = upload_repository.mark_queued_for_processing(
+                workspace_id=workspace_id, upload_id=upload.id
+            )
+            if queued_upload is None:
+                raise RuntimeError("Upload disappeared after creation.")
+            job, _ = job_repository.enqueue_process_upload(upload=queued_upload)
+            _process_upload_locally_until_complete(
+                workspace_id=workspace_id,
+                upload_id=upload.id,
+                job_id=job.id,
+                job_repository=job_repository,
+                upload_repository=upload_repository,
+                parsing_repository=parsing_repository,
+                audit_repository=audit_repository,
+                storage_service=storage_service,
+            )
+            upload_results.append({
+                "upload_id": str(upload.id),
+                "product_id": str(product.id),
+                "product_name": product.product_name,
+                "asin": product.asin,
+                "status": "processed",
+            })
+        except Exception:  # noqa: BLE001
+            upload_results.append({
+                "product_id": str(product.id),
+                "product_name": product.product_name,
+                "asin": product.asin,
+                "status": "failed",
+            })
+
+    return success_response(data={
+        "matched_count": len(matched_products),
+        "unmatched_count": len(unmatched_asins),
+        "uploads": upload_results,
+        "unmatched_asins": unmatched_asins[:50],
+    })
+
+
+_ADVERTISED_ASIN_COL_ALIASES = frozenset({
+    "advertised asin",
+    "advertised asin",
+    "advertised product asin",
+    "advertised sku",
+    "asin",
+})
+
+# Column names whose VALUES commonly contain the advertised ASIN embedded in the name
+_ASIN_BEARING_COL_ALIASES = frozenset({
+    "campaign name",
+    "ad group name",
+    "campaign",
+    "ad group",
+})
+
+_ASIN_RE = re.compile(r'\b([A-Z0-9]{10})\b')
+
+
+def _norm_header(h: str) -> str:
+    """Normalise a column header for flexible matching (mirrors bulk_product_import_service)."""
+    s = h.replace("﻿", "").replace("%", " percent ")
+    s = re.sub(r"[_\-/]+", " ", s.casefold())
+    s = re.sub(r"[^a-z0-9]+", " ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _parse_report_rows(content: bytes, filename: str) -> list[list[str]]:
+    """Return raw rows from a CSV/TSV/XLSX report file."""
+    import csv
+    import io
+
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    if ext in ("xlsx", "xls"):
+        try:
+            import openpyxl  # noqa: PLC0415
+            wb = openpyxl.load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+            ws = wb.active
+            rows = [[str(c) if c is not None else "" for c in row] for row in ws.iter_rows(values_only=True)]
+            wb.close()
+            return rows
+        except Exception:  # noqa: BLE001
+            return []
+
+    text = content.decode("utf-8-sig", errors="replace")
+    first_line = text.split("\n", 1)[0]
+    delimiter = "\t" if first_line.count("\t") > first_line.count(",") else ","
+    return list(csv.reader(io.StringIO(text), delimiter=delimiter))
+
+
+def _extract_advertised_asins(*, content: bytes, filename: str) -> list[str]:
+    """
+    Extract unique advertised product ASINs from an Amazon SP report.
+
+    Strategy A – dedicated "Advertised ASIN" column (SP Advertised Product Report).
+    Strategy B – extract 10-char alphanumeric ASIN tokens from Campaign Name /
+                 Ad Group Name cell values (SP Search Term Report naming convention).
+    """
+    rows = _parse_report_rows(content, filename)
+    if not rows:
+        return []
+
+    # Find header row
+    header_idx: int | None = None
+    headers: list[str] = []
+    for i, row in enumerate(rows):
+        normalised = [_norm_header(c) for c in row]
+        if any(h in _ADVERTISED_ASIN_COL_ALIASES or h in _ASIN_BEARING_COL_ALIASES for h in normalised):
+            header_idx = i
+            headers = normalised
+            break
+
+    if header_idx is None:
+        return []
+
+    data_rows = rows[header_idx + 1:]
+    seen: set[str] = set()
+
+    # Strategy A: direct ASIN column
+    asin_cols = [j for j, h in enumerate(headers) if h in _ADVERTISED_ASIN_COL_ALIASES]
+    if asin_cols:
+        for row in data_rows:
+            for col in asin_cols:
+                if len(row) > col:
+                    val = row[col].strip().upper()
+                    if val and val not in ("", "NONE", "N/A") and len(val) == 10:
+                        seen.add(val)
+
+    # Strategy B: extract from campaign / ad group name cells
+    name_cols = [j for j, h in enumerate(headers) if h in _ASIN_BEARING_COL_ALIASES]
+    if name_cols:
+        for row in data_rows:
+            for col in name_cols:
+                if len(row) > col:
+                    for match in _ASIN_RE.findall(row[col].upper()):
+                        seen.add(match)
+
+    return list(seen)
 
 
 def _scoring_summary(run) -> KeywordScoringSummary:

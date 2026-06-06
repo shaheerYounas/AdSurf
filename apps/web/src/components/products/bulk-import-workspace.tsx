@@ -15,7 +15,7 @@
  */
 
 import Link from "next/link";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
   uploadBulkProductFile,
   getBulkProductImport,
@@ -137,7 +137,7 @@ function ColumnMappingBadge({ mapped }: { mapped: string }) {
 
 // ─── Component ─────────────────────────────────────────────────────────────────
 
-export function BulkImportWorkspace() {
+export function BulkImportWorkspace({ initialImportId }: { initialImportId?: string } = {}) {
   const [step, setStep] = useState<Step>(1);
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -154,6 +154,36 @@ export function BulkImportWorkspace() {
   const [commitResult, setCommitResult] = useState<BulkImportCommitResult | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Jump to step 2 when navigated here with an existing import_id ─────────
+
+  useEffect(() => {
+    if (!initialImportId) return;
+    setLoading(true);
+    getBulkProductImport(initialImportId)
+      .then((imp) => {
+        if (imp.status === "completed") {
+          setSummary(_importToSummary(imp));
+          setCommitResult({
+            import_id: imp.id,
+            status: imp.status,
+            created_count: imp.created_rows,
+            updated_count: imp.updated_rows,
+            skipped_count: imp.skipped_rows,
+            failed_count: imp.failed_rows,
+            created_product_ids: [],
+            updated_product_ids: [],
+          });
+          setStep(5);
+        } else {
+          setSummary(_importToSummary(imp));
+          setStep(2);
+        }
+      })
+      .catch((err) => setError(formatApiError(err, "Could not load import.")))
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialImportId]);
 
   // ── Drop handling ─────────────────────────────────────────────────────────
 

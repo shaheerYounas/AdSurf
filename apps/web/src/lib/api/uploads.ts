@@ -1,5 +1,18 @@
 import { apiBaseUrl, defaultWorkspaceId, localAuthHeaders, readApiData } from "@/lib/api/client";
 
+export type BatchSpReportUploadResult = {
+  matched_count: number;
+  unmatched_count: number;
+  unmatched_asins: string[];
+  uploads: Array<{
+    upload_id?: string;
+    product_id: string;
+    product_name: string;
+    asin: string | null;
+    status: "processed" | "failed";
+  }>;
+};
+
 export type UploadRecord = {
   id: string;
   workspace_id: string;
@@ -73,4 +86,18 @@ export async function reprocessUpload(uploadId: string, workspaceId = defaultWor
     headers: localAuthHeaders(workspaceId),
   });
   return readApiData<{ upload: UploadRecord; job_id: string }>(response, "Upload could not be reprocessed.");
+}
+
+export async function batchUploadSpReport(
+  file: File,
+  workspaceId = defaultWorkspaceId,
+): Promise<BatchSpReportUploadResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch(`${apiBaseUrl}/v1/workspaces/${workspaceId}/uploads/batch-sp-report`, {
+    method: "POST",
+    headers: localAuthHeaders(workspaceId),
+    body: formData,
+  });
+  return readApiData<BatchSpReportUploadResult>(response, "Batch report upload failed.");
 }

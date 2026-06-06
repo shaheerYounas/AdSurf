@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { ProductList } from "@/components/products/product-list";
+import { BatchReportUpload } from "@/components/uploads/batch-report-upload";
 
 export default function ProductsPage() {
   return (
@@ -17,6 +18,9 @@ export default function ProductsPage() {
       </div>
       <div className="rounded-lg border border-slate-200 bg-white dark:border-white/10 dark:bg-slate-950/70">
         <ProductList />
+      </div>
+      <div className="rounded-lg border border-violet-200 bg-white p-6 shadow-sm">
+        <BatchReportUpload />
       </div>
     </section>
   );

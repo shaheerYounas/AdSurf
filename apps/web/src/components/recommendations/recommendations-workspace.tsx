@@ -296,6 +296,22 @@ export function RecommendationsWorkspace() {
     });
   }
 
+  function toggleDataQualitySelected() {
+    const dqIds = dataQualityRecs.map((r) => r.id);
+    const allSelected = dqIds.length > 0 && dqIds.every((id) => selected.has(id));
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const id of dqIds) {
+        if (allSelected) {
+          next.delete(id);
+        } else {
+          next.add(id);
+        }
+      }
+      return next;
+    });
+  }
+
   return (
     <div className="space-y-6">
       <SafetyBanner />
@@ -317,6 +333,11 @@ export function RecommendationsWorkspace() {
           onApprove={(rec) => setDecisionTarget({ recommendation: rec, decision: "approve" })}
           onReject={(rec) => setDecisionTarget({ recommendation: rec, decision: "reject" })}
           onViewDetails={setDetailsTarget}
+          selected={selected}
+          onToggleSelected={toggleSelected}
+          onBulkDelete={(ids) => setDeleteTarget({ mode: "bulk", ids })}
+          onClearSelection={() => setSelected(new Set())}
+          onToggleAll={toggleDataQualitySelected}
         />
       )}
 
@@ -452,13 +473,27 @@ function DataQualityTriageSection({
   onApprove,
   onReject,
   onViewDetails,
+  selected,
+  onToggleSelected,
+  onBulkDelete,
+  onClearSelection,
+  onToggleAll,
 }: {
   recommendations: Recommendation[];
   onApprove: (rec: Recommendation) => void;
   onReject: (rec: Recommendation) => void;
   onViewDetails: (rec: Recommendation) => void;
+  selected: Set<string>;
+  onToggleSelected: (id: string) => void;
+  onBulkDelete: (ids: string[]) => void;
+  onClearSelection: () => void;
+  onToggleAll: () => void;
 }) {
   const criticalCount = recommendations.filter((r) => r.priority === "critical").length;
+  const dqIds = recommendations.map((r) => r.id);
+  const selectedDQIds = dqIds.filter((id) => selected.has(id));
+  const allDQSelected = dqIds.length > 0 && selectedDQIds.length === dqIds.length;
+  const someDQSelected = selectedDQIds.length > 0 && !allDQSelected;
 
   return (
     <section aria-label="Data quality triage" className="space-y-4">
@@ -466,6 +501,14 @@ function DataQualityTriageSection({
       <div className="overflow-hidden rounded-xl border border-rose-200 bg-rose-50 dark:border-rose-300/20 dark:bg-rose-300/5">
         <div className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 gap-3">
+            <input
+              aria-label="Select all data quality rows"
+              checked={allDQSelected}
+              className="mt-1 h-4 w-4 cursor-pointer rounded border-rose-300 text-rose-600 transition focus:ring-rose-500 dark:border-rose-300/30 dark:bg-rose-300/10"
+              onChange={onToggleAll}
+              ref={(el) => { if (el) el.indeterminate = someDQSelected; }}
+              type="checkbox"
+            />
             <AlertOctagon aria-hidden="true" className="mt-0.5 shrink-0 text-rose-600 dark:text-rose-400" size={20} />
             <div className="min-w-0">
               <h2 className="text-sm font-semibold text-rose-950 dark:text-rose-100">
@@ -487,6 +530,29 @@ function DataQualityTriageSection({
             </Badge>
           </div>
         </div>
+
+        {/* Bulk action toolbar */}
+        {selectedDQIds.length > 0 && (
+          <div className="flex items-center justify-between border-t border-rose-200 bg-rose-100/60 px-5 py-2.5 dark:border-rose-300/20 dark:bg-rose-300/10">
+            <span className="text-sm font-medium text-rose-800 dark:text-rose-200">
+              {selectedDQIds.length.toLocaleString("en-US")} selected
+            </span>
+            <div className="flex items-center gap-2">
+              <Button onClick={() => onBulkDelete(selectedDQIds)} size="sm" type="button" variant="danger">
+                <Trash2 aria-hidden="true" size={14} />
+                Delete {selectedDQIds.length.toLocaleString("en-US")}
+              </Button>
+              <button
+                aria-label="Clear selection"
+                className="rounded-lg p-1.5 text-rose-600 transition hover:bg-rose-200 dark:text-rose-300 dark:hover:bg-rose-300/20"
+                onClick={onClearSelection}
+                type="button"
+              >
+                <X aria-hidden="true" size={14} />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Expert protocol steps */}
         <div className="border-t border-rose-200 px-5 py-3 dark:border-rose-300/15">
@@ -525,6 +591,8 @@ function DataQualityTriageSection({
             onApprove={onApprove}
             onReject={onReject}
             onViewDetails={onViewDetails}
+            selected={selected.has(rec.id)}
+            onToggleSelected={() => onToggleSelected(rec.id)}
           />
         ))}
       </div>
@@ -537,11 +605,15 @@ function DataQualityCard({
   onApprove,
   onReject,
   onViewDetails,
+  selected,
+  onToggleSelected,
 }: {
   recommendation: Recommendation;
   onApprove: (rec: Recommendation) => void;
   onReject: (rec: Recommendation) => void;
   onViewDetails: (rec: Recommendation) => void;
+  selected: boolean;
+  onToggleSelected: () => void;
 }) {
   const flags = getDataQualityFlags(rec);
   const flagCount = dataQualityFlagCount(rec);
@@ -551,6 +623,9 @@ function DataQualityCard({
   return (
     <article className={cn(
       "overflow-hidden rounded-xl border bg-white shadow-sm dark:bg-slate-950/80",
+      selected
+        ? "ring-2 ring-inset ring-indigo-400/50 dark:ring-indigo-400/30"
+        : "",
       isCritical
         ? "border-rose-200 dark:border-rose-300/20"
         : "border-amber-200 dark:border-amber-300/20",
@@ -560,27 +635,36 @@ function DataQualityCard({
         "flex items-start justify-between gap-3 px-4 py-3",
         isCritical ? "bg-rose-50 dark:bg-rose-300/5" : "bg-amber-50 dark:bg-amber-300/5",
       )}>
-        <div className="min-w-0 space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge className={isCritical
-              ? "border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-300/30 dark:bg-rose-300/15 dark:text-rose-200"
-              : "border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-300/30 dark:bg-amber-300/15 dark:text-amber-200"
-            }>
-              {isCritical ? "Critical" : "Warning"}
-            </Badge>
-            {flagCount > 0 && (
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-                {flagCount} flag{flagCount !== 1 ? "s" : ""} detected
-              </span>
-            )}
-            <Badge className={statusClass(rec.status)}>{recommendationStatusLabel(rec.status)}</Badge>
+        <div className="flex min-w-0 items-start gap-3">
+          <input
+            aria-label={`Select ${rec.customer_search_term || rec.targeting || "data quality row"}`}
+            checked={selected}
+            className="mt-0.5 h-4 w-4 cursor-pointer rounded border-slate-300 text-indigo-600 transition focus:ring-indigo-500 dark:border-white/20 dark:bg-white/5"
+            onChange={onToggleSelected}
+            type="checkbox"
+          />
+          <div className="min-w-0 space-y-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge className={isCritical
+                ? "border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-300/30 dark:bg-rose-300/15 dark:text-rose-200"
+                : "border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-300/30 dark:bg-amber-300/15 dark:text-amber-200"
+              }>
+                {isCritical ? "Critical" : "Warning"}
+              </Badge>
+              {flagCount > 0 && (
+                <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+                  {flagCount} flag{flagCount !== 1 ? "s" : ""} detected
+                </span>
+              )}
+              <Badge className={statusClass(rec.status)}>{recommendationStatusLabel(rec.status)}</Badge>
+            </div>
+            <p className="truncate text-sm font-semibold text-slate-900 dark:text-white" title={rec.customer_search_term || rec.targeting || ""}>
+              {rec.customer_search_term || rec.targeting || "—"}
+            </p>
+            <p className="truncate text-xs text-slate-500 dark:text-slate-400" title={rec.campaign_name || ""}>
+              {rec.campaign_name || "Account-level"}{rec.ad_group_name ? ` › ${rec.ad_group_name}` : ""}
+            </p>
           </div>
-          <p className="truncate text-sm font-semibold text-slate-900 dark:text-white" title={rec.customer_search_term || rec.targeting || ""}>
-            {rec.customer_search_term || rec.targeting || "—"}
-          </p>
-          <p className="truncate text-xs text-slate-500 dark:text-slate-400" title={rec.campaign_name || ""}>
-            {rec.campaign_name || "Account-level"}{rec.ad_group_name ? ` › ${rec.ad_group_name}` : ""}
-          </p>
         </div>
       </div>
 

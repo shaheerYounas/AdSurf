@@ -11,9 +11,11 @@
  */
 
 import { useState, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { parseBulkSheet, type BulkSheetSnapshot, type BulkCampaign, type BulkKeyword } from "@/lib/api/bulk-sheet";
 import { formatApiError, defaultWorkspaceId } from "@/lib/api/client";
 import { detectAmazonFileType } from "@/lib/amazon-file-detector";
+import { uploadBulkProductFile } from "@/lib/api/products";
 
 // ─── Tab type ───────────────────────────────────────────────────────────────
 
@@ -221,6 +223,84 @@ function AdGroupsTab({ adGroups }: { adGroups: BulkSheetSnapshot["ad_groups"] })
   );
 }
 
+// ─── Extract Products helpers ─────────────────────────────────────────────────
+
+function countUniqueProducts(snapshot: BulkSheetSnapshot): number {
+  const seen = new Set<string>();
+  for (const ad of snapshot.product_ads) {
+    const key = (ad.asin || ad.sku || "").toUpperCase();
+    if (key) seen.add(key);
+  }
+  return seen.size;
+}
+
+function buildProductCsvFromSnapshot(snapshot: BulkSheetSnapshot): string {
+  const lines: string[] = ["product_name,asin,sku,default_bid"];
+
+  const adGroupBids = new Map<string, number>();
+  for (const ag of snapshot.ad_groups) {
+    if (ag.default_bid != null) adGroupBids.set(ag.name, ag.default_bid);
+  }
+
+  const seen = new Set<string>();
+  for (const ad of snapshot.product_ads) {
+    const key = (ad.asin || ad.sku || "").toUpperCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    const name = (ad.ad_group_name || ad.asin || ad.sku || "Unknown").replace(/"/g, '""');
+    const bid = adGroupBids.get(ad.ad_group_name || "") ?? null;
+    const bidStr = bid != null ? Number(bid).toFixed(2) : "";
+    lines.push([`"${name}"`, ad.asin || "", ad.sku || "", bidStr].join(","));
+  }
+
+  return lines.join("\n");
+}
+
+// ─── Extract Action Card ──────────────────────────────────────────────────────
+
+function ExtractProductsCard({
+  uniqueCount,
+  onExtract,
+  isExtracting,
+  error,
+}: {
+  uniqueCount: number;
+  onExtract: () => void;
+  isExtracting: boolean;
+  error: string | null;
+}) {
+  return (
+    <div className="rounded-xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 p-5 flex items-center gap-4 shadow-sm">
+      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100">
+        <svg className="h-5 w-5 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 10V7" />
+        </svg>
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-indigo-900">
+          {uniqueCount} unique {uniqueCount === 1 ? "product" : "products"} detected in this file
+        </p>
+        <p className="text-xs text-indigo-700 mt-0.5">
+          ASINs, SKUs, and default bids auto-extracted from your Product Ads — create profiles with one click.
+        </p>
+        {error && <p className="text-xs text-red-600 mt-1.5 font-medium">{error}</p>}
+      </div>
+      <button
+        onClick={onExtract}
+        disabled={isExtracting}
+        className="flex-shrink-0 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+      >
+        {isExtracting ? (
+          <span className="flex items-center gap-2">
+            <span className="h-3.5 w-3.5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+            Creating…
+          </span>
+        ) : "Create product profiles →"}
+      </button>
+    </div>
+  );
+}
+
 // ─── Upload Zone ─────────────────────────────────────────────────────────────
 
 function UploadZone({
@@ -308,12 +388,15 @@ function WrongFileBanner({ hint, onDismiss }: { hint: string; onDismiss: () => v
 // ─── Main component ──────────────────────────────────────────────────────────
 
 export function BulkSheetWorkspace() {
+  const router = useRouter();
   const [workspaceId] = useState(defaultWorkspaceId);
   const [snapshot, setSnapshot] = useState<BulkSheetSnapshot | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [wrongFileHint, setWrongFileHint] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("campaigns");
+  const [isExtracting, setIsExtracting] = useState(false);
+  const [extractError, setExtractError] = useState<string | null>(null);
 
   const handleFile = useCallback(
     async (file: File) => {
@@ -352,7 +435,25 @@ export function BulkSheetWorkspace() {
     setSnapshot(null);
     setError(null);
     setWrongFileHint(null);
+    setExtractError(null);
   }, []);
+
+  const handleExtractAndImport = useCallback(async () => {
+    if (!snapshot) return;
+    setIsExtracting(true);
+    setExtractError(null);
+    try {
+      const csv = buildProductCsvFromSnapshot(snapshot);
+      const blob = new Blob([csv], { type: "text/csv" });
+      const filename = `products-from-${snapshot.account_id || "bulk-sheet"}.csv`;
+      const file = new File([blob], filename, { type: "text/csv" });
+      const result = await uploadBulkProductFile(file, { workspaceId });
+      router.push(`/products/bulk?import_id=${result.import_id}`);
+    } catch (err) {
+      setExtractError(formatApiError(err));
+      setIsExtracting(false);
+    }
+  }, [snapshot, workspaceId, router]);
 
   const TABS: Array<{ id: Tab; label: string; count?: number }> = snapshot
     ? [
@@ -417,6 +518,15 @@ export function BulkSheetWorkspace() {
           )}
 
           <StatsBar snap={snapshot} />
+
+          {snapshot.product_ads.length > 0 && (
+            <ExtractProductsCard
+              uniqueCount={countUniqueProducts(snapshot)}
+              onExtract={handleExtractAndImport}
+              isExtracting={isExtracting}
+              error={extractError}
+            />
+          )}
 
           {/* Tab bar */}
           <div className="border-b border-gray-200 flex gap-1 overflow-x-auto">

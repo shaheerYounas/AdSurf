@@ -1,0 +1,880 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=e3]:
+    - complementary [ref=e4]:
+      - generic [ref=e5]:
+        - generic [ref=e6]:
+          - generic [ref=e7]:
+            - button "Main menu" [ref=e8] [cursor=pointer]:
+              - img [ref=e9]
+              - generic [ref=e11]: Main menu
+            - button "Switch to dark mode" [ref=e188] [cursor=pointer]:
+              - img [ref=e189]
+          - generic [ref=e15]:
+            - img [ref=e17]
+            - generic [ref=e19]:
+              - paragraph [ref=e20]: AdSurf
+              - paragraph [ref=e21]: Agent Ops
+          - generic [ref=e22]:
+            - paragraph [ref=e23]: Workspace ID
+            - paragraph [ref=e24]: 00000000-0000-0000-0000-000000000001
+        - navigation "Agent Ops navigation" [ref=e25]:
+          - link "Workspace" [ref=e26] [cursor=pointer]:
+            - /url: /dashboard
+            - img [ref=e27]
+            - generic [ref=e32]: Workspace
+          - link "Reports" [ref=e33] [cursor=pointer]:
+            - /url: /agents#reports
+            - img [ref=e34]
+            - generic [ref=e37]: Reports
+          - link "Agents" [ref=e38] [cursor=pointer]:
+            - /url: /agents
+            - img [ref=e39]
+            - generic [ref=e42]: Agents
+          - link "Workflows" [ref=e43] [cursor=pointer]:
+            - /url: /agents#workflow-canvas
+            - img [ref=e44]
+            - generic [ref=e48]: Workflows
+          - link "Recommendations" [ref=e49] [cursor=pointer]:
+            - /url: /recommendations
+            - img [ref=e50]
+            - generic [ref=e52]: Recommendations
+          - link "Approvals" [ref=e53] [cursor=pointer]:
+            - /url: /agents#approval-checkpoints
+            - img [ref=e54]
+            - generic [ref=e58]: Approvals
+          - link "Settings" [ref=e59] [cursor=pointer]:
+            - /url: /agents#agent-settings
+            - img [ref=e60]
+            - generic [ref=e63]: Settings
+    - main "Main content" [ref=e64]:
+      - generic [ref=e65]:
+        - navigation "Page navigation" [ref=e191]:
+          - link "Back to Dashboard" [ref=e192] [cursor=pointer]:
+            - /url: /reports
+            - img [ref=e193]
+            - generic [ref=e195]: Dashboard
+        - generic [ref=e66]:
+          - heading "Agent Control Center" [level=1] [ref=e67]
+          - main [ref=e68]:
+            - generic [ref=e70]:
+              - generic [ref=e71]:
+                - heading "Agent Control Center" [level=1] [ref=e72]
+                - paragraph [ref=e73]: Upload Amazon Ads reports and review AI recommendations before any action is taken.
+              - generic [ref=e74]:
+                - button "Hybrid" [ref=e76] [cursor=pointer]:
+                  - generic [ref=e77]: Hybrid
+                  - img [ref=e78]
+                - button "Run analysis" [ref=e80] [cursor=pointer]:
+                  - img [ref=e81]
+                  - text: Run analysis
+                - button "Bulk" [ref=e84] [cursor=pointer]:
+                  - img [ref=e85]
+                  - generic [ref=e88]: Bulk
+                  - img [ref=e89]
+                - button "Approvals" [ref=e91] [cursor=pointer]:
+                  - img [ref=e92]
+                  - text: Approvals
+            - generic [ref=e96]:
+              - generic [ref=e98]:
+                - generic [ref=e99]:
+                  - generic [ref=e100]:
+                    - img [ref=e101]
+                    - text: Start analysis
+                  - heading "Upload Amazon Ads Report" [level=2] [ref=e104]
+                  - paragraph [ref=e105]: Upload an account-level report or bulk sheet. AdSurf detects report types, groups entities, and prepares AI recommendations — all behind human approval.
+                  - generic [ref=e106]:
+                    - generic [ref=e107]:
+                      - paragraph [ref=e108]: Completed
+                      - paragraph [ref=e109]: "5"
+                    - generic [ref=e110]:
+                      - paragraph [ref=e111]: Running
+                      - paragraph [ref=e112]: "0"
+                    - generic [ref=e113]:
+                      - paragraph [ref=e114]: Failed
+                      - paragraph [ref=e115]: "0"
+                    - generic [ref=e116]:
+                      - paragraph [ref=e117]: Needs approval
+                      - paragraph [ref=e118]: "248"
+                - generic [ref=e119]:
+                  - generic [ref=e120]:
+                    - text: Report file
+                    - button "Report file" [ref=e121]
+                  - button "Upload report" [disabled]:
+                    - img
+                    - text: Upload report
+                  - generic [ref=e122]:
+                    - paragraph [ref=e123]: Agent view
+                    - tablist "Agent view mode" [ref=e124]:
+                      - tab "Simple Mode" [ref=e125] [cursor=pointer]:
+                        - img [ref=e126]
+                        - text: Simple Pipeline
+                      - tab "Advanced Mode" [selected] [ref=e129] [cursor=pointer]:
+                        - img [ref=e130]
+                        - text: Visual Canvas
+                    - paragraph [ref=e134]: The full visual workflow canvas with horizontal agent layout. Best for exploring data flows between agents.
+              - generic [ref=e773]:
+                - generic [ref=e774]:
+                  - generic [ref=e775]:
+                    - paragraph [ref=e776]: Visual Workflow Canvas
+                    - heading "How agents pass data to approval" [level=2] [ref=e777]
+                  - generic [ref=e778]:
+                    - generic [ref=e779]: Running
+                    - generic [ref=e781]: Completed
+                    - generic [ref=e783]: Failed
+                    - generic [ref=e785]: Approval needed
+                - region "Workflow canvas, scrollable horizontally" [ref=e787]:
+                  - generic [ref=e788]:
+                    - generic [ref=e789]:
+                      - button "Waiting Report Upload Waiting for report upload 0 recommendations" [ref=e790] [cursor=pointer]:
+                        - generic [ref=e791]:
+                          - img [ref=e793]
+                          - generic [ref=e796]: Waiting
+                        - paragraph [ref=e797]: Report Upload
+                        - paragraph [ref=e798]: Waiting for report upload
+                        - paragraph [ref=e799]: 0 recommendations
+                      - paragraph [ref=e802]: headers + sample rows
+                    - generic [ref=e803]:
+                      - button "Completed Import & Data Quality Agent Validate report rows, columns, and data quality 0 recommendations" [ref=e804] [cursor=pointer]:
+                        - generic [ref=e805]:
+                          - img [ref=e807]
+                          - generic [ref=e810]: Completed
+                        - paragraph [ref=e811]: Import & Data Quality Agent
+                        - paragraph [ref=e812]: Validate report rows, columns, and data quality
+                        - paragraph [ref=e813]: 0 recommendations
+                      - paragraph [ref=e816]: quality flags + row count
+                    - generic [ref=e817]:
+                      - button "Idle Entity Resolution Agent Map campaigns, ad groups, ASINs, SKUs, and search terms 0 recommendations" [ref=e818] [cursor=pointer]:
+                        - generic [ref=e819]:
+                          - img [ref=e821]
+                          - generic [ref=e825]: Idle
+                        - paragraph [ref=e826]: Entity Resolution Agent
+                        - paragraph [ref=e827]: Map campaigns, ad groups, ASINs, SKUs, and search terms
+                        - paragraph [ref=e828]: 0 recommendations
+                      - paragraph [ref=e831]: entity mapping + ASIN/SKU groups
+                    - generic [ref=e832]:
+                      - button "Completed Metrics Normalization Agent Calculate CPC, CTR, CVR, ACOS, ROAS deterministically 0 recommendations" [ref=e833] [cursor=pointer]:
+                        - generic [ref=e834]:
+                          - img [ref=e836]
+                          - generic [ref=e838]: Completed
+                        - paragraph [ref=e839]: Metrics Normalization Agent
+                        - paragraph [ref=e840]: Calculate CPC, CTR, CVR, ACOS, ROAS deterministically
+                        - paragraph [ref=e841]: 0 recommendations
+                      - paragraph [ref=e844]: normalized metrics + spend/sales
+                    - generic [ref=e845]:
+                      - button "Idle Account Strategy Agent Determine optimization goal and risk policy 0 recommendations" [ref=e846] [cursor=pointer]:
+                        - generic [ref=e847]:
+                          - img [ref=e849]
+                          - generic [ref=e852]: Idle
+                        - paragraph [ref=e853]: Account Strategy Agent
+                        - paragraph [ref=e854]: Determine optimization goal and risk policy
+                        - paragraph [ref=e855]: 0 recommendations
+                      - paragraph [ref=e858]: strategy mode + risk policy
+                    - generic [ref=e859]:
+                      - 'button "Idle Search Term Mining Agent Classify search terms: harvest, negative, watch, ignore 0 recommendations" [ref=e860] [cursor=pointer]':
+                        - generic [ref=e861]:
+                          - img [ref=e863]
+                          - generic [ref=e866]: Idle
+                        - paragraph [ref=e867]: Search Term Mining Agent
+                        - paragraph [ref=e868]: "Classify search terms: harvest, negative, watch, ignore"
+                        - paragraph [ref=e869]: 0 recommendations
+                      - paragraph [ref=e872]: search term classes + winners
+                    - generic [ref=e873]:
+                      - button "Completed Bid Optimization Agent Recommend bid increase/decrease with evidence 3833 recommendations" [ref=e874] [cursor=pointer]:
+                        - generic [ref=e875]:
+                          - img [ref=e877]
+                          - generic [ref=e880]: Completed
+                        - paragraph [ref=e881]: Bid Optimization Agent
+                        - paragraph [ref=e882]: Recommend bid increase/decrease with evidence
+                        - paragraph [ref=e883]: 3833 recommendations
+                      - paragraph [ref=e886]: validated evidence + recommendation context
+                    - generic [ref=e887]:
+                      - button "Completed Negative Keyword Agent Recommend negative exact/phrase candidates 3833 recommendations" [ref=e888] [cursor=pointer]:
+                        - generic [ref=e889]:
+                          - img [ref=e891]
+                          - generic [ref=e894]: Completed
+                        - paragraph [ref=e895]: Negative Keyword Agent
+                        - paragraph [ref=e896]: Recommend negative exact/phrase candidates
+                        - paragraph [ref=e897]: 3833 recommendations
+                      - paragraph [ref=e900]: validated evidence + recommendation context
+                    - generic [ref=e901]:
+                      - button "Idle Budget Reallocation Agent Recommend budget shifts across campaigns 0 recommendations" [ref=e902] [cursor=pointer]:
+                        - generic [ref=e903]:
+                          - img [ref=e905]
+                          - generic [ref=e908]: Idle
+                        - paragraph [ref=e909]: Budget Reallocation Agent
+                        - paragraph [ref=e910]: Recommend budget shifts across campaigns
+                        - paragraph [ref=e911]: 0 recommendations
+                      - paragraph [ref=e914]: validated evidence + recommendation context
+                    - generic [ref=e915]:
+                      - button "Idle Campaign Structure Agent Recommend structural campaign changes 0 recommendations" [ref=e916] [cursor=pointer]:
+                        - generic [ref=e917]:
+                          - img [ref=e919]
+                          - generic [ref=e922]: Idle
+                        - paragraph [ref=e923]: Campaign Structure Agent
+                        - paragraph [ref=e924]: Recommend structural campaign changes
+                        - paragraph [ref=e925]: 0 recommendations
+                      - paragraph [ref=e928]: structural changes + evidence
+                    - generic [ref=e929]:
+                      - button "Idle Risk & Policy Validator Agent Validate every recommendation against safety rules 0 recommendations" [ref=e930] [cursor=pointer]:
+                        - generic [ref=e931]:
+                          - img [ref=e933]
+                          - generic [ref=e936]: Idle
+                        - paragraph [ref=e937]: Risk & Policy Validator Agent
+                        - paragraph [ref=e938]: Validate every recommendation against safety rules
+                        - paragraph [ref=e939]: 0 recommendations
+                      - paragraph [ref=e942]: validated set + rejected set
+                    - generic [ref=e943]:
+                      - button "Approval Needed Human Approval Agent Route recommendations to approval queue 248 recommendations" [ref=e944] [cursor=pointer]:
+                        - generic [ref=e945]:
+                          - img [ref=e947]
+                          - generic [ref=e951]: Approval Needed
+                        - paragraph [ref=e952]: Human Approval Agent
+                        - paragraph [ref=e953]: Route recommendations to approval queue
+                        - paragraph [ref=e954]: 248 recommendations
+                      - paragraph [ref=e957]: approved changes + audit trail
+                    - generic [ref=e958]:
+                      - button "Idle Bulk Change Compiler Agent Compile approved changes into Amazon bulk export 0 recommendations" [ref=e959] [cursor=pointer]:
+                        - generic [ref=e960]:
+                          - img [ref=e962]
+                          - generic [ref=e965]: Idle
+                        - paragraph [ref=e966]: Bulk Change Compiler Agent
+                        - paragraph [ref=e967]: Compile approved changes into Amazon bulk export
+                        - paragraph [ref=e968]: 0 recommendations
+                      - paragraph [ref=e971]: applied changes + before/after
+                    - generic [ref=e972]:
+                      - button "Idle Learning & Feedback Agent Compare prior recommendations with new metrics 0 recommendations" [ref=e973] [cursor=pointer]:
+                        - generic [ref=e974]:
+                          - img [ref=e976]
+                          - generic [ref=e979]: Idle
+                        - paragraph [ref=e980]: Learning & Feedback Agent
+                        - paragraph [ref=e981]: Compare prior recommendations with new metrics
+                        - paragraph [ref=e982]: 0 recommendations
+                      - paragraph [ref=e985]: impact metrics + outcome history
+                    - button "Completed Stakeholder Reporting Agent Create summaries and approver notes 3833 recommendations" [ref=e987] [cursor=pointer]:
+                      - generic [ref=e988]:
+                        - img [ref=e990]
+                        - generic [ref=e993]: Completed
+                      - paragraph [ref=e994]: Stakeholder Reporting Agent
+                      - paragraph [ref=e995]: Create summaries and approver notes
+                      - paragraph [ref=e996]: 3833 recommendations
+              - generic [ref=e997]:
+                - generic [ref=e998]:
+                  - generic [ref=e999]:
+                    - paragraph [ref=e1000]: Agent Team Dashboard
+                    - heading "Operational agent cards" [level=2] [ref=e1001]
+                  - generic [ref=e1002]: Approval-controlled workflow
+                - generic [ref=e1003]:
+                  - article [ref=e1004]:
+                    - generic [ref=e1005]:
+                      - img [ref=e1007]
+                      - generic [ref=e1010]: Waiting
+                    - heading "Report Upload" [level=3] [ref=e1011]
+                    - paragraph [ref=e1012]: "Role: Start"
+                    - paragraph [ref=e1013]: Receives Amazon Ads reports or bulk sheets and starts the account import workflow.
+                    - generic [ref=e1015]:
+                      - paragraph [ref=e1016]: Current task
+                      - paragraph [ref=e1017]: Waiting for report upload
+                    - generic [ref=e1019]: 0 recommendations
+                    - generic [ref=e1020]:
+                      - button "Details" [ref=e1021] [cursor=pointer]:
+                        - img [ref=e1022]
+                        - text: Details
+                      - button "Trace" [ref=e1025] [cursor=pointer]:
+                        - img [ref=e1026]
+                        - text: Trace
+                  - article [ref=e1029]:
+                    - generic [ref=e1030]:
+                      - img [ref=e1032]
+                      - generic [ref=e1035]: Completed
+                    - heading "Import & Data Quality Agent" [level=3] [ref=e1036]
+                    - paragraph [ref=e1037]: "Role: Validation"
+                    - paragraph [ref=e1038]: Checks uploaded reports for missing columns, wrong date ranges, mixed marketplaces, duplicate rows, currency mismatches, low sample sizes, old data, and suspicious rows. Outputs a data quality score and usable flag.
+                    - generic [ref=e1040]:
+                      - paragraph [ref=e1041]: Current task
+                      - paragraph [ref=e1042]: Validate report rows, columns, and data quality
+                    - generic [ref=e1044]: 0 recommendations
+                    - generic [ref=e1045]:
+                      - button "Details" [ref=e1046] [cursor=pointer]:
+                        - img [ref=e1047]
+                        - text: Details
+                      - button "Trace" [ref=e1050] [cursor=pointer]:
+                        - img [ref=e1051]
+                        - text: Trace
+                  - article [ref=e1054]:
+                    - generic [ref=e1055]:
+                      - img [ref=e1057]
+                      - generic [ref=e1061]: Idle
+                    - heading "Entity Resolution Agent" [level=3] [ref=e1062]
+                    - paragraph [ref=e1063]: "Role: Mapping"
+                    - paragraph [ref=e1064]: Maps campaigns, ad groups, SKUs, ASINs, search terms, keywords, targeting expressions, match types, portfolios, and marketplaces. Ensures correct entity mapping before optimization decisions.
+                    - generic [ref=e1066]:
+                      - paragraph [ref=e1067]: Current task
+                      - paragraph [ref=e1068]: Map campaigns, ad groups, ASINs, SKUs, and search terms
+                    - generic [ref=e1070]: 0 recommendations
+                    - generic [ref=e1071]:
+                      - button "Details" [ref=e1072] [cursor=pointer]:
+                        - img [ref=e1073]
+                        - text: Details
+                      - button "Trace" [ref=e1076] [cursor=pointer]:
+                        - img [ref=e1077]
+                        - text: Trace
+                  - article [ref=e1080]:
+                    - generic [ref=e1081]:
+                      - img [ref=e1083]
+                      - generic [ref=e1085]: Completed
+                    - heading "Metrics Normalization Agent" [level=3] [ref=e1086]
+                    - paragraph [ref=e1087]: "Role: Analysis"
+                    - paragraph [ref=e1088]: "Calculates all performance metrics deterministically: spend, sales, orders, clicks, impressions, CPC, CTR, CVR, ACOS, ROAS, CPA, revenue per click, profit estimate, and break-even ACOS. AI does not calculate metrics."
+                    - generic [ref=e1090]:
+                      - paragraph [ref=e1091]: Current task
+                      - paragraph [ref=e1092]: Calculate CPC, CTR, CVR, ACOS, ROAS deterministically
+                    - generic [ref=e1094]: 0 recommendations
+                    - generic [ref=e1095]:
+                      - button "Details" [ref=e1096] [cursor=pointer]:
+                        - img [ref=e1097]
+                        - text: Details
+                      - button "Trace" [ref=e1100] [cursor=pointer]:
+                        - img [ref=e1101]
+                        - text: Trace
+                  - article [ref=e1104]:
+                    - generic [ref=e1105]:
+                      - img [ref=e1107]
+                      - generic [ref=e1110]: Idle
+                    - heading "Account Strategy Agent" [level=3] [ref=e1111]
+                    - paragraph [ref=e1112]: "Role: Strategy"
+                    - paragraph [ref=e1113]: "Determines the seller's optimization goal: profit, growth, launch, rank defense, inventory clearance, brand defense, competitor conquesting, or wasted spend cleanup. Configures thresholds, risk tolerance, and approval policies per strategy mode."
+                    - generic [ref=e1115]:
+                      - paragraph [ref=e1116]: Current task
+                      - paragraph [ref=e1117]: Determine optimization goal and risk policy
+                    - generic [ref=e1119]: 0 recommendations
+                    - generic [ref=e1120]:
+                      - button "Details" [ref=e1121] [cursor=pointer]:
+                        - img [ref=e1122]
+                        - text: Details
+                      - button "Trace" [ref=e1125] [cursor=pointer]:
+                        - img [ref=e1126]
+                        - text: Trace
+                  - article [ref=e1129]:
+                    - generic [ref=e1130]:
+                      - img [ref=e1132]
+                      - generic [ref=e1135]: Idle
+                    - heading "Search Term Mining Agent" [level=3] [ref=e1136]
+                    - paragraph [ref=e1137]: "Role: Analysis"
+                    - paragraph [ref=e1138]: "Classifies search terms into actionable categories: harvest to exact/phrase, keep broad discovery, add negative exact/phrase, watch, ignore low data, brand defense, competitor term, research intent, irrelevant intent. Upgrades keyword scoring to full search term intelligence."
+                    - generic [ref=e1140]:
+                      - paragraph [ref=e1141]: Current task
+                      - paragraph [ref=e1142]: "Classify search terms: harvest, negative, watch, ignore"
+                    - generic [ref=e1144]: 0 recommendations
+                    - generic [ref=e1145]:
+                      - button "Details" [ref=e1146] [cursor=pointer]:
+                        - img [ref=e1147]
+                        - text: Details
+                      - button "Trace" [ref=e1150] [cursor=pointer]:
+                        - img [ref=e1151]
+                        - text: Trace
+                  - article [ref=e1154]:
+                    - generic [ref=e1155]:
+                      - img [ref=e1157]
+                      - generic [ref=e1160]: Completed
+                    - heading "Bid Optimization Agent" [level=3] [ref=e1161]
+                    - paragraph [ref=e1162]: "Role: Decision"
+                    - paragraph [ref=e1163]: Generates exact bid change recommendations with current bid, recommended bid, change percent, risk level, and evidence. Outputs increase_bid, decrease_bid, and set_bid actions with full evidence scoring.
+                    - generic [ref=e1165]:
+                      - paragraph [ref=e1166]: Current task
+                      - paragraph [ref=e1167]: Recommend bid increase/decrease with evidence
+                    - generic [ref=e1169]: 3833 recommendations
+                    - generic [ref=e1170]:
+                      - button "Details" [ref=e1171] [cursor=pointer]:
+                        - img [ref=e1172]
+                        - text: Details
+                      - button "Trace" [ref=e1175] [cursor=pointer]:
+                        - img [ref=e1176]
+                        - text: Trace
+                  - article [ref=e1179]:
+                    - generic [ref=e1180]:
+                      - img [ref=e1182]
+                      - generic [ref=e1185]: Completed
+                    - heading "Negative Keyword Agent" [level=3] [ref=e1186]
+                    - paragraph [ref=e1187]: "Role: Decision"
+                    - paragraph [ref=e1188]: Reviews wasted search terms and generates negative exact/phrase recommendations with evidence thresholds, converting-term protection, and strategy-aware logic.
+                    - generic [ref=e1190]:
+                      - paragraph [ref=e1191]: Current task
+                      - paragraph [ref=e1192]: Recommend negative exact/phrase candidates
+                    - generic [ref=e1194]: 3833 recommendations
+                    - generic [ref=e1195]:
+                      - button "Details" [ref=e1196] [cursor=pointer]:
+                        - img [ref=e1197]
+                        - text: Details
+                      - button "Trace" [ref=e1200] [cursor=pointer]:
+                        - img [ref=e1201]
+                        - text: Trace
+                  - article [ref=e1204]:
+                    - generic [ref=e1205]:
+                      - img [ref=e1207]
+                      - generic [ref=e1210]: Idle
+                    - heading "Budget Reallocation Agent" [level=3] [ref=e1211]
+                    - paragraph [ref=e1212]: "Role: Decision"
+                    - paragraph [ref=e1213]: "Analyzes campaigns across portfolio: out-of-budget-but-profitable, spending-but-unprofitable, no impressions, strong ROAS with limited budget, discovery campaigns that should stay capped. Recommends budget shifts between campaigns."
+                    - generic [ref=e1215]:
+                      - paragraph [ref=e1216]: Current task
+                      - paragraph [ref=e1217]: Recommend budget shifts across campaigns
+                    - generic [ref=e1219]: 0 recommendations
+                    - generic [ref=e1220]:
+                      - button "Details" [ref=e1221] [cursor=pointer]:
+                        - img [ref=e1222]
+                        - text: Details
+                      - button "Trace" [ref=e1225] [cursor=pointer]:
+                        - img [ref=e1226]
+                        - text: Trace
+                  - article [ref=e1229]:
+                    - generic [ref=e1230]:
+                      - img [ref=e1232]
+                      - generic [ref=e1235]: Idle
+                    - heading "Campaign Structure Agent" [level=3] [ref=e1236]
+                    - paragraph [ref=e1237]: "Role: Decision"
+                    - paragraph [ref=e1238]: "Recommends structural changes: move converting search terms to exact, create isolated exact campaigns for hero terms, separate branded/non-branded, separate competitor targeting, separate product from keyword targeting, separate launch from profit campaigns, separate high/low margin products."
+                    - generic [ref=e1240]:
+                      - paragraph [ref=e1241]: Current task
+                      - paragraph [ref=e1242]: Recommend structural campaign changes
+                    - generic [ref=e1244]: 0 recommendations
+                    - generic [ref=e1245]:
+                      - button "Details" [ref=e1246] [cursor=pointer]:
+                        - img [ref=e1247]
+                        - text: Details
+                      - button "Trace" [ref=e1250] [cursor=pointer]:
+                        - img [ref=e1251]
+                        - text: Trace
+                  - article [ref=e1254]:
+                    - generic [ref=e1255]:
+                      - img [ref=e1257]
+                      - generic [ref=e1260]: Idle
+                    - heading "Risk & Policy Validator Agent" [level=3] [ref=e1261]
+                    - paragraph [ref=e1262]: "Role: Validation"
+                    - paragraph [ref=e1263]: "Rejects unsafe actions: bid increase above max, budget increase above limit, negative keyword on converting term, pause with too little data, duplicate bulk actions, conflicting actions on same target, recommendation without evidence, low sample size recommendations, strategy violations. Deterministic validation with AI only explaining risk."
+                    - generic [ref=e1265]:
+                      - paragraph [ref=e1266]: Current task
+                      - paragraph [ref=e1267]: Validate every recommendation against safety rules
+                    - generic [ref=e1269]: 0 recommendations
+                    - generic [ref=e1270]:
+                      - button "Details" [ref=e1271] [cursor=pointer]:
+                        - img [ref=e1272]
+                        - text: Details
+                      - button "Trace" [ref=e1275] [cursor=pointer]:
+                        - img [ref=e1276]
+                        - text: Trace
+                  - article [ref=e1279]:
+                    - generic [ref=e1280]:
+                      - img [ref=e1282]
+                      - generic [ref=e1286]: Idle
+                    - heading "Human Approval Agent" [level=3] [ref=e1287]
+                    - paragraph [ref=e1288]: "Role: Approval"
+                    - paragraph [ref=e1289]: Routes validated recommendations to the approval queue. Prevents automatic approval or live ad mutation. Every customer-impacting action requires explicit human approval record with audit trail.
+                    - generic [ref=e1291]:
+                      - paragraph [ref=e1292]: Current task
+                      - paragraph [ref=e1293]: Route recommendations to approval queue
+                    - generic [ref=e1295]: 0 recommendations
+                    - generic [ref=e1296]:
+                      - button "Details" [ref=e1297] [cursor=pointer]:
+                        - img [ref=e1298]
+                        - text: Details
+                      - button "Trace" [ref=e1301] [cursor=pointer]:
+                        - img [ref=e1302]
+                        - text: Trace
+                  - article [ref=e1305]:
+                    - generic [ref=e1306]:
+                      - img [ref=e1308]
+                      - generic [ref=e1311]: Idle
+                    - heading "Bulk Change Compiler Agent" [level=3] [ref=e1312]
+                    - paragraph [ref=e1313]: "Role: Export"
+                    - paragraph [ref=e1314]: Generates approved changes table, rejected changes table, Amazon bulk upload file, human-readable change summary, audit log, before/after comparison, and rollback reference from approved recommendations.
+                    - generic [ref=e1316]:
+                      - paragraph [ref=e1317]: Current task
+                      - paragraph [ref=e1318]: Compile approved changes into Amazon bulk export
+                    - generic [ref=e1320]: 0 recommendations
+                    - generic [ref=e1321]:
+                      - button "Details" [ref=e1322] [cursor=pointer]:
+                        - img [ref=e1323]
+                        - text: Details
+                      - button "Trace" [ref=e1326] [cursor=pointer]:
+                        - img [ref=e1327]
+                        - text: Trace
+                  - article [ref=e1330]:
+                    - generic [ref=e1331]:
+                      - img [ref=e1333]
+                      - generic [ref=e1336]: Idle
+                    - heading "Learning & Feedback Agent" [level=3] [ref=e1337]
+                    - paragraph [ref=e1338]: "Role: Analysis"
+                    - paragraph [ref=e1339]: Compares previous recommendations with current report data. Tracks whether implemented changes improved metrics. Builds optimization memory over time. Adjusts rule confidence based on outcome history. Turns the app from a static analyzer into a real optimization system.
+                    - generic [ref=e1341]:
+                      - paragraph [ref=e1342]: Current task
+                      - paragraph [ref=e1343]: Compare prior recommendations with new metrics
+                    - generic [ref=e1345]: 0 recommendations
+                    - generic [ref=e1346]:
+                      - button "Details" [ref=e1347] [cursor=pointer]:
+                        - img [ref=e1348]
+                        - text: Details
+                      - button "Trace" [ref=e1351] [cursor=pointer]:
+                        - img [ref=e1352]
+                        - text: Trace
+                  - article [ref=e1355]:
+                    - generic [ref=e1356]:
+                      - img [ref=e1358]
+                      - generic [ref=e1361]: Completed
+                    - heading "Stakeholder Reporting Agent" [level=3] [ref=e1362]
+                    - paragraph [ref=e1363]: "Role: Reporting"
+                    - paragraph [ref=e1364]: "Creates dashboard summaries, executive summaries, next-best actions, and approver notes for owners, analysts, and approvers. Includes optimization impact metrics: total spend analyzed, wasted spend detected, estimated savings, recommendation counts by type."
+                    - generic [ref=e1366]:
+                      - paragraph [ref=e1367]: Current task
+                      - paragraph [ref=e1368]: Create summaries and approver notes
+                    - generic [ref=e1370]: 3833 recommendations
+                    - generic [ref=e1371]:
+                      - button "Details" [ref=e1372] [cursor=pointer]:
+                        - img [ref=e1373]
+                        - text: Details
+                      - button "Trace" [ref=e1376] [cursor=pointer]:
+                        - img [ref=e1377]
+                        - text: Trace
+              - generic [ref=e143]:
+                - generic [ref=e144]:
+                  - generic [ref=e145]:
+                    - paragraph [ref=e146]: Human Approval Checkpoints
+                    - heading "248 recommendations waiting approval" [level=2] [ref=e434]
+                  - generic [ref=e148]:
+                    - generic [ref=e149]: 30 high priority
+                    - generic [ref=e150]: 78 risky actions
+                    - generic [ref=e151]: Requires human approval
+                    - generic [ref=e152]: AI confidence visible
+                - generic [ref=e153]:
+                  - article [ref=e435]:
+                    - generic [ref=e436]:
+                      - generic [ref=e437]:
+                        - img [ref=e438]
+                        - text: Recommendation
+                      - generic [ref=e441]:
+                        - img [ref=e442]
+                        - text: "Priority: Critical"
+                      - generic [ref=e444]: "Confidence: High"
+                    - heading "Data Quality Review" [level=3] [ref=e445]
+                    - paragraph [ref=e446]: BAK_APRQ8M727206_parent 1
+                    - generic [ref=e447]:
+                      - img [ref=e448]
+                      - text: Resolve data quality issue
+                    - paragraph [ref=e450]: This row needs review because reported metrics do not match expected Amazon Ads calculations or required context.
+                    - generic [ref=e451]:
+                      - 'generic "Impressions: 54" [ref=e452]':
+                        - generic [ref=e453]: Impressions
+                        - generic [ref=e454]: "54"
+                      - 'generic "Clicks: 3" [ref=e455]':
+                        - generic [ref=e456]: Clicks
+                        - generic [ref=e457]: "3"
+                      - 'generic "Spend: $2.43" [ref=e458]':
+                        - generic [ref=e459]: Spend
+                        - generic [ref=e460]: $2.43
+                      - 'generic "Sales: $39.96" [ref=e461]':
+                        - generic [ref=e462]: Sales
+                        - generic [ref=e463]: $39.96
+                      - 'generic "Orders: 4" [ref=e464]':
+                        - generic [ref=e465]: Orders
+                        - generic [ref=e466]: "4"
+                      - 'generic "Units: 4" [ref=e467]':
+                        - generic [ref=e468]: Units
+                        - generic [ref=e469]: "4"
+                    - generic [ref=e471]:
+                      - img [ref=e472]
+                      - generic [ref=e474]: Generated by deterministic rules from uploaded report metrics.
+                    - generic [ref=e475]:
+                      - img [ref=e476]
+                      - text: Approving this recommendation adds it to your approved export/review list. It will not change Amazon Ads automatically.
+                    - button "View advanced details IDs, source, thresholds" [ref=e480] [cursor=pointer]:
+                      - generic [ref=e481]:
+                        - img [ref=e482]
+                        - text: View advanced details
+                      - generic [ref=e484]: IDs, source, thresholds
+                    - generic [ref=e485]:
+                      - button "Approve recommendation" [ref=e486] [cursor=pointer]:
+                        - img [ref=e487]
+                        - text: Approve recommendation
+                      - button "Reject recommendation" [ref=e490] [cursor=pointer]:
+                        - img [ref=e491]
+                        - text: Reject recommendation
+                  - article [ref=e493]:
+                    - generic [ref=e494]:
+                      - generic [ref=e495]:
+                        - img [ref=e496]
+                        - text: Recommendation
+                      - generic [ref=e499]:
+                        - img [ref=e500]
+                        - text: "Priority: Critical"
+                      - generic [ref=e502]: "Confidence: High"
+                    - heading "Data Quality Review" [level=3] [ref=e503]
+                    - paragraph [ref=e504]: WATM_P_APRQ8M752664_best sellers_251125224512
+                    - generic [ref=e505]:
+                      - img [ref=e506]
+                      - text: Resolve data quality issue
+                    - paragraph [ref=e508]: This row needs review because reported metrics do not match expected Amazon Ads calculations or required context.
+                    - generic [ref=e509]:
+                      - 'generic "Impressions: 1" [ref=e510]':
+                        - generic [ref=e511]: Impressions
+                        - generic [ref=e512]: "1"
+                      - 'generic "Clicks: 1" [ref=e513]':
+                        - generic [ref=e514]: Clicks
+                        - generic [ref=e515]: "1"
+                      - 'generic "Spend: $0.24" [ref=e516]':
+                        - generic [ref=e517]: Spend
+                        - generic [ref=e518]: $0.24
+                      - 'generic "Sales: $95.97" [ref=e519]':
+                        - generic [ref=e520]: Sales
+                        - generic [ref=e521]: $95.97
+                      - 'generic "Orders: 3" [ref=e522]':
+                        - generic [ref=e523]: Orders
+                        - generic [ref=e524]: "3"
+                      - 'generic "Units: 3" [ref=e525]':
+                        - generic [ref=e526]: Units
+                        - generic [ref=e527]: "3"
+                    - generic [ref=e529]:
+                      - img [ref=e530]
+                      - generic [ref=e532]: Generated by deterministic rules from uploaded report metrics.
+                    - generic [ref=e533]:
+                      - img [ref=e534]
+                      - text: Approving this recommendation adds it to your approved export/review list. It will not change Amazon Ads automatically.
+                    - button "View advanced details IDs, source, thresholds" [ref=e538] [cursor=pointer]:
+                      - generic [ref=e539]:
+                        - img [ref=e540]
+                        - text: View advanced details
+                      - generic [ref=e542]: IDs, source, thresholds
+                    - generic [ref=e543]:
+                      - button "Approve recommendation" [ref=e544] [cursor=pointer]:
+                        - img [ref=e545]
+                        - text: Approve recommendation
+                      - button "Reject recommendation" [ref=e548] [cursor=pointer]:
+                        - img [ref=e549]
+                        - text: Reject recommendation
+                  - article [ref=e551]:
+                    - generic [ref=e552]:
+                      - generic [ref=e553]:
+                        - img [ref=e554]
+                        - text: Recommendation
+                      - generic [ref=e557]:
+                        - img [ref=e558]
+                        - text: "Priority: Critical"
+                      - generic [ref=e560]: "Confidence: High"
+                    - heading "Data Quality Review" [level=3] [ref=e561]
+                    - paragraph [ref=e562]: BA_APRQ8M752664_slow movers
+                    - generic [ref=e563]:
+                      - img [ref=e564]
+                      - text: Resolve data quality issue
+                    - paragraph [ref=e566]: This row needs review because reported metrics do not match expected Amazon Ads calculations or required context.
+                    - generic [ref=e567]:
+                      - 'generic "Impressions: 5" [ref=e568]':
+                        - generic [ref=e569]: Impressions
+                        - generic [ref=e570]: "5"
+                      - 'generic "Clicks: 1" [ref=e571]':
+                        - generic [ref=e572]: Clicks
+                        - generic [ref=e573]: "1"
+                      - 'generic "Spend: $0.34" [ref=e574]':
+                        - generic [ref=e575]: Spend
+                        - generic [ref=e576]: $0.34
+                      - 'generic "Sales: $21.98" [ref=e577]':
+                        - generic [ref=e578]: Sales
+                        - generic [ref=e579]: $21.98
+                      - 'generic "Orders: 2" [ref=e580]':
+                        - generic [ref=e581]: Orders
+                        - generic [ref=e582]: "2"
+                      - 'generic "Units: 2" [ref=e583]':
+                        - generic [ref=e584]: Units
+                        - generic [ref=e585]: "2"
+                    - generic [ref=e587]:
+                      - img [ref=e588]
+                      - generic [ref=e590]: Generated by deterministic rules from uploaded report metrics.
+                    - generic [ref=e591]:
+                      - img [ref=e592]
+                      - text: Approving this recommendation adds it to your approved export/review list. It will not change Amazon Ads automatically.
+                    - button "View advanced details IDs, source, thresholds" [ref=e596] [cursor=pointer]:
+                      - generic [ref=e597]:
+                        - img [ref=e598]
+                        - text: View advanced details
+                      - generic [ref=e600]: IDs, source, thresholds
+                    - generic [ref=e601]:
+                      - button "Approve recommendation" [ref=e602] [cursor=pointer]:
+                        - img [ref=e603]
+                        - text: Approve recommendation
+                      - button "Reject recommendation" [ref=e606] [cursor=pointer]:
+                        - img [ref=e607]
+                        - text: Reject recommendation
+                  - article [ref=e609]:
+                    - generic [ref=e610]:
+                      - generic [ref=e611]:
+                        - img [ref=e612]
+                        - text: Recommendation
+                      - generic [ref=e615]:
+                        - img [ref=e616]
+                        - text: "Priority: Critical"
+                      - generic [ref=e618]: "Confidence: High"
+                    - heading "Data Quality Review" [level=3] [ref=e619]
+                    - paragraph [ref=e620]: SPT_APRQ8M752664_portfolio
+                    - generic [ref=e621]:
+                      - img [ref=e622]
+                      - text: Resolve data quality issue
+                    - paragraph [ref=e624]: This row needs review because reported metrics do not match expected Amazon Ads calculations or required context.
+                    - generic [ref=e625]:
+                      - 'generic "Impressions: 2" [ref=e626]':
+                        - generic [ref=e627]: Impressions
+                        - generic [ref=e628]: "2"
+                      - 'generic "Clicks: 1" [ref=e629]':
+                        - generic [ref=e630]: Clicks
+                        - generic [ref=e631]: "1"
+                      - 'generic "Spend: $0.97" [ref=e632]':
+                        - generic [ref=e633]: Spend
+                        - generic [ref=e634]: $0.97
+                      - 'generic "Sales: $32.98" [ref=e635]':
+                        - generic [ref=e636]: Sales
+                        - generic [ref=e637]: $32.98
+                      - 'generic "Orders: 2" [ref=e638]':
+                        - generic [ref=e639]: Orders
+                        - generic [ref=e640]: "2"
+                      - 'generic "Units: 2" [ref=e641]':
+                        - generic [ref=e642]: Units
+                        - generic [ref=e643]: "2"
+                    - generic [ref=e645]:
+                      - img [ref=e646]
+                      - generic [ref=e648]: Generated by deterministic rules from uploaded report metrics.
+                    - generic [ref=e649]:
+                      - img [ref=e650]
+                      - text: Approving this recommendation adds it to your approved export/review list. It will not change Amazon Ads automatically.
+                    - button "View advanced details IDs, source, thresholds" [ref=e654] [cursor=pointer]:
+                      - generic [ref=e655]:
+                        - img [ref=e656]
+                        - text: View advanced details
+                      - generic [ref=e658]: IDs, source, thresholds
+                    - generic [ref=e659]:
+                      - button "Approve recommendation" [ref=e660] [cursor=pointer]:
+                        - img [ref=e661]
+                        - text: Approve recommendation
+                      - button "Reject recommendation" [ref=e664] [cursor=pointer]:
+                        - img [ref=e665]
+                        - text: Reject recommendation
+              - generic [ref=e156]:
+                - generic [ref=e158]:
+                  - heading "Trace Timeline" [level=2] [ref=e159]
+                  - paragraph [ref=e160]: Execution feed across model calls, validation, fallback, and approval checkpoints.
+                - list [ref=e667]:
+                  - listitem [ref=e668]:
+                    - group [ref=e669]:
+                      - generic "Agent Succeeded Stakeholder Reporting Agent 6/6/2026, 8:10:43 AM stakeholder_reporting_agent finished with status succeeded." [ref=e670] [cursor=pointer]:
+                        - img [ref=e672]
+                        - generic [ref=e675]:
+                          - generic [ref=e676]:
+                            - generic [ref=e677]: Agent Succeeded
+                            - generic [ref=e678]: Stakeholder Reporting Agent
+                            - generic [ref=e679]: 6/6/2026, 8:10:43 AM
+                          - generic [ref=e680]: stakeholder_reporting_agent finished with status succeeded.
+                        - img [ref=e681]
+                  - listitem [ref=e683]:
+                    - group [ref=e684]:
+                      - generic "Agent Succeeded Bid Optimization Agent 6/6/2026, 8:10:43 AM pause_review_agent finished with status succeeded." [ref=e685] [cursor=pointer]:
+                        - img [ref=e687]
+                        - generic [ref=e690]:
+                          - generic [ref=e691]:
+                            - generic [ref=e692]: Agent Succeeded
+                            - generic [ref=e693]: Bid Optimization Agent
+                            - generic [ref=e694]: 6/6/2026, 8:10:43 AM
+                          - generic [ref=e695]: pause_review_agent finished with status succeeded.
+                        - img [ref=e696]
+                  - listitem [ref=e698]:
+                    - group [ref=e699]:
+                      - generic "Agent Succeeded Negative Keyword Agent 6/6/2026, 8:10:43 AM negative_keyword_agent finished with status succeeded." [ref=e700] [cursor=pointer]:
+                        - img [ref=e702]
+                        - generic [ref=e705]:
+                          - generic [ref=e706]:
+                            - generic [ref=e707]: Agent Succeeded
+                            - generic [ref=e708]: Negative Keyword Agent
+                            - generic [ref=e709]: 6/6/2026, 8:10:43 AM
+                          - generic [ref=e710]: negative_keyword_agent finished with status succeeded.
+                        - img [ref=e711]
+                  - listitem [ref=e713]:
+                    - group [ref=e714]:
+                      - generic "Agent Succeeded Bid Optimization Agent 6/6/2026, 8:10:43 AM bid_optimization_agent finished with status succeeded." [ref=e715] [cursor=pointer]:
+                        - img [ref=e717]
+                        - generic [ref=e720]:
+                          - generic [ref=e721]:
+                            - generic [ref=e722]: Agent Succeeded
+                            - generic [ref=e723]: Bid Optimization Agent
+                            - generic [ref=e724]: 6/6/2026, 8:10:43 AM
+                          - generic [ref=e725]: bid_optimization_agent finished with status succeeded.
+                        - img [ref=e726]
+                  - listitem [ref=e728]:
+                    - group [ref=e729]:
+                      - generic "Agent Succeeded Metrics Normalization Agent 6/6/2026, 8:10:43 AM metrics_analysis_agent finished with status succeeded." [ref=e730] [cursor=pointer]:
+                        - img [ref=e732]
+                        - generic [ref=e735]:
+                          - generic [ref=e736]:
+                            - generic [ref=e737]: Agent Succeeded
+                            - generic [ref=e738]: Metrics Normalization Agent
+                            - generic [ref=e739]: 6/6/2026, 8:10:43 AM
+                          - generic [ref=e740]: metrics_analysis_agent finished with status succeeded.
+                        - img [ref=e741]
+                  - listitem [ref=e743]:
+                    - group [ref=e744]:
+                      - generic "Agent Succeeded Import Data Quality Agent 6/6/2026, 8:10:43 AM performance_import_agent finished with status succeeded." [ref=e745] [cursor=pointer]:
+                        - img [ref=e747]
+                        - generic [ref=e750]:
+                          - generic [ref=e751]:
+                            - generic [ref=e752]: Agent Succeeded
+                            - generic [ref=e753]: Import Data Quality Agent
+                            - generic [ref=e754]: 6/6/2026, 8:10:43 AM
+                          - generic [ref=e755]: performance_import_agent finished with status succeeded.
+                        - img [ref=e756]
+                  - listitem [ref=e758]:
+                    - group [ref=e759]:
+                      - generic "Agent Failed Ai Recommendation Brain Agent 6/6/2026, 8:10:42 AM monitoring_recommendation_brain finished with status failed." [ref=e760] [cursor=pointer]:
+                        - img [ref=e762]
+                        - generic [ref=e764]:
+                          - generic [ref=e765]:
+                            - generic [ref=e766]: Agent Failed
+                            - generic [ref=e767]: Ai Recommendation Brain Agent
+                            - generic [ref=e768]: 6/6/2026, 8:10:42 AM
+                          - generic [ref=e769]: monitoring_recommendation_brain finished with status failed.
+                        - img [ref=e770]
+              - generic [ref=e1380]:
+                - generic [ref=e1381]:
+                  - paragraph [ref=e1382]: Agent Templates
+                  - heading "Future-ready team presets" [level=2] [ref=e1383]
+                - generic [ref=e1384]:
+                  - article [ref=e1385]:
+                    - paragraph [ref=e1386]: Conservative Profitability Team
+                    - paragraph [ref=e1387]: High confidence thresholds, strict pause/negative controls, profit-first recommendations.
+                    - button "Apply template" [ref=e1388] [cursor=pointer]
+                  - article [ref=e1389]:
+                    - paragraph [ref=e1390]: Growth Scaling Team
+                    - paragraph [ref=e1391]: Deeper analysis, scaling toggles, winner expansion, and campaign-level opportunities.
+                    - button "Apply template" [ref=e1392] [cursor=pointer]
+                  - article [ref=e1393]:
+                    - paragraph [ref=e1394]: Wasted Spend Cleanup Team
+                    - paragraph [ref=e1395]: Focuses on no-order spend, negative keywords, and pause-review candidates.
+                    - button "Apply template" [ref=e1396] [cursor=pointer]
+                  - article [ref=e1397]:
+                    - paragraph [ref=e1398]: Launch Campaign Review Team
+                    - paragraph [ref=e1399]: Protects new products with conservative evidence thresholds and data-quality checks.
+                    - button "Apply template" [ref=e1400] [cursor=pointer]
+                  - article [ref=e1401]:
+                    - paragraph [ref=e1402]: Agency Account Audit Team
+                    - paragraph [ref=e1403]: Account-wide audit view for products, campaigns, budgets, and approver summaries.
+                    - button "Apply template" [ref=e1404] [cursor=pointer]
+        - generic [ref=e164]:
+          - generic [ref=e165]:
+            - img [ref=e166]
+            - text: Recommendation only
+          - generic [ref=e169]:
+            - img [ref=e170]
+            - text: Requires human approval
+          - generic [ref=e172]:
+            - img [ref=e173]
+            - text: No live Amazon Ads change executed
+  - button "Replay tour" [ref=e176] [cursor=pointer]:
+    - img [ref=e177]
+    - text: Replay tour
+  - button "Open Next.js Dev Tools" [ref=e184] [cursor=pointer]:
+    - img [ref=e185]
+  - alert [ref=e772]
